@@ -1,0 +1,93 @@
+/manim-skill Create a 3Blue1Brown-style explainer video about how a tree (the data structure) works, focused on solving LeetCode problems.
+
+SETTINGS
+- English narration with the default Kokoro voice (af_heart).
+- 16:9 format, default iteration quality (480p, 15 fps).
+- Target length: 2:30 to 3:00 minutes.
+- Dark background. Palette: nodes in blue, root in yellow, leaves in green, active node highlighted in orange, edges in light gray.
+- A node = a circle with its value inside. Edges are drawn from parent to child. Keep the same example tree throughout the whole video so the viewer never gets lost.
+
+EXAMPLE TREE (binary search tree)
+        8
+      /   \
+     3     10
+    / \      \
+   1   6      14
+      / \    /
+     4   7  13
+
+SCENES AND NARRATION
+Use these lines as the basis for narration.txt (you may adjust the wording so it sounds natural, but keep the content and the order).
+
+Scene 1 - Introduction
+- Visual: the title "Trees" appears. Then a list of numbers drops in as a row and rearranges itself into a tree shape.
+- Narration:
+  - A list stores data one item after another. But many problems need a different way to organize information.
+  - A tree organizes data in levels, like a company org chart or the folders on your computer.
+
+Scene 2 - Anatomy of a tree
+- Visual: build the example tree node by node. Label with arrows: root (8), parent and children (3 with 1 and 6), leaves (1, 4, 7, 13), edge. Highlight a subtree (the one rooted at 6) with an outline.
+- Narration:
+  - Each element is a node, and each connection between nodes is an edge.
+  - The node at the top is the root. Every node can have children, and nodes with no children are called leaves.
+  - Any node, together with all of its descendants, forms a subtree. This idea is the key to everything that follows.
+
+Scene 3 - Depth and height
+- Visual: number the levels 0, 1, 2, 3 on the left with dashed horizontal lines. Mark the longest path from the root to a leaf (8, 10, 14, 13).
+- Narration:
+  - The depth of a node is how many edges separate it from the root.
+  - The height of the tree is the longest path from the root down to a leaf. Here, the height is three.
+
+Scene 4 - Binary search tree
+- Visual: show the rule "left < node < right" with MathTex. Walk through a few nodes checking the rule with green check marks. Then animate a search for 7: the orange highlight moves down 8, 3, 6, 7, showing the comparison at each step (7 < 8, 7 > 3, 7 > 6).
+- Narration:
+  - In a binary tree, every node has at most two children. If everything on the left is smaller and everything on the right is larger, we have a binary search tree.
+  - To find seven, we compare at each node. Less than eight, go left. Greater than three, go right. Greater than six, go right. Found it.
+  - At every step we discard half of the tree. That is why searching costs log n in a balanced tree.
+
+Scene 5 - When the tree degenerates
+- Visual: insert 1, 2, 3, 4, 5 in order into an empty tree; it forms a diagonal line. Show "O(log n)" next to "O(n)".
+- Narration:
+  - But if we insert data that is already sorted, the tree turns into a line, and searching takes n steps again.
+  - That is why self-balancing trees exist, like AVL trees and red-black trees.
+
+Scene 6 - Traversals
+- Visual: return to the example tree. Animate four traversals, one after another; the visited node lights up and its value is appended to a list at the bottom:
+  - Preorder: 8, 3, 1, 6, 4, 7, 10, 14, 13
+  - Inorder: 1, 3, 4, 6, 7, 8, 10, 13, 14 (emphasize that it comes out sorted)
+  - Postorder: 1, 4, 7, 6, 3, 13, 14, 10, 8
+  - Level order (BFS): 8, 3, 10, 1, 6, 14, 4, 7, 13 (show a queue on the right)
+- Narration:
+  - Traversing a tree means visiting all of its nodes. There are four classic ways to do it.
+  - In preorder, we visit the node first and then its children. In postorder, the children first and the node last.
+  - In inorder, we visit left, node, right. In a binary search tree, this gives us the values in sorted order.
+  - In level order, we use a queue and visit the tree one floor at a time. This is breadth-first search.
+
+Scene 7 - Recursion and LeetCode
+- Visual: on the left, the TreeNode class and maxDepth function in Python (use Code or a monospaced text block). On the right, the example tree: animate each recursive call going down to the leaves and the depth values coming back up (1 at the leaves, then 2, 3, and 4 at the root).
+
+  class TreeNode:
+      def __init__(self, val=0, left=None, right=None):
+          self.val = val
+          self.left = left
+          self.right = right
+
+  def maxDepth(root):
+      if root is None:
+          return 0
+      return 1 + max(maxDepth(root.left), maxDepth(root.right))
+
+- Narration:
+  - On LeetCode, a tree is represented by nodes that store a value and point to their left and right child.
+  - Since every child is the root of a subtree, almost every problem is solved the same way: solve the left, solve the right, and combine.
+  - For example, the maximum depth is one plus the larger depth of its two subtrees.
+
+Scene 8 - Wrap-up
+- Visual: a summary with four bullets appearing one by one (Root, children and leaves / Search in log n / Four traversals / Think in subtrees). End with the full tree lighting up from the root down to the leaves.
+- Narration:
+  - Remember: a tree is a node with subtrees. Once you understand that, you understand recursion on trees.
+
+WHEN FINISHED
+- Verify with ffprobe that video.mp4 has both audio and video, and check a few frames to confirm there is no overlapping or off-screen text.
+- Open the viewer (video_viewer.py) and tell me the URL and the SESSION_DIR path.
+- Also copy the final video to C:\Users\aldo-\OneDrive\Documentos\CodigoAbierto\LeetSolve\Three\Three.mp4.

@@ -1,0 +1,21 @@
+subtitles:
+- A list stores data one item after another. But many problems need a different way to organize information.
+- A tree organizes data in levels, like a company org chart or the folders on your computer.
+- Each element is a node, and each connection between nodes is an edge.
+- The node at the top is the root. Every node can have children, and nodes with no children are called leaves.
+- Any node, together with all of its descendants, forms a subtree. This idea is the key to everything that follows.
+- The depth of a node is how many edges separate it from the root.
+- The height of the tree is the longest path from the root down to a leaf. Here, the height is three.
+- In a binary tree, every node has at most two children. If everything on the left is smaller and everything on the right is larger, we have a binary search tree.
+- To find seven, we compare at each node. Less than eight, go left. Greater than three, go right. Greater than six, go right. Found it.
+- At every step we discard half of the tree. That is why searching costs log n in a balanced tree.
+- But if we insert data that is already sorted, the tree turns into a line, and searching takes n steps again.
+- That is why self-balancing trees exist, like AVL trees and red-black trees.
+- Traversing a tree means visiting all of its nodes. There are four classic ways to do it.
+- In preorder, we visit the node first and then its children. In postorder, the children first and the node last.
+- In inorder, we visit left, node, right. In a binary search tree, this gives us the values in sorted order.
+- In level order, we use a queue and visit the tree one floor at a time. This is breadth-first search.
+- On LeetCode, a tree is represented by nodes that store a value and point to their left and right child.
+- Since every child is the root of a subtree, almost every problem is solved the same way: solve the left, solve the right, and combine.
+- For example, the maximum depth is one plus the larger depth of its two subtrees.
+- Remember: a tree is a node with subtrees. Once you understand that, you understand recursion on trees.

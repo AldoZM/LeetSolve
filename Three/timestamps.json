@@ -1,0 +1,145 @@
+{
+  "total_duration_s": 134.401,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "A list stores data one item after another. But many problems need a different way to organize information.",
+      "start_s": 0.0,
+      "end_s": 7.15,
+      "duration_s": 7.15
+    },
+    {
+      "index": 1,
+      "text": "A tree organizes data in levels, like a company org chart or the folders on your computer.",
+      "start_s": 7.15,
+      "end_s": 13.475,
+      "duration_s": 6.325
+    },
+    {
+      "index": 2,
+      "text": "Each element is a node, and each connection between nodes is an edge.",
+      "start_s": 13.475,
+      "end_s": 17.975,
+      "duration_s": 4.5
+    },
+    {
+      "index": 3,
+      "text": "The node at the top is the root. Every node can have children, and nodes with no children are called leaves.",
+      "start_s": 17.975,
+      "end_s": 24.8,
+      "duration_s": 6.825
+    },
+    {
+      "index": 4,
+      "text": "Any node, together with all of its descendants, forms a subtree. This idea is the key to everything that follows.",
+      "start_s": 24.8,
+      "end_s": 32.25,
+      "duration_s": 7.45
+    },
+    {
+      "index": 5,
+      "text": "The depth of a node is how many edges separate it from the root.",
+      "start_s": 32.25,
+      "end_s": 36.25,
+      "duration_s": 4.0
+    },
+    {
+      "index": 6,
+      "text": "The height of the tree is the longest path from the root down to a leaf. Here, the height is three.",
+      "start_s": 36.25,
+      "end_s": 42.075,
+      "duration_s": 5.825
+    },
+    {
+      "index": 7,
+      "text": "In a binary tree, every node has at most two children. If everything on the left is smaller and everything on the right is larger, we have a binary search tree.",
+      "start_s": 42.075,
+      "end_s": 52.475,
+      "duration_s": 10.4
+    },
+    {
+      "index": 8,
+      "text": "To find seven, we compare at each node. Less than eight, go left. Greater than three, go right. Greater than six, go right. Found it.",
+      "start_s": 52.475,
+      "end_s": 61.025,
+      "duration_s": 8.55
+    },
+    {
+      "index": 9,
+      "text": "At every step we discard half of the tree. That is why searching costs log n in a balanced tree.",
+      "start_s": 61.025,
+      "end_s": 67.425,
+      "duration_s": 6.4
+    },
+    {
+      "index": 10,
+      "text": "But if we insert data that is already sorted, the tree turns into a line, and searching takes n steps again.",
+      "start_s": 67.425,
+      "end_s": 74.55,
+      "duration_s": 7.125
+    },
+    {
+      "index": 11,
+      "text": "That is why self-balancing trees exist, like AVL trees and red-black trees.",
+      "start_s": 74.55,
+      "end_s": 80.15,
+      "duration_s": 5.6
+    },
+    {
+      "index": 12,
+      "text": "Traversing a tree means visiting all of its nodes. There are four classic ways to do it.",
+      "start_s": 80.15,
+      "end_s": 85.85,
+      "duration_s": 5.7
+    },
+    {
+      "index": 13,
+      "text": "In preorder, we visit the node first and then its children. In postorder, the children first and the node last.",
+      "start_s": 85.85,
+      "end_s": 93.125,
+      "duration_s": 7.275
+    },
+    {
+      "index": 14,
+      "text": "In inorder, we visit left, node, right. In a binary search tree, this gives us the values in sorted order.",
+      "start_s": 93.125,
+      "end_s": 100.351,
+      "duration_s": 7.226
+    },
+    {
+      "index": 15,
+      "text": "In level order, we use a queue and visit the tree one floor at a time. This is breadth-first search.",
+      "start_s": 100.351,
+      "end_s": 106.851,
+      "duration_s": 6.5
+    },
+    {
+      "index": 16,
+      "text": "On LeetCode, a tree is represented by nodes that store a value and point to their left and right child.",
+      "start_s": 106.851,
+      "end_s": 113.601,
+      "duration_s": 6.75
+    },
+    {
+      "index": 17,
+      "text": "Since every child is the root of a subtree, almost every problem is solved the same way: solve the left, solve the right, and combine.",
+      "start_s": 113.601,
+      "end_s": 122.176,
+      "duration_s": 8.575
+    },
+    {
+      "index": 18,
+      "text": "For example, the maximum depth is one plus the larger depth of its two subtrees.",
+      "start_s": 122.176,
+      "end_s": 127.676,
+      "duration_s": 5.5
+    },
+    {
+      "index": 19,
+      "text": "Remember: a tree is a node with subtrees. Once you understand that, you understand recursion on trees.",
+      "start_s": 127.676,
+      "end_s": 134.401,
+      "duration_s": 6.725
+    }
+  ]
+}

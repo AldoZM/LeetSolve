@@ -1,0 +1,8 @@
+file 'media/videos/script/854p15/Scene1_Introduction.mp4'
+file 'media/videos/script/854p15/Scene2_Anatomy.mp4'
+file 'media/videos/script/854p15/Scene3_DepthHeight.mp4'
+file 'media/videos/script/854p15/Scene4_BinarySearchTree.mp4'
+file 'media/videos/script/854p15/Scene5_DegenerateTree.mp4'
+file 'media/videos/script/854p15/Scene6_Traversals.mp4'
+file 'media/videos/script/854p15/Scene7_RecursionLeetCode.mp4'
+file 'media/videos/script/854p15/Scene8_WrapUp.mp4'
