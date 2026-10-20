@@ -90,4 +90,4 @@ Scene 8 - Wrap-up
 WHEN FINISHED
 - Verify with ffprobe that video.mp4 has both audio and video, and check a few frames to confirm there is no overlapping or off-screen text.
 - Open the viewer (video_viewer.py) and tell me the URL and the SESSION_DIR path.
-- Also copy the final video to C:\Users\aldo-\OneDrive\Documentos\CodigoAbierto\LeetSolve\Three\Three.mp4.
+- Also copy the final video to Three.mp4 in the same folder as this file.
