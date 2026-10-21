@@ -1,0 +1,145 @@
+{
+  "total_duration_s": 91.55,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Longest Common Prefix, Minecraft edition. LeetCode problem number fourteen, an easy one.",
+      "start_s": 0.0,
+      "end_s": 6.65,
+      "duration_s": 6.65
+    },
+    {
+      "index": 1,
+      "text": "We get a list of words. Here, diamond, diorite and dirt.",
+      "start_s": 6.65,
+      "end_s": 10.675,
+      "duration_s": 4.025
+    },
+    {
+      "index": 2,
+      "text": "Find the longest start that every word shares. Here it's d i.",
+      "start_s": 10.675,
+      "end_s": 14.85,
+      "duration_s": 4.175
+    },
+    {
+      "index": 3,
+      "text": "The first idea is to try every prefix of the first word, from the longest down.",
+      "start_s": 14.85,
+      "end_s": 20.2,
+      "duration_s": 5.35
+    },
+    {
+      "index": 4,
+      "text": "Is diamond a prefix of every word? No. Is diamon? No. Diamo? No. And so on.",
+      "start_s": 20.2,
+      "end_s": 26.5,
+      "duration_s": 6.3
+    },
+    {
+      "index": 5,
+      "text": "Each try reads every word again, from the very start.",
+      "start_s": 26.5,
+      "end_s": 30.15,
+      "duration_s": 3.65
+    },
+    {
+      "index": 6,
+      "text": "For long words, the same letters get compared over and over.",
+      "start_s": 30.15,
+      "end_s": 34.225,
+      "duration_s": 4.075
+    },
+    {
+      "index": 7,
+      "text": "Here's the trick. Stack the words, and read them column by column. A vertical scan.",
+      "start_s": 34.225,
+      "end_s": 39.575,
+      "duration_s": 5.35
+    },
+    {
+      "index": 8,
+      "text": "The first column where the letters differ, or a word runs out, is where the prefix ends.",
+      "start_s": 39.575,
+      "end_s": 44.975,
+      "duration_s": 5.4
+    },
+    {
+      "index": 9,
+      "text": "Each word is a row of blocks. We scan the columns from left to right.",
+      "start_s": 44.975,
+      "end_s": 49.45,
+      "duration_s": 4.475
+    },
+    {
+      "index": 10,
+      "text": "Column zero. Diamond has d, diorite has d, dirt has d. All match.",
+      "start_s": 49.45,
+      "end_s": 54.475,
+      "duration_s": 5.025
+    },
+    {
+      "index": 11,
+      "text": "Column one. I, i and i. Still the same. The prefix grows to d i.",
+      "start_s": 54.475,
+      "end_s": 59.15,
+      "duration_s": 4.675
+    },
+    {
+      "index": 12,
+      "text": "Column two. Diamond has a, but diorite has o. They differ!",
+      "start_s": 59.15,
+      "end_s": 63.325,
+      "duration_s": 4.175
+    },
+    {
+      "index": 13,
+      "text": "We stop right there. The rest of the letters are never read.",
+      "start_s": 63.325,
+      "end_s": 67.05,
+      "duration_s": 3.725
+    },
+    {
+      "index": 14,
+      "text": "We return the first two letters of the first word.",
+      "start_s": 67.05,
+      "end_s": 70.2,
+      "duration_s": 3.15
+    },
+    {
+      "index": 15,
+      "text": "Advancement made. The longest common prefix is d i.",
+      "start_s": 70.2,
+      "end_s": 74.25,
+      "duration_s": 4.05
+    },
+    {
+      "index": 16,
+      "text": "We read each letter at most once, so the time is the total number of letters.",
+      "start_s": 74.25,
+      "end_s": 79.275,
+      "duration_s": 5.025
+    },
+    {
+      "index": 17,
+      "text": "And we only keep one index, so the extra memory is constant.",
+      "start_s": 79.275,
+      "end_s": 83.55,
+      "duration_s": 4.275
+    },
+    {
+      "index": 18,
+      "text": "Two loops, one comparison, and an early exit.",
+      "start_s": 83.55,
+      "end_s": 86.975,
+      "duration_s": 3.425
+    },
+    {
+      "index": 19,
+      "text": "Read in columns, and stop at the first mismatch. That's the whole idea.",
+      "start_s": 86.975,
+      "end_s": 91.55,
+      "duration_s": 4.575
+    }
+  ]
+}

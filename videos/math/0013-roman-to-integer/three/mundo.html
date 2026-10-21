@@ -1,0 +1,144 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import { THREE, prog, easeInOut, easeOut, easeOutBack, lerp, V, pose } from '/vendor/lib/stage.js';
+import { MC, makeBlock, makeFrame, pixelSprite, makeOrb } from '/vendor/tema/mc.js';
+import { makeScene } from '/vendor/tema/escena.js';
+
+const walk = await (await fetch('/walk.json')).json();
+// One clip for the whole video: times are absolute. The walk happens in [W0, W1]
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const seg = (i) => subs[i].start_s;
+const TOTAL = subs[subs.length - 1].end_s;
+const W0 = seg(walk.first), W1 = subs[walk.last].end_s;
+const at = (spec) => seg(spec[0]) + spec[1];
+
+// The village of ClaudeEntorno, looking toward its market stalls: houses, the iron golem, cats and villagers at work
+const sc = await makeScene({
+  map: 'claude_aldea', turn: 3 * Math.PI / 2, total: TOTAL, W0, W1, textures: walk.ores.map((o) => `${o}_ore`),
+  mobs: { jobs: ['farmer', 'librarian', 'armorer', 'cleric', 'fisherman', 'shepherd', 'toolsmith', 'butcher'],
+          extra: [{ id: 'villager', x: -7.5, z: -6, profession: 'cartographer' }, { id: 'cat', x: 8, z: -5, variant: 'tabby' },
+                  { id: 'chicken', x: 10, z: -9 }, { id: 'chicken', x: 11, z: -8 }] },
+});
+const { stage, imgs, onTop } = sc;
+
+const steps = walk.steps.map((s) => ({ ...s, visitT: at(s.visit), peekT: at(s.peek), verdictT: at(s.verdict) }));
+const T = { row: at(walk.intro_row), toast: at(walk.toast), answer: at(walk.answer) };
+const N = walk.syms.length;
+const SP = 1.2;
+const bx = (i) => (i - (N - 1) / 2) * SP;
+
+// The numeral: one ore block per symbol, its value printed below
+const blocks = walk.syms.map((c, i) => { const b = makeBlock(imgs, `${walk.ores[i]}_ore`, { label: c }); stage.add(b.g); return b; });
+const vals = walk.vals.map((v, i) => {
+  const s = onTop(pixelSprite(String(v), MC.gray, 0.42));
+  s.position.set(bx(i), 0.28, 1.25);
+  stage.add(s);
+  return s;
+});
+// Cursor on the symbol being read, and the aqua outline on the one we peek at
+const frame = makeFrame();
+const peek = makeFrame(1.05, 0.04, MC.aqua);
+stage.add(frame, peek);
+// Per step: the comparison sign between the two blocks and the signed value that rises from the block
+const marks = steps.map((s) => {
+  const next = s.i + 1 < N;
+  const cmp = next ? onTop(pixelSprite(s.sub ? '<' : '>', s.sub ? MC.aqua : MC.white, 0.6)) : null;
+  const val = onTop(pixelSprite(`${s.sub ? '-' : '+'}${s.v}`, s.sub ? MC.red : MC.green, 0.55));
+  if (cmp) stage.add(cmp);
+  stage.add(val);
+  return { s, cmp, val };
+});
+const goldFrames = blocks.map(() => { const f = makeFrame(1.06, 0.045, MC.gold); stage.add(f); return f; });
+
+let seed = 13;
+const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+// A few orbs for every added symbol, and a burst from the whole row at the end
+const orbs = [];
+for (const s of steps) {
+  const n = s.sub ? 0 : 5;
+  for (let k = 0; k < n; k++) orbs.push({ t0: s.verdictT + 0.05 * k, x: bx(s.i), vx: (rnd() - 0.5) * 1.6, vy: 2.4 + rnd() * 1.6, vz: (rnd() - 0.3) * 1.4 });
+}
+for (let k = 0; k < 28; k++) orbs.push({ t0: T.toast + rnd() * 0.5, x: bx(k % N), vx: (rnd() - 0.5) * 2.4, vy: 2.6 + rnd() * 2.2, vz: (rnd() - 0.3) * 2.0 });
+orbs.forEach((o, k) => { o.sp = onTop(makeOrb(imgs, 0.32, [1, 2, 4, 5, 6][k % 5])); stage.add(o.sp); });
+
+function cursorX(t) {
+  let x = bx(0);
+  for (const s of steps) x = lerp(x, bx(s.i), easeInOut(prog(t, s.visitT - 0.28, s.visitT)));
+  return x;
+}
+
+function renderAt(t) {
+  const push = easeInOut(prog(t, T.toast - 0.3, T.toast + 0.8));
+  const sway = 0.5 * Math.sin(t * 0.35);
+  const walkPose = pose(V(sway, lerp(7.2, 6.9, push), lerp(16.8, 16.1, push)), V(sway * 0.4, 1.6, 0.0));
+
+  blocks.forEach((b, i) => {
+    const d = prog(t, T.row + 0.12 * i, T.row + 0.12 * i + 0.55);
+    const fall = d < 1 ? (1 - d) * (1 - d) * 4.5 : 0;
+    const s = steps[i];
+    // Subtracted symbols sink a little and stay darker; added ones hop
+    const sinkA = s.sub ? easeOut(prog(t, s.verdictT, s.verdictT + 0.35)) : 0;
+    const hop = s.sub ? 0 : 0.35 * Math.sin(Math.PI * prog(t, s.verdictT, s.verdictT + 0.4));
+    const wave = 0.35 * Math.sin(Math.PI * prog(t, T.toast + 0.1 * i, T.toast + 0.1 * i + 0.5));
+    let glow = t >= s.visitT - 0.1 && t < s.visitT + 0.35 ? 0.25 * Math.sin(Math.PI * prog(t, s.visitT - 0.1, s.visitT + 0.35)) : 0;
+    glow -= 0.35 * sinkA;
+    b.g.position.set(bx(i), 0.5 + fall + hop + wave - 0.22 * sinkA + sc.terrain.groundAt(bx(i), 0), 0);
+    b.g.visible = d > 0;
+    b.set({ glow, opacity: d > 0 ? 1 : 0 });
+    vals[i].material.opacity = prog(t, T.row + 0.4 + 0.12 * i, T.row + 0.8 + 0.12 * i);
+    vals[i].material.color.set(t > s.verdictT ? (s.sub ? MC.red : MC.green) : 0xffffff);
+    const gf = goldFrames[i];
+    const ga = prog(t, T.toast + 0.1 * i, T.toast + 0.1 * i + 0.3);
+    gf.visible = ga > 0.01;
+    gf.position.copy(b.g.position);
+    gf.userData.mat.opacity = ga;
+  });
+
+  frame.visible = t > steps[0].visitT - 0.3 && t < T.toast;
+  frame.position.set(cursorX(t), 0.5, 0);
+  // The peek outline shows from the look ahead to just after the verdict
+  let pk = null;
+  for (const s of steps) if (s.i + 1 < N && t >= s.peekT && t < s.verdictT + 0.45) pk = s;
+  peek.visible = pk !== null;
+  if (pk) peek.position.set(bx(pk.i + 1), 0.5 + 0.03 * Math.sin(t * 8), 0);
+
+  for (const { s, cmp, val } of marks) {
+    if (cmp) {
+      const end = s.i + 1 < N ? steps[s.i + 1].visitT - 0.2 : T.toast;
+      const a = easeOutBack(prog(t, s.peekT, s.peekT + 0.25)) * (1 - prog(t, end, end + 0.2));
+      cmp.visible = a > 0.01;
+      cmp.setSize(a);
+      cmp.position.set((bx(s.i) + bx(s.i + 1)) / 2, 1.35, 0);
+    }
+    const u = prog(t, s.verdictT, s.verdictT + 1.3);
+    val.visible = u > 0 && u < 1;
+    val.position.set(bx(s.i), 1.3 + 1.1 * easeOut(u), 0.2);
+    val.material.opacity = 1 - prog(u, 0.7, 1);
+  }
+
+  for (const o of orbs) {
+    const u = t - o.t0;
+    o.sp.visible = u > 0 && u < 1.5;
+    if (!o.sp.visible) continue;
+    o.sp.position.set(o.x + o.vx * u, Math.max(1.2 + o.vy * u - 4.5 * u * u, 0.1), o.vz * u);
+    o.sp.tint(t + o.t0);
+    o.sp.material.opacity = 1 - prog(u, 1.1, 1.5);
+  }
+
+  sc.frame(t, walkPose);
+}
+
+window.renderAt = renderAt;
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+subtitles:
+- Longest Common Prefix, Minecraft edition. LeetCode problem number fourteen, an easy one.
+- We get a list of words. Here, diamond, diorite and dirt.
+- Find the longest start that every word shares. Here it's d i.
+- The first idea is to try every prefix of the first word, from the longest down.
+- Is diamond a prefix of every word? No. Is diamon? No. Diamo? No. And so on.
+- Each try reads every word again, from the very start.
+- For long words, the same letters get compared over and over.
+- Here's the trick. Stack the words, and read them column by column. A vertical scan.
+- The first column where the letters differ, or a word runs out, is where the prefix ends.
+- Each word is a row of blocks. We scan the columns from left to right.
+- Column zero. Diamond has d, diorite has d, dirt has d. All match.
+- Column one. I, i and i. Still the same. The prefix grows to d i.
+- Column two. Diamond has a, but diorite has o. They differ!
+- We stop right there. The rest of the letters are never read.
+- We return the first two letters of the first word.
+- Advancement made. The longest common prefix is d i.
+- We read each letter at most once, so the time is the total number of letters.
+- And we only keep one index, so the extra memory is constant.
+- Two loops, one comparison, and an early exit.
+- Read in columns, and stop at the first mismatch. That's the whole idea.

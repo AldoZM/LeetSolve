@@ -1,0 +1,145 @@
+{
+  "total_duration_s": 112.175,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Minimum Operations to Sort a String, Minecraft edition. Today's daily problem, number thirty eight sixty three.",
+      "start_s": 0.0,
+      "end_s": 7.6,
+      "duration_s": 7.6
+    },
+    {
+      "index": 1,
+      "text": "One operation picks any piece of the string, except the whole thing, and sorts it.",
+      "start_s": 7.6,
+      "end_s": 12.7,
+      "duration_s": 5.1
+    },
+    {
+      "index": 2,
+      "text": "What's the fewest operations to sort the whole string? Or minus one, if it can't be done.",
+      "start_s": 12.7,
+      "end_s": 18.275,
+      "duration_s": 5.575
+    },
+    {
+      "index": 3,
+      "text": "The direct idea is a search. Sort every possible piece, then every piece again, level by level.",
+      "start_s": 18.275,
+      "end_s": 25.0,
+      "duration_s": 6.725
+    },
+    {
+      "index": 4,
+      "text": "A string of length n has about n squared pieces, and every sort makes a new string.",
+      "start_s": 25.0,
+      "end_s": 30.375,
+      "duration_s": 5.375
+    },
+    {
+      "index": 5,
+      "text": "Even our four letters need more than a hundred sorts to explore every string.",
+      "start_s": 30.375,
+      "end_s": 35.35,
+      "duration_s": 4.975
+    },
+    {
+      "index": 6,
+      "text": "With a hundred thousand letters, that search would never finish.",
+      "start_s": 35.35,
+      "end_s": 39.475,
+      "duration_s": 4.125
+    },
+    {
+      "index": 7,
+      "text": "Here's the trick. The answer is never more than three. We only need the smallest and the largest letter.",
+      "start_s": 39.475,
+      "end_s": 45.825,
+      "duration_s": 6.35
+    },
+    {
+      "index": 8,
+      "text": "If the smallest is already first, sort everything after it. If the largest is already last, sort everything before it. One operation.",
+      "start_s": 45.825,
+      "end_s": 54.725,
+      "duration_s": 8.9
+    },
+    {
+      "index": 9,
+      "text": "Our string is d b c a. Let's run the checks, one by one.",
+      "start_s": 54.725,
+      "end_s": 58.75,
+      "duration_s": 4.025
+    },
+    {
+      "index": 10,
+      "text": "Is it already sorted? No. Is it just two letters? No, so it can be done.",
+      "start_s": 58.75,
+      "end_s": 63.675,
+      "duration_s": 4.925
+    },
+    {
+      "index": 11,
+      "text": "Is a, the smallest, first? No. Is d, the largest, last? No. So one operation is not enough.",
+      "start_s": 63.675,
+      "end_s": 70.35,
+      "duration_s": 6.675
+    },
+    {
+      "index": 12,
+      "text": "Does a appear before the last spot? No, it's only at the end. Does d appear after the first spot? No.",
+      "start_s": 70.35,
+      "end_s": 77.125,
+      "duration_s": 6.775
+    },
+    {
+      "index": 13,
+      "text": "Both letters are stuck at the wrong ends, so the answer is three. Let's watch it happen.",
+      "start_s": 77.125,
+      "end_s": 82.35,
+      "duration_s": 5.225
+    },
+    {
+      "index": 14,
+      "text": "Sort d b c into b c d. Then sort c d a into a c d. Then sort b a c into a b c. Sorted!",
+      "start_s": 82.35,
+      "end_s": 89.975,
+      "duration_s": 7.625
+    },
+    {
+      "index": 15,
+      "text": "Advancement made. Three operations sort d b c a.",
+      "start_s": 89.975,
+      "end_s": 93.975,
+      "duration_s": 4.0
+    },
+    {
+      "index": 16,
+      "text": "We only find the smallest and the largest, and scan a few times. The time is linear.",
+      "start_s": 93.975,
+      "end_s": 99.5,
+      "duration_s": 5.525
+    },
+    {
+      "index": 17,
+      "text": "And the extra memory is constant. No search at all.",
+      "start_s": 99.5,
+      "end_s": 103.3,
+      "duration_s": 3.8
+    },
+    {
+      "index": 18,
+      "text": "A few checks, and the answer is zero, one, two, three, or minus one.",
+      "start_s": 103.3,
+      "end_s": 107.875,
+      "duration_s": 4.575
+    },
+    {
+      "index": 19,
+      "text": "Sometimes the best algorithm is a proof. Think before you search.",
+      "start_s": 107.875,
+      "end_s": 112.175,
+      "duration_s": 4.3
+    }
+  ]
+}

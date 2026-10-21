@@ -1,0 +1,145 @@
+{
+  "total_duration_s": 96.526,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Roman to Integer, Minecraft edition. LeetCode problem number thirteen, an easy one with a twist.",
+      "start_s": 0.0,
+      "end_s": 7.075,
+      "duration_s": 7.075
+    },
+    {
+      "index": 1,
+      "text": "Our row of blocks spells a Roman numeral. Each block is a symbol with a value.",
+      "start_s": 7.075,
+      "end_s": 12.125,
+      "duration_s": 5.05
+    },
+    {
+      "index": 2,
+      "text": "Turn the whole row into a normal number. Here, M C M X C I V should give nineteen ninety four.",
+      "start_s": 12.125,
+      "end_s": 18.925,
+      "duration_s": 6.8
+    },
+    {
+      "index": 3,
+      "text": "The first idea is to add up every symbol, from left to right.",
+      "start_s": 18.925,
+      "end_s": 23.05,
+      "duration_s": 4.125
+    },
+    {
+      "index": 4,
+      "text": "One thousand, plus one hundred, plus one thousand, plus ten, and so on.",
+      "start_s": 23.05,
+      "end_s": 27.95,
+      "duration_s": 4.9
+    },
+    {
+      "index": 5,
+      "text": "That gives two thousand two hundred sixteen. Wrong!",
+      "start_s": 27.95,
+      "end_s": 31.55,
+      "duration_s": 3.6
+    },
+    {
+      "index": 6,
+      "text": "Because Romans also subtract. C before M means nine hundred, not eleven hundred.",
+      "start_s": 31.55,
+      "end_s": 37.6,
+      "duration_s": 6.05
+    },
+    {
+      "index": 7,
+      "text": "Here's the trick. Look one block ahead. If the next symbol is bigger, this one is subtracted.",
+      "start_s": 37.6,
+      "end_s": 43.35,
+      "duration_s": 5.75
+    },
+    {
+      "index": 8,
+      "text": "Otherwise, it's added. One comparison per block, that's all.",
+      "start_s": 43.35,
+      "end_s": 47.45,
+      "duration_s": 4.1
+    },
+    {
+      "index": 9,
+      "text": "So we walk the row once, and our experience level keeps the running total.",
+      "start_s": 47.45,
+      "end_s": 52.175,
+      "duration_s": 4.725
+    },
+    {
+      "index": 10,
+      "text": "M is followed by C, which is smaller. Add one thousand.",
+      "start_s": 52.175,
+      "end_s": 56.35,
+      "duration_s": 4.175
+    },
+    {
+      "index": 11,
+      "text": "C is followed by M, which is bigger. Subtract one hundred.",
+      "start_s": 56.35,
+      "end_s": 60.7,
+      "duration_s": 4.35
+    },
+    {
+      "index": 12,
+      "text": "M, then X. Add one thousand. We're at nineteen hundred.",
+      "start_s": 60.7,
+      "end_s": 64.625,
+      "duration_s": 3.925
+    },
+    {
+      "index": 13,
+      "text": "X before C. Subtract ten. C before I. Add one hundred.",
+      "start_s": 64.625,
+      "end_s": 69.175,
+      "duration_s": 4.55
+    },
+    {
+      "index": 14,
+      "text": "I before V. Subtract one. And the last V has nothing after it. Add five.",
+      "start_s": 69.175,
+      "end_s": 74.601,
+      "duration_s": 5.426
+    },
+    {
+      "index": 15,
+      "text": "Advancement made. The total is nineteen ninety four.",
+      "start_s": 74.601,
+      "end_s": 78.426,
+      "duration_s": 3.825
+    },
+    {
+      "index": 16,
+      "text": "We look at each symbol once, so the time is linear in the length of the string.",
+      "start_s": 78.426,
+      "end_s": 83.001,
+      "duration_s": 4.575
+    },
+    {
+      "index": 17,
+      "text": "And we only keep one number, the total. Constant extra memory.",
+      "start_s": 83.001,
+      "end_s": 87.376,
+      "duration_s": 4.375
+    },
+    {
+      "index": 18,
+      "text": "One loop, one look ahead, and a small table of values.",
+      "start_s": 87.376,
+      "end_s": 91.201,
+      "duration_s": 3.825
+    },
+    {
+      "index": 19,
+      "text": "Smaller before bigger means subtract. That's the whole secret of Roman numerals.",
+      "start_s": 91.201,
+      "end_s": 96.526,
+      "duration_s": 5.325
+    }
+  ]
+}

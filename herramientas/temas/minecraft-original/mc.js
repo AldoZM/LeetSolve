@@ -359,7 +359,8 @@ export function makeClouds(imgs, { cell = 6, y = 16, x0 = 96, z0 = 40, nx = 36, 
 
 // Terrain exported from a real world by mundo.py: one instanced mesh per block type.
 // Block (x, y, z) relative to the export center sits at (x, y + 0.5, z): the center column's ground top is y = 0.
-export async function makeTerrain(url, { turn = 0, plot = null, clear = null } = {}) {
+// regrow: the cut of `clear` turns bare dirt back to grass (off by default, so older pages render as before)
+export async function makeTerrain(url, { turn = 0, plot = null, clear = null, regrow = false } = {}) {
   const d = await (await fetch(url)).json();
   const c = Math.cos(turn), s = Math.sin(turn);
   const inRect = (r, x, z) => {
@@ -387,7 +388,56 @@ export async function makeTerrain(url, { turn = 0, plot = null, clear = null } =
   // camera inside a dense forest sees the plot (the forest outside the rectangle stays as the background)
   if (clear) {
     const tree = /log|wood|leaves|hanging_moss|vine/;
-    d.blocks = d.blocks.filter(([x, y, z, n]) => !inRect(clear, x, z) || (y < 2 && !tree.test(d.names[n])));
+    const all = d.blocks;
+    if (!regrow) d.blocks = d.blocks.filter(([x, y, z, n]) => !inRect(clear, x, z) || (y < 2 && !tree.test(d.names[n])));
+    // regrow: the cut ground becomes a grass floor at the cut height (y = 1 at most). The export keeps only blocks near
+    // the surface, so a high column has nothing left under the cut: it is filled with dirt down to what remains
+    if (regrow) {
+      const dirt = d.names.indexOf('dirt'), grass = d.names.indexOf('grass_block');
+      const before = new Map(), after = new Map();
+      const solidTop = (map, x, y, z, n) => {
+        if (d.looks[d.names[n]].kind !== 'cube') return;
+        const key = `${x},${z}`;
+        map.set(key, Math.max(map.get(key) ?? -99, y));
+      };
+      for (const [x, y, z, n] of all) if (inRect(clear, x, z)) solidTop(before, x, y, z, n);
+      d.blocks = d.blocks.filter(([x, y, z, n]) => {
+        if (!inRect(clear, x, z)) return true;
+        const keep = y < Math.min(1, before.get(`${x},${z}`) ?? 1) || (y === Math.min(1, before.get(`${x},${z}`) ?? 1) && !tree.test(d.names[n]) && d.looks[d.names[n]].kind === 'cube');
+        if (keep) solidTop(after, x, y, z, n);
+        return keep;
+      });
+      if (grass >= 0 && dirt >= 0) for (const [key, top0] of before) {
+        const [x, z] = key.split(',').map(Number);
+        const floor = Math.min(1, top0);
+        const have = after.get(key) ?? -99;
+        for (let y = floor; y > Math.max(have, floor - 6); y--) d.blocks.push([x, y, z, y === floor ? grass : dirt]);
+        // The block at the floor turns to grass if it was bare dirt
+        if (have === floor) d.blocks.forEach((b) => { if (b[0] === x && b[2] === z && b[1] === floor && b[3] === dirt) b[3] = grass; });
+      }
+      // Seal the walls left around the plot and the cut: a column next to a lowered one shows its side down to the
+      // lowered floor, but the export only kept its blocks near the surface. Fill it with its own lowest block
+      const lowest = new Map(), topOf = new Map();
+      for (const b of d.blocks) {
+        const [x, y, z, n] = b;
+        if (d.looks[d.names[n]].kind !== 'cube') continue;
+        const key = `${x},${z}`;
+        if (!lowest.has(key) || y < lowest.get(key)[1]) lowest.set(key, [n, y]);
+        topOf.set(key, Math.max(topOf.get(key) ?? -99, y));
+      }
+      const lowered = (x, z) => inRect(clear, x, z) || (plot && inRect(plot, x, z));
+      for (const [key, [n, yl]] of lowest) {
+        const [x, z] = key.split(',').map(Number);
+        if (lowered(x, z)) continue;
+        let floor = Infinity;
+        for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          if (lowered(x + dx, z + dz)) floor = Math.min(floor, topOf.get(`${x + dx},${z + dz}`) ?? floor);
+        }
+        if (floor === Infinity) continue;
+        const fill = d.looks[d.names[n]].h || d.looks[d.names[n]].box || d.looks[d.names[n]].cutout ? dirt : n;
+        for (let y = yl - 1; y > floor && y > yl - 12; y--) d.blocks.push([x, y, z, fill]);
+      }
+    }
   }
   const dir = url.replace(/[^/]*$/, '') + 'tex/';
   const maps = {};
@@ -413,6 +463,7 @@ export async function makeTerrain(url, { turn = 0, plot = null, clear = null } =
   for (const [n, list] of byName.entries()) {
     if (!list.length) continue;
     const look = d.looks[d.names[n]];
+    if (look.kind === 'skip') continue;
     let geo, mats;
     if (look.kind === 'cross') {
       geo = cross;
@@ -425,8 +476,10 @@ export async function makeTerrain(url, { turn = 0, plot = null, clear = null } =
       const side = await map(look.side);
       const top = look.top ? await map(look.top) : side;
       const bottom = look.bottom ? await map(look.bottom) : top;
-      // Thin blocks (carpets) keep their bottom on the block's floor
-      geo = look.h ? new THREE.BoxGeometry(1, look.h, 1).translate(0, (look.h - 1) / 2, 0) : cube;
+      // Thin blocks (carpets, slabs) keep their bottom on the block's floor, or y0 above it; box = [w, h, d] for
+      // posts and panels (fences, doors)
+      const [bw, bh, bd] = look.box ?? [1, look.h ?? 1, 1];
+      geo = look.box || look.h ? new THREE.BoxGeometry(bw, bh, bd).translate(0, (bh - 1) / 2 + (look.y0 ?? 0), 0) : cube;
       mats = faceMats([side, side, top, bottom, side, side]);
       if (look.cutout) mats.forEach((mt) => { mt.transparent = false; mt.alphaTest = 0.5; mt.side = THREE.DoubleSide; });
     }
@@ -440,13 +493,27 @@ export async function makeTerrain(url, { turn = 0, plot = null, clear = null } =
   }
   // Height of the ground top at a column (for placing things on the terrain)
   const tops = new Map();
+  const highest = new Map();  // top block of any kind, to tell water from land
+  const fenced = new Set();    // columns with a fence, wall or door: mobs do not walk through them
   d.blocks.forEach(([x, y, z, n]) => {
     const look = d.looks[d.names[n]];
-    if (look.kind === 'cube' && !look.cutout && !look.h && (!tops.has(`${x},${z}`) || y + 1 > tops.get(`${x},${z}`))) tops.set(`${x},${z}`, y + 1);
+    if (look.box) fenced.add(`${x},${z}`);
+    if (look.kind === 'cube' && !look.cutout && !look.h && !look.box && (!tops.has(`${x},${z}`) || y + 1 > tops.get(`${x},${z}`))) tops.set(`${x},${z}`, y + 1);
+    if (look.kind !== 'cross' && (!highest.has(`${x},${z}`) || y >= highest.get(`${x},${z}`)[0])) highest.set(`${x},${z}`, [y, look.kind]);
   });
   // turn rotates the whole terrain around the center column; groundAt takes scene coordinates
   g.rotation.y = turn;
-  g.groundAt = (x, z) => tops.get(`${Math.round(c * x - s * z)},${Math.round(s * x + c * z)}`) ?? 0;
+  const key = (x, z) => `${Math.round(c * x - s * z)},${Math.round(s * x + c * z)}`;
+  g.groundAt = (x, z) => tops.get(key(x, z)) ?? 0;
+  g.waterAt = (x, z) => highest.get(key(x, z))?.[1] === 'water';
+  g.hasGround = (x, z) => tops.has(key(x, z));
+  g.fencedAt = (x, z) => fenced.has(key(x, z));
+  // The world's own mobs (mundo.py export), for makeMobs; terrain -> scene coordinates like inRect
+  g.mobs = (d.mobs ?? []).map((m) => {
+    const x = m.p[0] - 0.5, z = m.p[2] - 0.5;  // entity positions count from the block's corner, blocks from its center
+    return { ...m, x: c * x + s * z, z: -s * x + c * z, yaw: -m.yaw * Math.PI / 180 + turn };
+  });
+  g.radius = d.radius;
   return g;
 }
 

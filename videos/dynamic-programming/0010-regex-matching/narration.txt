@@ -1,0 +1,21 @@
+subtitles:
+- Regular Expression Matching, Minecraft edition. LeetCode problem number ten, and a hard one.
+- We get a text, a a b, and a pattern, c star a star b. Does the pattern match the whole text?
+- A dot matches any one letter. A star means zero or more copies of the letter before it.
+- The direct idea is to try every choice. Each star can match zero letters, or one more.
+- Every choice splits into two branches, and each branch keeps splitting.
+- And the same small questions get asked again and again, in different branches.
+- In the worst case, that's exponential time. Our pickaxe won't survive it.
+- Here's the trick. Every question looks the same. Does the text from position i match the pattern from position j?
+- There are only so many pairs of i and j. Answer each one once, and store it in a table. That's dynamic programming.
+- Our table is a grid of blocks. Each row is a spot in the text, each column a spot in the pattern.
+- The bottom right corner is true. An empty text matches an empty pattern.
+- We fill the grid backwards. A letter matches when both letters are equal, and the rest matches too. One step diagonal.
+- A star gives two options. Skip it, two columns to the right. Or use one letter and stay, one row down.
+- With just b left, b matches b, and both stars can be skipped. That row lights up.
+- With a b, the a star uses its a. With a a b, it uses one more. Each star cell checks only two neighbors.
+- The top left corner lights up. Advancement made. The pattern matches the whole text.
+- Each cell takes constant time, so the time is m times n.
+- The table holds m times n answers too. From exponential down to polynomial.
+- Two loops, two cases, and one table.
+- When the same question repeats, answer it once and store it. That's dynamic programming.

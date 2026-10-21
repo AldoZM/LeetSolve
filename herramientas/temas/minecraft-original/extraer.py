@@ -37,6 +37,8 @@ SOUNDS = {
     **{f'book_flip{k}': f'item/book/open_flip{k}' for k in range(1, 4)}, 'book_put': 'item/book/close_put1',
     **{f'villager_no{k}': f'mob/villager/no{k}' for k in range(1, 4)},
 }
+# Entity texture folders of the mobs mc.js can draw
+MOBS = ('villager', 'iron_golem', 'cat', 'cow', 'pig', 'sheep', 'chicken', 'wolf')
 # Background music (video.json "musica"); C418's tracks get copyright claims on YouTube, see GUIA.md
 MUSIC = {name: f'music/game/{name}' for name in (
     'subwoofer_lullaby', 'dry_hands', 'sweden', 'wet_hands', 'haggstrom', 'mice_on_venus', 'clark', 'danny',
@@ -77,6 +79,21 @@ def main():
     tint(tex('block/oak_leaves'), FOLIAGE_TINT).save(os.path.join(HERE, 'tex', 'leaves.png'))
     for name, p in GUI.items():
         tex(p).save(os.path.join(HERE, 'gui', f'{name}.png'))
+
+    # Mob skins for the background (mc.js makeMobs), keeping the game's folders: tex/mob/villager/profession/farmer.png
+    have = set(jar.namelist())
+    for path in sorted(have):
+        folder = f'{A}textures/entity/'
+        if not path.startswith(folder) or not path.endswith('.png') or path.endswith('_baby.png') or '/baby/' in path:
+            continue
+        rel = path[len(folder):]
+        if rel.split('/')[0] not in MOBS:
+            continue
+        img = Image.open(jar.open(path)).convert('RGBA')
+        if path + '.mcmeta' in have:
+            img = img.crop((0, 0, img.width, img.width))  # animated strip: first frame
+        os.makedirs(os.path.join(HERE, 'tex', 'mob', os.path.dirname(rel)), exist_ok=True)
+        img.save(os.path.join(HERE, 'tex', 'mob', rel))
 
     # Chest front for 2D icons: lid front + body front + latch, from the entity atlas (box UV layout)
     atlas = tex('entity/chest/normal')

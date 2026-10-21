@@ -1,0 +1,21 @@
+subtitles:
+- Container With Most Water, Minecraft edition. LeetCode problem number eleven, a classic.
+- We have a row of pillars, each with a height. Pick two of them as the walls of a tank.
+- The water only rises to the shorter wall. Find the pair that holds the most water.
+- The direct idea is to try every pair of walls.
+- Width times the shorter height, for each pair, and keep the biggest.
+- With seven pillars, that's twenty one pairs. Our pickaxe is almost broken.
+- And it grows quadratically. A million pillars means half a trillion pairs.
+- Here's the trick. Start with the widest tank, one wall at each end.
+- The shorter wall limits the water. Moving the taller one can only make things worse. So we always move the shorter wall inward.
+- Two pointers, left and right. At each step, we measure the water and keep the best.
+- Heights two and three, width six. Twelve blocks of water. The left wall is shorter, so it moves.
+- Four and three, width five. Fifteen, a new best. Now the right wall is shorter.
+- Four and five, width four. Sixteen! The best so far. The left wall moves.
+- One and five gives only three. Six and five gives ten. The right wall moves.
+- Six and three, width one. Just three. The pointers meet, and we stop.
+- Advancement made. The most water is sixteen, between pillars one and five.
+- Every step moves one pointer inward, so the walk is linear.
+- We went from n squared down to n, with no extra memory.
+- Two pointers, one loop, and a single comparison.
+- Always move the shorter wall. That's the secret of Container With Most Water.

@@ -1,0 +1,21 @@
+subtitles:
+- Roman to Integer, Minecraft edition. LeetCode problem number thirteen, an easy one with a twist.
+- Our row of blocks spells a Roman numeral. Each block is a symbol with a value.
+- Turn the whole row into a normal number. Here, M C M X C I V should give nineteen ninety four.
+- The first idea is to add up every symbol, from left to right.
+- One thousand, plus one hundred, plus one thousand, plus ten, and so on.
+- That gives two thousand two hundred sixteen. Wrong!
+- Because Romans also subtract. C before M means nine hundred, not eleven hundred.
+- Here's the trick. Look one block ahead. If the next symbol is bigger, this one is subtracted.
+- Otherwise, it's added. One comparison per block, that's all.
+- So we walk the row once, and our experience level keeps the running total.
+- M is followed by C, which is smaller. Add one thousand.
+- C is followed by M, which is bigger. Subtract one hundred.
+- M, then X. Add one thousand. We're at nineteen hundred.
+- X before C. Subtract ten. C before I. Add one hundred.
+- I before V. Subtract one. And the last V has nothing after it. Add five.
+- Advancement made. The total is nineteen ninety four.
+- We look at each symbol once, so the time is linear in the length of the string.
+- And we only keep one number, the total. Constant extra memory.
+- One loop, one look ahead, and a small table of values.
+- Smaller before bigger means subtract. That's the whole secret of Roman numerals.

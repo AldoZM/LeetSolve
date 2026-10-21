@@ -1,0 +1,145 @@
+{
+  "total_duration_s": 108.376,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Three Sum, Minecraft edition. LeetCode problem number fifteen, an interview favorite.",
+      "start_s": 0.0,
+      "end_s": 6.175,
+      "duration_s": 6.175
+    },
+    {
+      "index": 1,
+      "text": "We get a row of numbers, some of them negative. Find every group of three that adds up to zero.",
+      "start_s": 6.175,
+      "end_s": 12.25,
+      "duration_s": 6.075
+    },
+    {
+      "index": 2,
+      "text": "Each triple counts only once, even when a number repeats. Here the answer is two triples.",
+      "start_s": 12.25,
+      "end_s": 18.2,
+      "duration_s": 5.95
+    },
+    {
+      "index": 3,
+      "text": "The direct idea is to try every triple of blocks.",
+      "start_s": 18.2,
+      "end_s": 21.85,
+      "duration_s": 3.65
+    },
+    {
+      "index": 4,
+      "text": "Three nested loops. Pick one, pick a second, pick a third, and check the sum.",
+      "start_s": 21.85,
+      "end_s": 26.95,
+      "duration_s": 5.1
+    },
+    {
+      "index": 5,
+      "text": "With six blocks, that's twenty triples. And we still have to remove the repeated ones.",
+      "start_s": 26.95,
+      "end_s": 32.275,
+      "duration_s": 5.325
+    },
+    {
+      "index": 6,
+      "text": "It grows cubically. A thousand blocks already means over a hundred and sixty six million triples.",
+      "start_s": 32.275,
+      "end_s": 38.75,
+      "duration_s": 6.475
+    },
+    {
+      "index": 7,
+      "text": "Here's the trick. Sort the row first. Then fix one block, and find the other two with two pointers.",
+      "start_s": 38.75,
+      "end_s": 44.925,
+      "duration_s": 6.175
+    },
+    {
+      "index": 8,
+      "text": "If the sum is too small, move the left pointer right. If it's too big, move the right pointer left.",
+      "start_s": 44.925,
+      "end_s": 51.25,
+      "duration_s": 6.325
+    },
+    {
+      "index": 9,
+      "text": "Sorted, the row is minus four, minus one, minus one, zero, one, two.",
+      "start_s": 51.25,
+      "end_s": 56.175,
+      "duration_s": 4.925
+    },
+    {
+      "index": 10,
+      "text": "Fix minus four. Every pair is too small, so the left pointer runs all the way. Nothing.",
+      "start_s": 56.175,
+      "end_s": 62.25,
+      "duration_s": 6.075
+    },
+    {
+      "index": 11,
+      "text": "Fix minus one. Minus one, plus minus one, plus two makes zero. Found one!",
+      "start_s": 62.25,
+      "end_s": 67.9,
+      "duration_s": 5.65
+    },
+    {
+      "index": 12,
+      "text": "Both pointers step in. Zero plus one plus minus one is zero too. Found another!",
+      "start_s": 67.9,
+      "end_s": 73.85,
+      "duration_s": 5.95
+    },
+    {
+      "index": 13,
+      "text": "The next minus one is the same value as before, so we skip it.",
+      "start_s": 73.85,
+      "end_s": 78.2,
+      "duration_s": 4.35
+    },
+    {
+      "index": 14,
+      "text": "Fix zero. One plus two is too big, and the pointers meet. Done.",
+      "start_s": 78.2,
+      "end_s": 82.775,
+      "duration_s": 4.575
+    },
+    {
+      "index": 15,
+      "text": "Advancement made. Two triples. Minus one, minus one, two. And minus one, zero, one.",
+      "start_s": 82.775,
+      "end_s": 89.1,
+      "duration_s": 6.325
+    },
+    {
+      "index": 16,
+      "text": "Sorting costs n log n. Then each fixed block moves the pointers once, so the total is n squared.",
+      "start_s": 89.1,
+      "end_s": 95.726,
+      "duration_s": 6.626
+    },
+    {
+      "index": 17,
+      "text": "From n cubed down to n squared, and sorting makes repeats easy to skip.",
+      "start_s": 95.726,
+      "end_s": 100.726,
+      "duration_s": 5.0
+    },
+    {
+      "index": 18,
+      "text": "Sort, fix one, and squeeze with two pointers.",
+      "start_s": 100.726,
+      "end_s": 104.026,
+      "duration_s": 3.3
+    },
+    {
+      "index": 19,
+      "text": "Sorting turns a search into a squeeze. That's the lesson of Three Sum.",
+      "start_s": 104.026,
+      "end_s": 108.376,
+      "duration_s": 4.35
+    }
+  ]
+}

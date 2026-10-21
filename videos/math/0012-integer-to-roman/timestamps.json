@@ -1,0 +1,145 @@
+{
+  "total_duration_s": 110.302,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Integer to Roman, Minecraft edition. LeetCode problem number twelve.",
+      "start_s": 0.0,
+      "end_s": 5.0,
+      "duration_s": 5.0
+    },
+    {
+      "index": 1,
+      "text": "We get a normal number, like nineteen ninety four, and we must write it in Roman numerals.",
+      "start_s": 5.0,
+      "end_s": 10.9,
+      "duration_s": 5.9
+    },
+    {
+      "index": 2,
+      "text": "Romans use seven symbols, from I for one up to M for one thousand. Here the answer is M C M X C I V.",
+      "start_s": 10.9,
+      "end_s": 18.625,
+      "duration_s": 7.725
+    },
+    {
+      "index": 3,
+      "text": "The first idea uses only those seven symbols. Pay with the biggest one that fits, again and again.",
+      "start_s": 18.625,
+      "end_s": 25.275,
+      "duration_s": 6.65
+    },
+    {
+      "index": 4,
+      "text": "M for one thousand, D for five hundred, then four C's, an L, four X's and four I's.",
+      "start_s": 25.275,
+      "end_s": 31.301,
+      "duration_s": 6.026
+    },
+    {
+      "index": 5,
+      "text": "That's fifteen symbols, and it's wrong. Romans never write the same symbol four times in a row.",
+      "start_s": 31.301,
+      "end_s": 37.501,
+      "duration_s": 6.2
+    },
+    {
+      "index": 6,
+      "text": "Nine hundred is C M, and four is I V. A small symbol before a bigger one is subtracted.",
+      "start_s": 37.501,
+      "end_s": 43.701,
+      "duration_s": 6.2
+    },
+    {
+      "index": 7,
+      "text": "Here's the trick. Treat those six subtractive pairs as coins of their own. C M is nine hundred, X C is ninety.",
+      "start_s": 43.701,
+      "end_s": 51.326,
+      "duration_s": 7.625
+    },
+    {
+      "index": 8,
+      "text": "Now we have thirteen coins. Always pay with the biggest coin that fits. That's a greedy algorithm.",
+      "start_s": 51.326,
+      "end_s": 57.601,
+      "duration_s": 6.275
+    },
+    {
+      "index": 9,
+      "text": "Our villager pays nineteen ninety four, walking down the coin table once, from the biggest coin to the smallest.",
+      "start_s": 57.601,
+      "end_s": 64.626,
+      "duration_s": 7.025
+    },
+    {
+      "index": 10,
+      "text": "One thousand fits. Write M. Nine hundred ninety four left.",
+      "start_s": 64.626,
+      "end_s": 68.826,
+      "duration_s": 4.2
+    },
+    {
+      "index": 11,
+      "text": "Nine hundred fits. Write C M. Ninety four left.",
+      "start_s": 68.826,
+      "end_s": 72.576,
+      "duration_s": 3.75
+    },
+    {
+      "index": 12,
+      "text": "Five hundred, four hundred and one hundred are too big. Ninety fits. Write X C. Four left.",
+      "start_s": 72.576,
+      "end_s": 78.876,
+      "duration_s": 6.3
+    },
+    {
+      "index": 13,
+      "text": "Fifty, forty, ten, nine and five are all too big for four.",
+      "start_s": 78.876,
+      "end_s": 83.326,
+      "duration_s": 4.45
+    },
+    {
+      "index": 14,
+      "text": "Four fits exactly. Write I V. Nothing left, we're done.",
+      "start_s": 83.326,
+      "end_s": 87.151,
+      "duration_s": 3.825
+    },
+    {
+      "index": 15,
+      "text": "Advancement made. Nineteen ninety four is M C M X C I V.",
+      "start_s": 87.151,
+      "end_s": 91.977,
+      "duration_s": 4.826
+    },
+    {
+      "index": 16,
+      "text": "The table has thirteen coins, and an answer has at most fifteen symbols. So the time is constant.",
+      "start_s": 91.977,
+      "end_s": 98.802,
+      "duration_s": 6.825
+    },
+    {
+      "index": 17,
+      "text": "And the memory is constant too, apart from the answer itself.",
+      "start_s": 98.802,
+      "end_s": 102.902,
+      "duration_s": 4.1
+    },
+    {
+      "index": 18,
+      "text": "One table, one loop, and always the biggest coin.",
+      "start_s": 102.902,
+      "end_s": 106.402,
+      "duration_s": 3.5
+    },
+    {
+      "index": 19,
+      "text": "Put the tricky cases into the table, and greedy does the rest.",
+      "start_s": 106.402,
+      "end_s": 110.302,
+      "duration_s": 3.9
+    }
+  ]
+}

@@ -64,20 +64,21 @@ def read_nbt_file(path):
 
 
 # ---------- regions ----------
-def region_dir(world):
-    for d in ('dimensions/minecraft/overworld/region', 'region'):
+def region_dir(world, kind='region'):
+    # kind: 'region' (blocks) or 'entities' (mobs, saved apart since 1.17)
+    for d in (f'dimensions/minecraft/overworld/{kind}', kind):
         p = os.path.join(world, d)
         if os.path.isdir(p):
             return p
-    raise FileNotFoundError('no overworld region folder')
+    raise FileNotFoundError(f'no overworld {kind} folder')
 
 
 _regions = {}
 
 
-def chunk(world, cx, cz):
+def chunk(world, cx, cz, kind='region'):
     rx, rz = cx >> 5, cz >> 5
-    path = os.path.join(region_dir(world), f'r.{rx}.{rz}.mca')
+    path = os.path.join(region_dir(world, kind), f'r.{rx}.{rz}.mca')
     if path not in _regions:
         _regions[path] = open(path, 'rb').read() if os.path.exists(path) else b''
     buf = _regions[path]
@@ -144,7 +145,11 @@ SEE_THROUGH = ('leaves', 'glass', 'grass', 'fern', 'flower', 'poppy', 'dandelion
                'daisy', 'cornflower', 'lily', 'water', 'snow', 'vine', 'sapling', 'bush', 'dead_bush', 'sugar_cane',
                'kelp', 'seagrass', 'torch', 'mushroom', 'rose', 'peony', 'lilac', 'sunflower', 'petals', 'leaf_litter',
                'firefly', 'cactus', 'pumpkin', 'melon', 'carpet', 'moss_carpet', 'bamboo', 'berry', 'hanging_moss',
-               'eyeblossom')
+               'eyeblossom',
+               # Village pieces that do not fill their block
+               'slab', 'stairs', 'fence', 'door', 'pane', 'wheat', 'carrots', 'potatoes', 'beetroots', 'farmland',
+               'dirt_path', '_bed', 'bell', 'lantern', 'sign', 'chest', 'potted', 'flower_pot', 'ladder', 'rail', 'button',
+               'pressure_plate', 'lily_pad')
 
 
 def see_through(name):
@@ -192,17 +197,60 @@ def export(world, X, Y, Z, R, out, depth=40):
     biome = biome_at(world, X, Y, Z)
     print('biome at the center:', biome)
     looks = block_textures(names, os.path.join(os.path.dirname(os.path.abspath(out)), 'tex'), biome)
-    json.dump({'center': [X, Y, Z], 'radius': R, 'names': names, 'looks': looks,
-               'blocks': [[x, y, z, names.index(n)] for x, y, z, n in vis]}, open(out, 'w'))
+    # Blocks with no look (beds, signs, bells...) are left out
+    keep = [n for n in names if looks[n]['kind'] != 'skip']
+    vis = [v for v in vis if v[3] in keep]
+    mobs = mobs_around(world, X, Y, Z, R)
+    json.dump({'center': [X, Y, Z], 'radius': R, 'names': keep, 'looks': {n: looks[n] for n in keep},
+               'blocks': [[x, y, z, keep.index(n)] for x, y, z, n in vis], 'mobs': mobs}, open(out, 'w'))
     counts = {}
     for v in vis:
         counts[v[3]] = counts.get(v[3], 0) + 1
     print(len(vis), 'visible blocks;', sorted(counts.items(), key=lambda c: -c[1])[:25])
+    print(len(mobs), 'mobs;', sorted({m['id'] for m in mobs}))
+
+
+# Mobs mc.js can draw (makeMobs); horses, rabbits and hostile mobs are left out
+MOB_KINDS = ('villager', 'iron_golem', 'cat', 'cow', 'pig', 'sheep', 'chicken', 'wolf')
+
+
+def mobs_around(world, X, Y, Z, R):
+    # The mobs saved in the world around (X, Z): kind, position relative to the center, yaw and their look
+    try:
+        region_dir(world, 'entities')
+    except FileNotFoundError:
+        return []
+    out = []
+    for cx in range((X - R) >> 4, ((X + R) >> 4) + 1):
+        for cz in range((Z - R) >> 4, ((Z + R) >> 4) + 1):
+            ch = chunk(world, cx, cz, 'entities')
+            for e in (ch or {}).get('Entities', []):
+                kind = e['id'].split(':')[1]
+                x, y, z = e['Pos']
+                if kind not in MOB_KINDS or abs(x - X) > R or abs(z - Z) > R:
+                    continue
+                m = {'id': kind, 'p': [round(x - X, 2), round(y - Y, 2), round(z - Z, 2)],
+                     'yaw': round(e.get('Rotation', [0, 0])[0], 1)}
+                if e.get('Age', 0) < 0:
+                    m['baby'] = 1
+                if kind == 'villager':
+                    vd = e.get('VillagerData', {})
+                    m['type'] = vd.get('type', 'minecraft:plains').split(':')[1]
+                    m['profession'] = vd.get('profession', 'minecraft:none').split(':')[1]
+                elif kind == 'sheep':
+                    m['color'] = e.get('Color', 0)
+                elif 'variant' in e:
+                    m['variant'] = str(e['variant']).split(':')[-1]
+                out.append(m)
+    return out
 
 
 GRASS_TINT, FOLIAGE_TINT, WATER_TINT = (145, 189, 89), (119, 171, 47), (63, 118, 228)
 # Biomes whose grass and foliage colors are not the plains ones: (grass, foliage)
-BIOME_TINTS = {'pale_garden': ((119, 130, 114), (135, 141, 118))}
+BIOME_TINTS = {'pale_garden': ((119, 130, 114), (135, 141, 118)), 'cherry_grove': ((182, 219, 97), (182, 219, 97)),
+               'meadow': ((131, 187, 109), (99, 169, 72)), 'taiga': ((134, 183, 131), (104, 164, 100)),
+               'birch_forest': ((136, 187, 103), (107, 169, 65)), 'old_growth_birch_forest': ((136, 187, 103), (107, 169, 65)),
+               'river': ((142, 185, 113), (113, 167, 71))}
 # Leaves with a fixed color in every biome
 LEAF_TINTS = {'birch_leaves': (128, 167, 85), 'spruce_leaves': (97, 153, 97)}
 CROSS = ('short_grass', 'tall_grass', 'fern', 'bush', 'dandelion', 'poppy', 'cornflower', 'azure_bluet', 'oxeye_daisy',
@@ -228,6 +276,27 @@ def biome_at(world, x, y, z):
 
 
 TINTED_PLANTS = ('short_grass', 'tall_grass', 'fern', 'bush', 'sugar_cane')
+# Plants that lie flat on the ground, and the dry foliage color of leaf litter
+FLAT = ('pink_petals', 'wildflowers', 'leaf_litter')
+DRY_FOLIAGE = (160, 110, 60)
+# Village crops drawn grown, as the game's cross plants
+CROPS = {'wheat': 'wheat_stage7', 'carrots': 'carrots_stage3', 'potatoes': 'potatoes_stage3', 'beetroots': 'beetroots_stage3'}
+# Small blocks without a block texture (entities, models): left out instead of drawn as stone
+NO_LOOK = ('_bed', 'bell', 'lantern', 'sign', 'chest', 'potted', 'flower_pot', 'ladder', 'vine', 'rail', 'button',
+           'pressure_plate', 'banner', 'head', 'skull', 'lichen', 'chain', 'candle', 'campfire', 'lectern',
+           'brewing_stand', 'grindstone', 'anvil', 'cauldron', 'water_cauldron', 'trapdoor', 'item_frame', 'hopper')
+
+
+def material(base, get):
+    # Texture of the full block a slab, stair, fence or wall is made of: oak_slab -> oak_planks
+    stem = base
+    for suffix in ('_slab', '_stairs', '_fence_gate', '_fence', '_wall'):
+        stem = stem.removesuffix(suffix)
+    for name in (stem, stem + '_planks', stem + 's', stem + '_block', stem.replace('smooth_', '') + '_top'):
+        img = get(name)
+        if img:
+            return name, img
+    return None
 
 
 def block_textures(names, out_dir, biome='plains'):
@@ -268,6 +337,16 @@ def block_textures(names, out_dir, biome='plains'):
                            'bottom': save('dirt', get('dirt'))}
         elif base == 'water' or base == 'bubble_column':
             looks[full] = {'kind': 'water', 'top': save('water', extraer.tint(get('water_still'), WATER_TINT))}
+        elif base in FLAT:
+            # Lying on the ground: petals and flowers over their tinted stems, gray leaf litter in its dry color
+            img = get(base)
+            if base == 'leaf_litter':
+                img = extraer.tint(img, DRY_FOLIAGE)
+            else:
+                stem = extraer.tint(get(base + '_stem'), grass)
+                stem.alpha_composite(img)
+                img = stem
+            looks[full] = {'kind': 'cube', 'side': save(base + sfx, img), 'cutout': True, 'h': 1 / 16}
         elif any(base.startswith(c) or base.endswith(c) for c in CROSS):
             name = base
             if base == 'tall_grass':
@@ -278,8 +357,11 @@ def block_textures(names, out_dir, biome='plains'):
                 name += sfx
             looks[full] = {'kind': 'cross', 'side': save(name, img)}
         elif base.endswith('_log') or base.endswith('_wood'):
+            # Wood blocks are bark on every face: oak_wood uses oak_log's side texture
+            name = base if get(base) else base.replace('_wood', '_log')
+            top = (get(base + '_top') or get(base)) if name == base else get(name)
             looks[full] = {'kind': 'cube', 'axis': full.split('axis=')[1][0] if 'axis=' in full else 'y',
-                           'top': save(base + '_top', get(base + '_top') or get(base)), 'side': save(base, get(base))}
+                           'top': save(name + ('_top' if name == base else ''), top), 'side': save(name, get(name))}
         elif base.endswith('leaves'):
             img, key = get(base), base
             if base in ('oak_leaves', 'jungle_leaves', 'acacia_leaves', 'dark_oak_leaves', 'mangrove_leaves'):
@@ -290,6 +372,42 @@ def block_textures(names, out_dir, biome='plains'):
         elif base.endswith('carpet'):
             # A thin layer on the ground
             looks[full] = {'kind': 'cube', 'side': save(base, get(base) or get(base.replace('_carpet', '_block'))), 'h': 1 / 16}
+        elif base in CROPS or base.endswith('torch'):
+            name = CROPS.get(base, 'torch')
+            looks[full] = {'kind': 'cross', 'side': save(name, get(name))}
+        elif base in ('farmland', 'dirt_path'):
+            top = save(base + '_top', get(base + '_moist') or get(base + '_top'))
+            looks[full] = {'kind': 'cube', 'top': top, 'side': save('dirt', get('dirt')), 'h': 15 / 16}
+            if base == 'dirt_path':
+                looks[full]['side'] = save('dirt_path_side', get('dirt_path_side'))
+        elif base.endswith('_slab') and material(base, get):
+            key, img = material(base, get)
+            looks[full] = {'kind': 'cube', 'side': save(key, img)}
+            if 'type=double' not in full:
+                looks[full]['h'] = 0.5
+                if 'type=top' in full:
+                    looks[full]['y0'] = 0.5
+        elif base.endswith('_stairs') and material(base, get):
+            key, img = material(base, get)
+            looks[full] = {'kind': 'cube', 'side': save(key, img)}
+        elif (base.endswith('_fence') or base.endswith('_fence_gate') or base.endswith('_wall')) and material(base, get):
+            key, img = material(base, get)
+            w = 0.5 if base.endswith('_wall') else 0.25
+            looks[full] = {'kind': 'cube', 'side': save(key, img), 'box': [w, 1, w]}
+        elif base.endswith('_door') and get(base + ('_top' if 'half=upper' in full else '_bottom')):
+            half = '_top' if 'half=upper' in full else '_bottom'
+            # A closed door is a 3/16 panel across its facing axis
+            along_x = 'facing=north' in full or 'facing=south' in full
+            looks[full] = {'kind': 'cube', 'side': save(base + half, get(base + half)), 'cutout': True,
+                           'box': [1, 1, 3 / 16] if along_x else [3 / 16, 1, 1]}
+        elif base.endswith('glass_pane') or base.endswith('glass'):
+            name = base.replace('_pane', '')
+            looks[full] = {'kind': 'cube', 'side': save(name, get(name) or get('glass')), 'cutout': True}
+        elif base == 'lily_pad':
+            looks[full] = {'kind': 'cube', 'side': save(base, extraer.tint(get(base), (32, 128, 48))), 'cutout': True,
+                           'h': 1 / 16}
+        elif any(w in base for w in NO_LOOK) and base != 'jack_o_lantern':
+            looks[full] = {'kind': 'skip'}
         else:
             img = get(base) or get(base + '_side') or get('stone')
             top = get(base + '_top')
