@@ -1,0 +1,218 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import { THREE, prog, easeInOut, easeOut, easeOutBack, lerp, V, bezier, pose, mixPose } from '/vendor/lib/stage.js';
+import { MC, loadTheme, makeWorld, makeTerrain, makeBlock, makeFrame, pixelSprite, makeOrb, makeClouds, tex } from '/vendor/tema/mc.js';
+
+const walk = await (await fetch('/walk.json')).json();
+// One clip for the whole video: times are absolute. The walk happens in [W0, W1]; the rest is a slow roam that
+// ends where it starts, so the video still loops.
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const seg = (i) => subs[i].start_s;
+const TOTAL = subs[subs.length - 1].end_s;
+const W0 = seg(walk.first), W1 = subs[walk.last].end_s;
+const at = (spec) => seg(spec[0]) + spec[1];
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'planks', 'leaves', 'log_side', 'log_top', 'barrier',
+                              ...walk.ores.map((o) => `${o}_ore`)]);
+
+const toks = walk.tokens.map((k) => ({ ...k, saveT: at(k.save), sayT: at(k.say), loadT: at(k.load) }));
+const T = {
+  inv: at(walk.inv_in), cursor: at(walk.cursor), saved: at(walk.saved), clear: at(walk.clear), load: at(walk.load),
+  climb: at(walk.climb), toast: at(walk.toast), back: at(walk.back),
+};
+const FLY = 0.35;  // seconds an item takes between the tree and its inventory slot
+
+const world = makeWorld({ fov: 40, offset: 0.34, fog: [55, 120] });
+const { scene, camera } = world;
+// Terrain of the ClaudeEntorno world (around spawn), turned so the camera looking toward -z has the mountain behind the tree
+const terrain = await makeTerrain('/vendor/tema/mundos/claude.json', { turn: Math.PI / 2, plot: [-5, 5, -2, 7] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+// Everything of the walk lives in its own group, hidden outside the walk
+const stage = new THREE.Group();
+scene.add(stage);
+
+// Tree in the plane z = 0: level 0 on top, empty children one level below their parent
+const Y0 = 5.0, DY = 1.45;
+const spot = (k) => V(toks[k].x, Y0 - toks[k].lvl * DY, 0);
+
+// Wooden rods from parent to child, like fences holding the build together
+const rodMat = new THREE.MeshBasicMaterial({ map: tex(imgs, 'planks'), transparent: true });
+rodMat.color.setScalar(0.8);
+const nullRodMat = new THREE.MeshBasicMaterial({ color: 0x3a1010, transparent: true, opacity: 0.6 });
+const rodGeo = new THREE.BoxGeometry(0.12, 0.12, 1);
+rodGeo.translate(0, 0, 0.5);
+const rods = toks.map((k, i) => {
+  if (k.parent === null) return null;
+  const r = new THREE.Mesh(rodGeo, k.tok === '#' ? nullRodMat.clone() : rodMat.clone());
+  r.position.copy(spot(k.parent));
+  r.lookAt(spot(i));
+  r.userData.len = spot(k.parent).distanceTo(spot(i));
+  stage.add(r);
+  return r;
+});
+
+// One block per value; a floating barrier icon (how the game shows barriers) per empty child
+const blocks = toks.map((k) => {
+  if (k.tok === '#') return null;
+  const b = makeBlock(imgs, `${k.ore}_ore`, { label: k.value });
+  stage.add(b.g);
+  return b;
+});
+const barrierSprite = (size) => {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex(imgs, 'barrier'), transparent: true, depthWrite: false }));
+  s.scale.set(size, size, 1);
+  stage.add(s);
+  return s;
+};
+const barriers = toks.map((k) => (k.tok === '#' ? barrierSprite(0.75) : null));
+
+// Small items that fly between the tree and the inventory slots (one for saving, one for loading)
+const flyer = (k) => {
+  if (k.tok === '#') return barrierSprite(0.42);
+  const it = makeBlock(imgs, `${k.ore}_ore`, { size: 0.36 });
+  stage.add(it.g);
+  return it.g;
+};
+const savers = toks.map(flyer);
+const loaders = toks.map(flyer);
+
+// The game's block outline on the spot being written or read
+const frame = makeFrame(1.02, 0.03);
+stage.add(frame);
+
+// Experience orbs that burst from the rebuilt tree
+let seed = 11;
+const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+const valueIdx = toks.map((k, i) => (k.tok === '#' ? -1 : i)).filter((i) => i >= 0);
+const orbs = Array.from({ length: 24 }, (_, n) => {
+  const o = makeOrb(imgs, 0.34, [1, 2, 4, 5, 6][n % 5]);
+  o.userData = { from: valueIdx[n % valueIdx.length], vx: (rnd() - 0.5) * 2.4, vy: 2.2 + rnd() * 2.0, vz: (rnd() - 0.3) * 2.0, delay: rnd() * 0.35 };
+  stage.add(o);
+  return o;
+});
+
+// Terrain materials are transparent (alpha-tested) and sorted with the sprites; sprites go last so the ground can't paint over them
+stage.traverse((o) => { if (o.isSprite) o.renderOrder = 10; });
+
+// Inventory slot k of the 2D overlay (Inventory(9) at y = -1.15 in Manim's 9 x 12 frame), as a point in front of the camera
+function slotPoint(k) {
+  const xm = -3.52 + 0.88 * k, ym = -1.39;
+  const ndc = V(xm / 4.5, ym / 6, 0.5);
+  ndc.unproject(camera);
+  const dir = ndc.sub(camera.position).normalize();
+  return camera.position.clone().add(dir.multiplyScalar(7));
+}
+
+// Which token the frame sits on: the latest one written (save) or read (load)
+function cursorSpot(t) {
+  let p = spot(0);
+  for (let i = 0; i < toks.length; i++) p.lerp(spot(i), easeInOut(prog(t, toks[i].saveT - 0.22, toks[i].saveT)));
+  for (let i = 0; i < toks.length; i++) p.lerp(spot(i), easeInOut(prog(t, toks[i].loadT + FLY - 0.22, toks[i].loadT + FLY)));
+  return p;
+}
+
+function renderAt(t) {
+  // Walk camera: front view of the whole tree with a slow drift; roam camera: one slow loop over the meadow
+  const sway = 0.5 * Math.sin(t * 0.35);
+  // Far and level, so the whole tree (y 0.3 to 5.5) fits in the top half, above the overlay
+  const walkPose = pose(V(sway, 5.0, 18), V(sway * 0.4, 4.6, 0.0));
+  const a = 2 * Math.PI * t / TOTAL;
+  const roamPose = pose(V(6 * Math.sin(a), 3.4 + 0.8 * Math.sin(2 * a), 13 + 2.5 * Math.cos(a)), V(3 * Math.sin(a), 4.2, -30));
+  const k = easeInOut(prog(t, W0 - 1.6, W0 - 0.1)) * (1 - easeInOut(prog(t, W1 + 0.1, W1 + 1.6)));
+  const cam = mixPose(roamPose, walkPose, k);
+  world.look(cam.pos, cam.look);
+  // The walk keeps its content high in the frame (the overlay uses the bottom); the roam shows more sky
+  camera.setViewOffset(world.W, world.H, 0, world.H * lerp(0.12, 0.34, k), world.W, world.H);
+  camera.updateMatrixWorld();
+  clouds.position.x = 4 * Math.sin(a);
+  stage.visible = t < W1;
+
+  // Life of each part: built at the start, broken on "clear", rebuilt when its token is read
+  const valueOrder = valueIdx.indexOf.bind(valueIdx);
+  toks.forEach((tk, i) => {
+    const built = tk.tok === '#'
+      ? prog(t, tk.saveT + FLY * 0.2, tk.saveT + FLY * 0.2 + 0.25)                       // barrier shows when written
+      : prog(t, W0 + 0.15 + 0.12 * valueOrder(i), W0 + 0.7 + 0.12 * valueOrder(i));       // blocks drop in at the start
+    const broken = prog(t, T.clear + 0.1 * i * 0.6, T.clear + 0.1 * i * 0.6 + 0.3);
+    const rebuilt = prog(t, tk.loadT + FLY, tk.loadT + FLY + 0.35);
+    // Barriers leave once the loaded tree is complete, so the last frame of the walk shows the bare tree
+    const gone = tk.tok === '#' ? prog(t, T.back, T.back + 0.5) : 0;
+    const life = t < T.clear ? built : t < toks[0].loadT ? 1 - broken : rebuilt * (1 - gone);
+    const p = spot(i);
+    if (tk.tok === '#') {
+      const pop = 1 + 0.35 * Math.sin(Math.PI * prog(t, tk.loadT + FLY, tk.loadT + FLY + 0.35));
+      barriers[i].visible = life > 0.01;
+      barriers[i].scale.setScalar(0.75 * Math.max(easeOutBack(life), 1e-4) * pop);
+      barriers[i].position.copy(p);
+    } else {
+      const b = blocks[i];
+      const drop = t < T.clear ? (1 - easeOut(built)) * 4 : (1 - easeOut(rebuilt)) * 2.5;
+      const glow = 0.3 * Math.sin(Math.PI * prog(t, tk.saveT - 0.1, tk.saveT + 0.4))
+        + 0.3 * Math.sin(Math.PI * prog(t, tk.loadT + FLY, tk.loadT + FLY + 0.5))
+        + 0.25 * Math.sin(Math.PI * prog(t, T.toast, T.toast + 1.2));
+      const shrink = t >= T.clear && t < toks[0].loadT ? 1 - broken : 1;
+      b.g.position.set(p.x, p.y + (t < T.clear || t >= tk.loadT ? drop : 0), p.z);
+      b.g.scale.setScalar(Math.max(shrink, 1e-4));
+      b.set({ glow, opacity: life > 0.01 ? 1 : 0 });
+    }
+    // Rod to the parent: grows with the child; rods to barriers stay faint
+    const r = rods[i];
+    if (r) {
+      const len = Math.max(r.userData.len * life, 1e-4);
+      r.visible = life > 0.01;
+      r.scale.set(1, 1, len);
+      r.material.opacity = tk.tok === '#' ? 0.6 * life : 1;
+    }
+
+    // Items flying into the inventory (save) and out of it (load)
+    const s = savers[i], l = loaders[i];
+    const fs = prog(t, tk.saveT, tk.saveT + FLY);
+    s.visible = fs > 0 && fs < 1;
+    if (s.visible) {
+      const q = slotPoint(i);
+      s.position.copy(bezier(p.clone().add(V(0, 0.4, 0.3)), p.clone().lerp(q, 0.5).add(V(0, 1.2, 0)), q, easeInOut(fs)));
+    }
+    const fl = prog(t, tk.loadT, tk.loadT + FLY);
+    l.visible = fl > 0 && fl < 1;
+    if (l.visible) {
+      const q = slotPoint(i);
+      l.position.copy(bezier(q, q.clone().lerp(p, 0.5).add(V(0, 1.2, 0)), p, easeInOut(fl)));
+    }
+  });
+
+  // Selection frame: on during the save (until the last token) and during the load
+  const onSave = t >= T.cursor && t < T.saved + 0.4;
+  const onLoad = t >= toks[0].loadT + FLY - 0.05 && t < T.back;
+  frame.visible = onSave || onLoad;
+  frame.position.copy(cursorSpot(t));
+
+  // Orbs: a short burst from every block of the rebuilt tree
+  for (const o of orbs) {
+    const { from: i, vx, vy, vz, delay } = o.userData;
+    const u = t - (T.toast + delay);
+    o.visible = u > 0 && u < 1.6;
+    if (!o.visible) continue;
+    const p = spot(i);
+    o.position.set(p.x + vx * u, Math.max(p.y + vy * u - 4.5 * u * u, 0.1), vz * u);
+    o.tint(t + delay);
+    o.material.opacity = 1 - prog(u, 1.2, 1.6);
+  }
+
+  world.draw(t, TOTAL, 0, 0);
+}
+
+window.renderAt = renderAt;
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

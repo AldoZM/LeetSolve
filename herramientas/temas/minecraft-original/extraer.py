@@ -19,7 +19,7 @@ BLOCKS = {  # output name -> texture inside the jar
     'diamond_ore': 'block/diamond_ore', 'lapis_ore': 'block/lapis_ore', 'redstone_ore': 'block/redstone_ore',
     'emerald_ore': 'block/emerald_ore', 'stone': 'block/stone', 'dirt': 'block/dirt', 'planks': 'block/oak_planks',
     'gold_block': 'block/gold_block', 'log_side': 'block/oak_log', 'log_top': 'block/oak_log_top',
-    'cobble': 'block/cobblestone',
+    'cobble': 'block/cobblestone', 'barrier': 'item/barrier', 'writable_book': 'item/writable_book',
 }
 GUI = {
     'generic_54': 'gui/container/generic_54', 'hotbar': 'gui/sprites/hud/hotbar',
@@ -34,9 +34,13 @@ SOUNDS = {
     'challenge': 'ui/toast/challenge_complete', 'toast_in': 'ui/toast/in',
     **{f'stone_dig{k}': f'dig/stone{k}' for k in range(1, 5)}, **{f'stone_step{k}': f'step/stone{k}' for k in range(1, 7)},
     **{f'wood_dig{k}': f'dig/wood{k}' for k in range(1, 5)},
-    # Background music, only for videos whose video.json asks for it (C418's tracks get YouTube copyright claims)
-    'music_dry_hands': 'music/game/dry_hands',
+    **{f'book_flip{k}': f'item/book/open_flip{k}' for k in range(1, 4)}, 'book_put': 'item/book/close_put1',
+    **{f'villager_no{k}': f'mob/villager/no{k}' for k in range(1, 4)},
 }
+# Background music (video.json "musica"); C418's tracks get copyright claims on YouTube, see GUIA.md
+MUSIC = {name: f'music/game/{name}' for name in (
+    'subwoofer_lullaby', 'dry_hands', 'sweden', 'wet_hands', 'haggstrom', 'mice_on_venus', 'clark', 'danny',
+    'comforting_memories', 'left_to_bloom', 'an_ordinary_day', 'featherfall', 'bromeliad')}
 
 
 def newest_version():
@@ -61,7 +65,7 @@ def main():
     version = sys.argv[1] if len(sys.argv) > 1 else newest_version()
     jar = zipfile.ZipFile(os.path.join(MC, 'versions', version, version + '.jar'))
     tex = lambda p: Image.open(jar.open(f'{A}textures/{p}.png')).convert('RGBA')
-    for d in ('tex', 'gui', 'font', 'sounds'):
+    for d in ('tex', 'gui', 'font', 'sounds', 'music'):
         os.makedirs(os.path.join(HERE, d), exist_ok=True)
 
     for name, p in BLOCKS.items():
@@ -96,16 +100,17 @@ def main():
     index_id = json.load(open(os.path.join(MC, 'versions', version, version + '.json')))['assetIndex']['id']
     objects = json.load(open(os.path.join(MC, 'assets', 'indexes', index_id + '.json')))['objects']
     missing = []
-    for name, p in SOUNDS.items():
-        entry = objects.get(f'minecraft/sounds/{p}.ogg')
-        if not entry:
-            missing.append(p)
-            continue
-        h = entry['hash']
-        with open(os.path.join(MC, 'assets', 'objects', h[:2], h), 'rb') as src:
-            open(os.path.join(HERE, 'sounds', f'{name}.ogg'), 'wb').write(src.read())
+    for folder, table in (('sounds', SOUNDS), ('music', MUSIC)):
+        for name, p in table.items():
+            entry = objects.get(f'minecraft/sounds/{p}.ogg')
+            if not entry:
+                missing.append(p)
+                continue
+            h = entry['hash']
+            with open(os.path.join(MC, 'assets', 'objects', h[:2], h), 'rb') as src:
+                open(os.path.join(HERE, folder, f'{name}.ogg'), 'wb').write(src.read())
     print(f'version {version}: {len(BLOCKS) + 3} block textures, {len(GUI)} gui images, font, '
-          f'{len(SOUNDS) - len(missing)} sounds' + (f' (missing: {missing})' if missing else ''))
+          f'{len(SOUNDS) + len(MUSIC) - len(missing)} sounds and music' + (f' (missing: {missing})' if missing else ''))
 
 
 if __name__ == '__main__':

@@ -182,32 +182,32 @@ def step_mux():
     run(['ffmpeg', '-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', 'concat.txt', '-c', 'copy', '-movflags', '+faststart',
          'video_silent.mp4'])
     cues = sfx_cues()
-    # Optional background music from the theme's sounds/: "musica": {"sound": name, "gain": 0.3, "fade": [in, out]}.
-    # It loops to cover the whole video, fades in and out, and goes in the mix as one more cue at t = 0
-    music = cfg.get('musica')
-    if music:
-        cues = cues + [[0.0, music['sound'], music.get('gain', 0.3)]]
-    if not cues:
+    # Optional background music from the theme: "musica": {"pista": "<name>", "volumen": 0.45, "fade": [2, 3]}
+    # (music/<name>.ogg); it loops when the track is shorter than the video
+    musica = cfg.get('musica')
+    if not cues and not musica:
         run(['ffmpeg', '-v', 'error', '-y', '-i', 'video_silent.mp4', '-i', 'voiceover.mp3', '-map', '0:v:0', '-map', '1:a:0',
              '-c:v', 'copy', '-c:a', 'aac', '-movflags', '+faststart', 'video.mp4'])
     else:
         # Voice plus every cue delayed to its time; amix without normalizing keeps the voice level unchanged.
         # Mono throughout: upmixing the mono voice to stereo would lower it by 3 dB
         ins, parts = [], []
-        total = json.load(open('timestamps.json'))['total_duration_s']
         for k, (t, sound, gain) in enumerate(cues):
-            path = os.path.join(TEMA, 'sounds', f'{sound}.ogg')
-            if music and k == len(cues) - 1:
-                fin, fout = music.get('fade', [1.0, 3.0])
-                ins += ['-stream_loop', '-1', '-i', path]
-                parts.append(f'[{k + 2}:a]aresample=44100,aformat=channel_layouts=mono,atrim=0:{total:.3f},volume={gain},'
-                             f'afade=t=in:d={fin},afade=t=out:st={total - fout:.3f}:d={fout}[s{k}]')
-                continue
-            ins += ['-i', path]
+            ins += ['-i', os.path.join(TEMA, 'sounds', f'{sound}.ogg')]
             ms = max(0, int(t * 1000))
             parts.append(f'[{k + 2}:a]aresample=44100,aformat=channel_layouts=mono,adelay={ms},volume={gain}[s{k}]')
         mix = ''.join(f'[s{k}]' for k in range(len(cues)))
-        graph = ';'.join(parts) + f';[1:a]aresample=44100,aformat=channel_layouts=mono[v];[v]{mix}amix=inputs={len(cues) + 1}:normalize=0:duration=first[a]'
+        if musica:
+            # Fades in and out so the video still loops without a jump in the music
+            total = json.load(open('timestamps.json'))['total_duration_s']
+            fin, fout = musica.get('fade', [2, 3])
+            k = len(cues)
+            ins += ['-stream_loop', '-1', '-i', os.path.join(TEMA, 'music', f"{musica['pista']}.ogg")]
+            parts.append(f"[{k + 2}:a]aresample=44100,aformat=channel_layouts=mono,atrim=0:{total:.3f},afade=t=in:d={fin},"
+                         f"afade=t=out:st={total - fout:.3f}:d={fout},volume={musica.get('volumen', 0.45)}[s{k}]")
+            mix += f'[s{k}]'
+        n = len(cues) + (1 if musica else 0)
+        graph = ';'.join(parts) + f';[1:a]aresample=44100,aformat=channel_layouts=mono[v];[v]{mix}amix=inputs={n + 1}:normalize=0:duration=first[a]'
         open('media/sfx_graph.txt', 'w').write(graph)
         # ffmpeg 7+ reads an option's value from a file with "-/option"; -filter_complex_script is gone since ffmpeg 8
         ver = subprocess.run(['ffmpeg', '-version'], capture_output=True, text=True).stdout.split()[2]
@@ -215,7 +215,7 @@ def step_mux():
         run(['ffmpeg', '-v', 'error', '-y', '-i', 'video_silent.mp4', '-i', 'voiceover.mp3', *ins, script_opt,
              'media/sfx_graph.txt', '-map', '0:v:0', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k',
              '-movflags', '+faststart', 'video.mp4'])
-        print(len(cues) - (1 if music else 0), 'sound effects mixed' + (f', music {music["sound"]}' if music else ''))
+        print(len(cues), 'sound effects mixed' + (f", music {musica['pista']}" if musica else ''))
     v = subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', 'video.mp4'],
                        capture_output=True, text=True).stdout.strip()
     print('video.mp4 duration', v, 'audio', json.load(open('timestamps.json'))['total_duration_s'])

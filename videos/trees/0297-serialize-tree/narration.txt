@@ -1,0 +1,23 @@
+subtitles:
+- Serialize and Deserialize Binary Tree, Minecraft edition. LeetCode two ninety seven, a hard one.
+- We have a tree built from blocks, and we must save it as one line of text.
+- Then load that text back into the exact same tree.
+- First idea. Write just the values, in preorder. The node, then its left side, then its right side.
+- Our tree becomes five, eight, two, seven.
+- But this tree also reads five, eight, two, seven. And so does this one.
+- Same text, three different builds. The shape is lost.
+- Here's the trick. Whenever a child is missing, we write a hash mark, like a barrier block.
+- The markers record the shape, so one text can only describe one tree.
+- Let's save it. We walk in preorder, and each step fills the next slot.
+- Five goes in. Then left, eight. Eight has no children, so a pair of barriers.
+- Back up to two. Its left is seven, a leaf, so another pair.
+- Two has no right child. One last barrier, and the save is done.
+- Five, eight, hash, hash, two, seven, hash, hash, hash.
+- Now we clear the build, and load it back, reading the slots in the same order.
+- Five is the root. Eight goes left. A pair of barriers closes it, so we climb back up.
+- Two goes right, seven on its left, and the last barriers close every branch.
+- Advancement made. The tree is back, exactly as it was.
+- Each node is written once and read once, so both directions are linear.
+- The text holds n values and n plus one markers. Linear space too.
+- Two short functions. One walks and writes, the other reads and builds, in the same order.
+- Mark the empty spots, and any tree survives the trip.

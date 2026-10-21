@@ -10,6 +10,8 @@ Los videos nuevos se hacen con el **estilo Minecraft con assets del juego y su m
 - Todo el video pasa en el mundo **ClaudeEntorno**, en la pradera del spawn: un solo clip 3D de punta a punta (ver "Fondo con un mundo real").
 - Escenas 2D sobre el mundo **desenfocado y oscurecido**. La parte 3D va nítida, en un lote de pasto aplanado con la montaña detrás.
 - Efectos de sonido del juego mezclados bajo la voz (ver "Efectos de sonido").
+- Música de fondo opcional del juego, solo cuando Aldo la pide (ver "Música de fondo"). Aprobada en el #297 con Subwoofer Lullaby.
+- Videos hechos en este estilo: `trees/0297-serialize-tree` (aprobado con "Quedó perfecto"). Es buen ejemplo para árboles: `Tree2D`, `TokenLine`, barreras como nulos y un recorrido 3D que guarda y carga.
 - Los 9 videos de la lista hechos antes usan el estilo neón original y se quedan así.
 
 ### Receta para un video nuevo en este estilo
@@ -23,6 +25,13 @@ Los videos nuevos se hacen con el **estilo Minecraft con assets del juego y su m
 6. Reescribir `scenes.py` con las mismas 7 escenas y los ayudantes del tema: `block_row`, `Inventory`, `Hotbar`, `toast`, `xp_bar`, `level_text`, `chest_icon`, `pickaxe`, `chat`, `MT`, `big_o_pow`. Agregar `self.sfx(...)` en los momentos clave.
 7. En `three/mundo.html`, cambiar solo la parte del recorrido (objetos y eventos) según el algoritmo. El terreno, la cámara de paseo y la mezcla de cámaras (`W0`, `W1`) se quedan igual.
 8. `python ../../../herramientas/build.py`, hojas de cuadros con `sheet.py`, revisar el loop y abrir el visor.
+9. Si Aldo pide música: agregar `"musica"` a `video.json` y correr solo `build.py mux`.
+
+Detalles aprendidos en el #297:
+- Para resaltar pixel art (bloques, objetos, barreras), usar un pulso de escala; `Indicate` con color lo pinta de un solo color. En texto, `Indicate` sí sirve.
+- Las varillas o líneas de un árbol van detrás de los bloques: agregarlas a la escena antes que los bloques (`self.add(edges, *blocks)`) y luego animar `Create(edges)`.
+- Texto armado por piezas (tokens y comas): cada pieza con una caja invisible de la altura de línea (`glyphs`), para que compartan la línea base.
+- Con `max_h=3.3`, un código de 10 líneas cabe debajo del inventario.
 
 ### Medidas que funcionaron (pantalla de 9 × 12)
 
@@ -74,6 +83,7 @@ Secciones (por tema de LeetCode): `arrays-hashing`, `linked-list`, `sliding-wind
 - `math/0007-reverse-integer`: Reverse Integer, Medium. 1463 y el desbordamiento de 1534236469.
 - `trees/0102-level-order`: Binary Tree Level Order Traversal, Medium.
 - `trees/0124-max-path-sum`: Binary Tree Maximum Path Sum, Hard. Mejor camino 42.
+- `trees/0297-serialize-tree`: Serialize and Deserialize Binary Tree, Hard. Primer video del estilo aprobado. Árbol `[5,8,2,null,null,7]` guardado en 9 casillas (`5,8,#,#,2,7,#,#,#`), barreras para los hijos vacíos.
 - `pruebas/0001-two-sum-horizontal`: primera prueba en 16:9, sin código a la par.
 - `pruebas/0001-two-sum-minecraft`: Two Sum con el tema de Minecraft. Se arma con `python ../../herramientas/build.py` (está a dos niveles, no a tres).
 - `pruebas/0001-two-sum-minecraft-original`: **plantilla del estilo aprobado**. Two Sum con los assets y sonidos del juego, en el mundo ClaudeEntorno.
@@ -210,8 +220,30 @@ Un tema cambia el estilo sin tocar el flujo. Vive en `herramientas/temas/<tema>/
 - En cualquier escena: `self.sfx("nombre", gain, delay=0)` agenda un sonido en el momento actual (más `delay`). Cada escena guarda sus sonidos en `media/sfx/<Escena>.json` al renderizarse.
 - El paso `mux` de `build.py` mezcla esos sonidos con la voz, sin bajar el volumen de la voz. Los archivos salen de `sounds/<nombre>.ogg` del tema.
 - Volúmenes que funcionaron: 0.22 a 0.45. Los sonidos del juego son fuertes y no deben tapar la narración.
-- Música de fondo (opcional): `"musica": {"sound": "music_dry_hands", "gain": 0.3, "fade": [1.0, 3.0]}` en `video.json`. `build.py` la repite hasta cubrir el video, con entrada y salida suaves, y la mezcla bajo la voz. `extraer.py` copia "Dry Hands" de C418 a `sounds/music_dry_hands.ogg` (68 s, termina con 2 s de silencio, por eso el reinicio no se nota). Con 0.3 queda unos 10 dB debajo de la voz.
-- La regla general sigue siendo **sin música del juego**: las pistas de C418 suelen recibir reclamos de Content ID en YouTube. Aldo pidió Dry Hands para el #1807 sabiendo ese riesgo; es una excepción, no el estilo por defecto.
+
+## Música de fondo
+
+- Opcional, en `video.json`: `"musica": {"pista": "subwoofer_lullaby", "volumen": 0.45}`. El archivo sale de `music/<pista>.ogg` del tema; `extraer.py` lo copia del juego (diccionario `MUSIC`, con la ruta del índice de assets, por ejemplo `music/game/subwoofer_lullaby`).
+- `build.py` la recorta a la duración del video, con 2 s de entrada y 3 s de salida suaves (así el loop no salta), y la mezcla sin bajar la voz. `"fade": [entrada, salida]` cambia esos tiempos. Si la pista es más corta que el video, se repite.
+- Con `volumen` 0.45, Subwoofer Lullaby queda unos 16 dB debajo de la voz. Dry Hands (#1807) va en 0.3 con `"fade": [1.0, 3.0]`: dura 68 s y termina con 2 s de silencio, por eso el reinicio no se nota.
+- Las dos PCs hicieron esta función por separado el mismo día (`sound`/`gain` en la laptop, `pista`/`volumen` en la de escritorio); al unir las ramas quedó el formato `pista`/`volumen`.
+- Pistas que copia `extraer.py`: `subwoofer_lullaby`, `dry_hands`, `sweden`, `wet_hands`, `haggstrom`, `mice_on_venus`, `clark`, `danny`, `comforting_memories`, `left_to_bloom`, `an_ordinary_day`, `featherfall`, `bromeliad`. Para otra, agregar su nombre a `MUSIC` (la lista completa está en el índice de assets, `minecraft/sounds/music/game/`).
+- La música está en `.gitignore` (`music/`).
+- **Riesgo al publicar:** las canciones de C418 (Subwoofer Lullaby, Sweden, Wet Hands...) reciben reclamos de derechos de autor en YouTube; no entran en los permisos de Mojang para videos. Se usa solo cuando Aldo lo pide, y antes de publicar se le recuerda.
+- Primer video con música: `trees/0297-serialize-tree` (Subwoofer Lullaby, a petición de Aldo).
+
+## Errores ya cometidos (no repetir)
+
+Aldo los encontró en el #297 o salieron en su revisión. Antes de entregar un video, revisar esta lista uno por uno en las hojas de cuadros.
+
+1. **Varillas encima de los bloques.** Si las líneas de un árbol se animan después de que los bloques ya están en escena, quedan por encima. Solución: `self.add(edges, *blocks)` antes de `Create(edges)` (las líneas primero, los bloques al frente).
+2. **Pixel art pintado de un color.** `Indicate(..., color=...)` sobre bloques, objetos o barreras los vuelve un cuadro sólido. Solución: un pulso de escala (`m.animate(rate_func=there_and_back).scale(1.15)`). `Indicate` solo en texto.
+3. **Íconos 3D tapados por el terreno.** Los sprites (barreras, orbes) desaparecen cuando el terreno queda detrás. Solución: `stage.traverse((o) => { if (o.isSprite) o.renderOrder = 10; })`.
+4. **Comas que parecen puntos.** Cada pieza de texto se centra por sus píxeles y la coma sube. Solución: piezas con caja de altura de línea completa (`glyphs` en el #297) y `arrange(RIGHT, buff=0)`.
+5. **Bloques del inventario que se ven aplastados.** Un número encima del ícono isométrico tapa la cara de arriba y el bloque parece plano. Solución: el valor en la esquina inferior derecha, dentro de la casilla, como la cantidad en el juego (`slot_item` del #297). `item_stack` del tema todavía pone el valor encima: no usarlo así en videos nuevos.
+6. **Aviso de logro tapando el 3D.** El `toast` de ancho 5.6 en `TOP_Y` tapaba el bloque de arriba. Revisar qué hay del 3D en esa esquina; en el #297 se usó `w=4.6` en y = 5.5.
+7. **Contenido 3D fuera del cuadro.** La cámara de la plantilla no sirve para otra forma (un árbol es más alto que una fila). Probar con cuadros sueltos (`--stills`) antes del clip completo. El contenido 3D debe quedar entre los píxeles 130 y 735 de alto, arriba del inventario.
+8. **Linter por eventos muy juntos.** Si dos eventos del recorrido caen a menos de 0.35 s, los `beat` se acumulan y se pasan del tiempo de la línea. Usar `rt` de 0.08 a 0.15 en esos eventos.
 
 ## Lista de revisión antes de entregar
 
@@ -237,6 +269,7 @@ Un tema cambia el estilo sin tocar el flujo. Vive en `herramientas/temas/<tema>/
 - `ImageMobject` falla con el Pillow del venv ("Invalid mode for data type"). El pixel art se dibuja con `pixel_image`, que lo convierte en rectángulos vectoriales.
 - Con la fuente del juego, los espacios iniciales no tienen píxeles. Cada línea de código lleva un rectángulo invisible del ancho completo para no perder la sangría.
 - La mezcla de audio va en mono. Pasar la voz mono a estéreo la bajaba 3 dB.
+- En `mundo.html`, los sprites (barreras, orbes, letreros de texto) pueden quedar tapados por el terreno: sus materiales son transparentes y se ordenan junto con los del terreno. Después de crear todo, usar `stage.traverse((o) => { if (o.isSprite) o.renderOrder = 10; })`.
 - El juego puede estar abierto mientras se lee el mundo, pero solo se ve lo que ya se guardó. Si se construye algo nuevo, hay que guardar (salir al menú) y volver a exportar.
 - Los bloques del terreno tienen material `transparent`, así que se dibujan en la misma pasada que los sprites. Un `pixelSprite` no escribe profundidad y el suelo puede taparlo, parcial o completo. En una página nueva, dale `renderOrder = 2` y `depthTest = false` a los sprites de texto (ver `onTop` en `videos/strings/1807-evaluate-bracket-pairs/three/mundo.html`). `mc.js` no se cambió para no alterar la plantilla aprobada.
 - El linter corre las escenas con objetos falsos y sus `self.sfx()` sobrescribían `media/sfx/*.json` con cues incompletos. En una corrida parcial (`script lint render Scene4_Idea ... mux`), las escenas que no se renderizaban se mezclaban con los sonidos del linter. Desde 2026-10-21, el paso `lint` de `build.py` respalda y restaura esos archivos.
