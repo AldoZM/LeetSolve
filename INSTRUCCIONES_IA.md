@@ -22,7 +22,8 @@ Un video vertical que explica un problema de LeetCode, ambientado en Minecraft:
 - **Interfaz:** texturas, interfaz, fuente y sonidos del juego (tema `minecraft-original`).
 - **Código:** se muestra a la par de la solución. Una barra resalta la línea que se está ejecutando.
 - **Loop:** el último cuadro es igual al primero. La portada `cover()` abre y cierra el video.
-- **Efectos de sonido:** sonidos del juego mezclados bajo la voz, sin taparla. **Sin música.**
+- **Efectos de sonido:** sonidos del juego mezclados bajo la voz, sin taparla.
+- **Música:** opcional. Se pone solo si Aldo la pide para ese video (ver "Música de fondo" en `GUIA.md`).
 
 ## 2. Preparar la PC (una sola vez)
 
@@ -205,6 +206,7 @@ Medidas y reglas:
 
 - **Posiciones:** fila de bloques en z = 0 con separación 1.2. El cofre o la estructura principal en z = 3.6.
 - **Ayudantes de `mc.js`:** `makeBlock`, `makeChest`, `makeFrame`, `makeSign`, `pixelSprite`, `makeOrb`, `makeClouds`. De `/vendor/lib/stage.js`: `prog`, `easeInOut`, `easeOut`, `easeOutBack`, `lerp`, `V`, `bezier`, `pose`, `mixPose`.
+- **Sprites:** después de crear todo, `stage.traverse((o) => { if (o.isSprite) o.renderOrder = 10; })`. Si no, el terreno los tapa.
 - **Render determinista:** todo depende de `t`. Nada de relojes ni de `Math.random`; usa el generador con semilla de la plantilla.
 - **Loop:** el clip dura todo el video y la cámara de paseo es periódica en `TOTAL`, por eso el loop cierra.
 
@@ -222,6 +224,10 @@ Sonidos disponibles:
 - `stone_dig1` a `stone_dig4`: golpes y bloques que caen; alterna los números.
 - `stone_step1` a `stone_step6`.
 - `wood_dig1` a `wood_dig4`: el letrero, el cofre que aparece.
+- `book_flip1` a `book_flip3` y `book_put`: libro (guardar o leer texto).
+- `villager_no1` a `villager_no3`: el "no" del aldeano, para una idea que falla.
+
+Texturas extra para 2D (`pixel_art`) y 3D (`loadTheme`): `barrier` (marca de vacío o nulo) y `writable_book` (libro y pluma).
 
 Volúmenes de 0.22 a 0.45. `challenge` va en 0.32. La plantilla tiene 56 efectos en 97 s. No pongas más sonidos que eventos visibles.
 
@@ -263,7 +269,8 @@ Al terminar:
 
 - **No subas archivos del juego** a ningún repositorio: `tex/`, `gui/`, `font/`, `sounds/`, `mundos/tex/`, ni las renders que los contienen. Ya están en `.gitignore`; no los saques de ahí.
 - **Al publicar:**
-  - Sin el logo de Minecraft y sin música del juego.
+  - Sin el logo de Minecraft.
+  - Si el video lleva música del juego, avisar antes de publicar: las canciones de C418 reciben reclamos de derechos de autor en YouTube.
   - En la descripción, "Not an official Minecraft product".
 - **Código:** en inglés, con comentarios breves. Los `.md` del proyecto van en español.
 - **Commits:** sin firmas de IA ni `Co-Authored-By`.

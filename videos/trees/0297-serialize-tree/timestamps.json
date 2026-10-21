@@ -1,0 +1,159 @@
+{
+  "total_duration_s": 104.252,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Serialize and Deserialize Binary Tree, Minecraft edition. LeetCode two ninety seven, a hard one.",
+      "start_s": 0.0,
+      "end_s": 7.125,
+      "duration_s": 7.125
+    },
+    {
+      "index": 1,
+      "text": "We have a tree built from blocks, and we must save it as one line of text.",
+      "start_s": 7.125,
+      "end_s": 11.825,
+      "duration_s": 4.7
+    },
+    {
+      "index": 2,
+      "text": "Then load that text back into the exact same tree.",
+      "start_s": 11.825,
+      "end_s": 15.225,
+      "duration_s": 3.4
+    },
+    {
+      "index": 3,
+      "text": "First idea. Write just the values, in preorder. The node, then its left side, then its right side.",
+      "start_s": 15.225,
+      "end_s": 21.725,
+      "duration_s": 6.5
+    },
+    {
+      "index": 4,
+      "text": "Our tree becomes five, eight, two, seven.",
+      "start_s": 21.725,
+      "end_s": 24.6,
+      "duration_s": 2.875
+    },
+    {
+      "index": 5,
+      "text": "But this tree also reads five, eight, two, seven. And so does this one.",
+      "start_s": 24.6,
+      "end_s": 29.325,
+      "duration_s": 4.725
+    },
+    {
+      "index": 6,
+      "text": "Same text, three different builds. The shape is lost.",
+      "start_s": 29.325,
+      "end_s": 33.025,
+      "duration_s": 3.7
+    },
+    {
+      "index": 7,
+      "text": "Here's the trick. Whenever a child is missing, we write a hash mark, like a barrier block.",
+      "start_s": 33.025,
+      "end_s": 38.475,
+      "duration_s": 5.45
+    },
+    {
+      "index": 8,
+      "text": "The markers record the shape, so one text can only describe one tree.",
+      "start_s": 38.475,
+      "end_s": 43.301,
+      "duration_s": 4.826
+    },
+    {
+      "index": 9,
+      "text": "Let's save it. We walk in preorder, and each step fills the next slot.",
+      "start_s": 43.301,
+      "end_s": 47.801,
+      "duration_s": 4.5
+    },
+    {
+      "index": 10,
+      "text": "Five goes in. Then left, eight. Eight has no children, so a pair of barriers.",
+      "start_s": 47.801,
+      "end_s": 53.101,
+      "duration_s": 5.3
+    },
+    {
+      "index": 11,
+      "text": "Back up to two. Its left is seven, a leaf, so another pair.",
+      "start_s": 53.101,
+      "end_s": 57.451,
+      "duration_s": 4.35
+    },
+    {
+      "index": 12,
+      "text": "Two has no right child. One last barrier, and the save is done.",
+      "start_s": 57.451,
+      "end_s": 61.876,
+      "duration_s": 4.425
+    },
+    {
+      "index": 13,
+      "text": "Five, eight, hash, hash, two, seven, hash, hash, hash.",
+      "start_s": 61.876,
+      "end_s": 65.451,
+      "duration_s": 3.575
+    },
+    {
+      "index": 14,
+      "text": "Now we clear the build, and load it back, reading the slots in the same order.",
+      "start_s": 65.451,
+      "end_s": 70.326,
+      "duration_s": 4.875
+    },
+    {
+      "index": 15,
+      "text": "Five is the root. Eight goes left. A pair of barriers closes it, so we climb back up.",
+      "start_s": 70.326,
+      "end_s": 76.126,
+      "duration_s": 5.8
+    },
+    {
+      "index": 16,
+      "text": "Two goes right, seven on its left, and the last barriers close every branch.",
+      "start_s": 76.126,
+      "end_s": 81.226,
+      "duration_s": 5.1
+    },
+    {
+      "index": 17,
+      "text": "Advancement made. The tree is back, exactly as it was.",
+      "start_s": 81.226,
+      "end_s": 85.226,
+      "duration_s": 4.0
+    },
+    {
+      "index": 18,
+      "text": "Each node is written once and read once, so both directions are linear.",
+      "start_s": 85.226,
+      "end_s": 89.926,
+      "duration_s": 4.7
+    },
+    {
+      "index": 19,
+      "text": "The text holds n values and n plus one markers. Linear space too.",
+      "start_s": 89.926,
+      "end_s": 94.976,
+      "duration_s": 5.05
+    },
+    {
+      "index": 20,
+      "text": "Two short functions. One walks and writes, the other reads and builds, in the same order.",
+      "start_s": 94.976,
+      "end_s": 100.626,
+      "duration_s": 5.65
+    },
+    {
+      "index": 21,
+      "text": "Mark the empty spots, and any tree survives the trip.",
+      "start_s": 100.626,
+      "end_s": 104.252,
+      "duration_s": 3.626
+    }
+  ]
+}
