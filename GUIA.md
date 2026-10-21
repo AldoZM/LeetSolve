@@ -88,6 +88,7 @@ Secciones (por tema de LeetCode): `arrays-hashing`, `linked-list`, `sliding-wind
 - `pruebas/0001-two-sum-minecraft`: Two Sum con el tema de Minecraft. Se arma con `python ../../herramientas/build.py` (está a dos niveles, no a tres).
 - `pruebas/0001-two-sum-minecraft-original`: **plantilla del estilo aprobado**. Two Sum con los assets y sonidos del juego, en el mundo ClaudeEntorno.
 - `strings/1807-evaluate-bracket-pairs`: Evaluate the Bracket Pairs of a String, Medium. Primer video del estilo aprobado fuera de la plantilla. Ejemplo `"(a)and(b)make(c)"` con a→iron, b→gold, d→coal: sale `"ironandgoldmake?"`. Fondo en el **pale garden** de ClaudeEntorno (`mundos/claude_pale.json`), con cielo gris.
+- `strings/3863-min-ops-sort-string`: Minimum Operations to Sort a String, Medium (ejercicio diario 2026-10-21). Ejemplo `"dbca"` con d→diamond, b→lapis, c→coal, a→iron: resultado 3 operaciones (`dbc`→`bcd`, `cda`→`acd`, `bac`→`abc`). Fondo en pradera de ClaudeEntorno (`mundos/claude.json`), 112.2 s, 34 efectos de sonido.
 
 Al terminar un video nuevo, agrégalo a esta lista.
 

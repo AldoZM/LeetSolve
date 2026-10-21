@@ -1,0 +1,161 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import { THREE, prog, easeInOut, easeOut, easeOutBack, lerp, V, pose } from '/vendor/lib/stage.js';
+import { MC, makeBlock, makeFrame, pixelSprite, makeOrb } from '/vendor/tema/mc.js';
+import { makeScene } from '/vendor/tema/escena.js';
+
+const walk = await (await fetch('/walk.json')).json();
+// One clip for the whole video: times are absolute. The walk happens in [W0, W1]
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const seg = (i) => subs[i].start_s;
+const TOTAL = subs[subs.length - 1].end_s;
+const W0 = seg(walk.first), W1 = subs[walk.last].end_s;
+const at = (spec) => seg(spec[0]) + spec[1];
+
+// By the river of ClaudeEntorno, at the edge of its dark forest, with its pigs and chickens
+const sc = await makeScene({
+  map: 'claude_rio', turn: 0, total: TOTAL, W0, W1, textures: walk.ores.map((o) => `${o}_ore`),
+  mobs: { extra: [{ id: 'pig', x: -8, z: -6 }, { id: 'pig', x: -9.5, z: -8 }, { id: 'chicken', x: 7.5, z: -5 },
+                  { id: 'cow', x: 10, z: -10 }] },
+});
+const { stage, imgs, onTop } = sc;
+
+const H = walk.heights, N = H.length;
+const steps = walk.steps.map((s) => ({ ...s, measureT: at(s.measure), saidT: at(s.said), moveT: at(s.move) }));
+const T = { intro: at(walk.intro), stop: at(walk.stop), toast: at(walk.toast), answer: at(walk.answer) };
+const SP = 1.2;
+const bx = (i) => (i - (N - 1) / 2) * SP;
+const g0 = sc.terrain.groundAt(0, 0);
+
+// Pillars of ore, one per height; the top block shows the height
+const pillars = H.map((h, i) => Array.from({ length: h }, (_, k) => {
+  const b = makeBlock(imgs, `${walk.ores[i]}_ore`, k === h - 1 ? { label: h } : {});
+  stage.add(b.g);
+  return b;
+}));
+const idx = H.map((_, i) => {
+  const s = onTop(pixelSprite(String(i), MC.gray, 0.42));
+  s.position.set(bx(i), g0 + 0.28, 1.25);
+  stage.add(s);
+  return s;
+});
+const Lm = onTop(pixelSprite('L', MC.aqua, 0.6));
+const Rm = onTop(pixelSprite('R', MC.gold, 0.6));
+stage.add(Lm, Rm);
+
+// The water between the two walls: a translucent box that rises to the shorter wall
+const waterMat = new THREE.MeshBasicMaterial({ color: 0x3F76E4, transparent: true, opacity: 0.62, depthWrite: false });
+const water = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 0.9).translate(0, 0.5, 0), waterMat);
+water.renderOrder = 5;
+stage.add(water);
+const areaS = steps.map((s) => { const sp = onTop(pixelSprite(String(s.area), s.new ? MC.gold : MC.white, 0.6)); stage.add(sp); return sp; });
+const topFrames = [0, 1].map(() => { const f = makeFrame(1.05, 0.04, MC.yellow); stage.add(f); return f; });
+const goldFrames = [0, 1].map(() => { const f = makeFrame(1.06, 0.045, MC.gold); stage.add(f); return f; });
+
+let seed = 11;
+const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+const orbs = [];
+for (const s of steps.filter((q) => q.new)) {
+  for (let k = 0; k < 6; k++) orbs.push({ t0: s.saidT + 0.05 * k, x: (bx(s.l) + bx(s.r)) / 2, y: s.h + 0.3, vx: (rnd() - 0.5) * 2, vy: 2 + rnd() * 1.5, vz: rnd() * 1.2 });
+}
+for (let k = 0; k < 28; k++) orbs.push({ t0: T.toast + rnd() * 0.5, x: (bx(1) + bx(5)) / 2 + (rnd() - 0.5) * 3, y: 4.3, vx: (rnd() - 0.5) * 2.6, vy: 2.4 + rnd() * 2, vz: (rnd() - 0.3) * 2 });
+orbs.forEach((o, k) => { o.sp = onTop(makeOrb(imgs, 0.32, [1, 2, 4, 5, 6][k % 5])); stage.add(o.sp); });
+
+function pointer(t, which) {
+  // Where L or R stands: starts at the ends, slides one pillar when its wall moves
+  let p = which === 'l' ? 0 : N - 1;
+  let x = bx(p);
+  for (const s of steps) {
+    if (s.side !== which) continue;
+    const np = which === 'l' ? s.l + 1 : s.r - 1;
+    x = lerp(x, bx(np), easeInOut(prog(t, s.moveT, s.moveT + 0.35)));
+    if (t >= s.moveT) p = np;
+  }
+  return { x, p };
+}
+
+function renderAt(t) {
+  const push = easeInOut(prog(t, T.toast - 0.3, T.toast + 0.8));
+  const sway = 0.5 * Math.sin(t * 0.35);
+  const walkPose = pose(V(sway, lerp(8.8, 8.4, push), lerp(20.0, 19.2, push)), V(sway * 0.4, 5.6, 0.0));
+
+  pillars.forEach((col, i) => col.forEach((b, k) => {
+    const d = prog(t, T.intro + 0.08 * i + 0.06 * k, T.intro + 0.08 * i + 0.06 * k + 0.4);
+    const fall = d < 1 ? (1 - d) * (1 - d) * 4 : 0;
+    const best = (i === 1 || i === 5) ? 0.3 * prog(t, T.toast, T.toast + 0.3) : 0;
+    b.g.position.set(bx(i), g0 + 0.5 + k + fall, 0);
+    b.g.visible = d > 0;
+    b.set({ glow: best, opacity: d > 0 ? 1 : 0 });
+  }));
+  idx.forEach((s, i) => { s.material.opacity = prog(t, T.intro + 0.5 + 0.08 * i, T.intro + 0.9 + 0.08 * i); });
+
+  const L = pointer(t, 'l'), R = pointer(t, 'r');
+  const pIn = prog(t, steps[0].measureT - 0.4, steps[0].measureT);
+  [Lm, Rm].forEach((m, k) => {
+    m.visible = pIn > 0 && t < T.stop + 0.3;
+    m.material.opacity = pIn;
+    m.position.set(k ? R.x : L.x, g0 + 0.3, 2.0);
+  });
+  topFrames.forEach((f, k) => {
+    const p = k ? R : L;
+    f.visible = pIn > 0 && t < T.stop + 0.3;
+    f.position.set(p.x, g0 + H[p.p] - 0.5, 0);
+  });
+
+  // Water of the current step: rises at the measure, drains when a wall moves; the best one returns at the end
+  let cur = null;
+  for (const s of steps) if (t >= s.measureT - 0.05 && t < s.moveT + 0.2) cur = s;
+  let wl, wr, wh, a = 0;
+  if (cur) {
+    wl = cur.l; wr = cur.r; wh = cur.h;
+    a = easeOut(prog(t, cur.measureT, cur.measureT + 0.45)) * (1 - prog(t, cur.moveT, cur.moveT + 0.2));
+  }
+  const fin = easeOut(prog(t, T.toast - 0.2, T.toast + 0.5));
+  if (fin > 0) { wl = 1; wr = 5; wh = Math.min(H[1], H[5]); a = fin; }
+  water.visible = a > 0.01;
+  if (water.visible) {
+    const x0 = bx(wl) + 0.5, x1 = bx(wr) - 0.5;
+    water.position.set((x0 + x1) / 2, g0, 0);
+    water.scale.set(x1 - x0, Math.max(wh * a, 1e-3), 1);
+    waterMat.color.set(fin > 0 ? 0x4FA8F0 : 0x3F76E4);
+  }
+  steps.forEach((s, k) => {
+    const sa = easeOutBack(prog(t, s.saidT, s.saidT + 0.3)) * (1 - prog(t, s.moveT, s.moveT + 0.2));
+    areaS[k].visible = sa > 0.01;
+    areaS[k].setSize(sa);
+    areaS[k].position.set((bx(s.l) + bx(s.r)) / 2, g0 + s.h + 0.55, 0.6);
+  });
+  goldFrames.forEach((f, k) => {
+    const i = k ? 5 : 1;
+    const ga = prog(t, T.toast + 0.2 * k, T.toast + 0.2 * k + 0.3);
+    f.visible = ga > 0.01;
+    f.position.set(bx(i), g0 + H[i] - 0.5, 0);
+    f.userData.mat.opacity = ga;
+  });
+
+  for (const o of orbs) {
+    const u = t - o.t0;
+    o.sp.visible = u > 0 && u < 1.5;
+    if (!o.sp.visible) continue;
+    o.sp.position.set(o.x + o.vx * u, Math.max(g0 + o.y + o.vy * u - 4.5 * u * u, 0.1), 0.6 + o.vz * u);
+    o.sp.tint(t + o.t0);
+    o.sp.material.opacity = 1 - prog(u, 1.1, 1.5);
+  }
+
+  sc.frame(t, walkPose);
+}
+
+window.renderAt = renderAt;
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

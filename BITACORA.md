@@ -4,6 +4,19 @@ Registro de lo que se hizo en cada sesión, de la más reciente a la más antigu
 
 ## 2026-10-21
 
+### Video #3863 Minimum Operations to Sort a String (ejercicio diario)
+
+- Ejercicio diario de LeetCode 3863 (Medium).
+- Carpeta `videos/strings/3863-min-ops-sort-string`, 112.2 s, voz `af_heart` (Kokoro), 34 efectos de sonido.
+- Demostración de algoritmo voraz en O(n) tiempo y O(1) espacio auxiliar (respuestas posibles: 0, -1, 1, 2, 3).
+- Ejemplo `"dbca"` con menas: d→diamond, b→lapis, c→coal, a→iron. Caso de 3 operaciones con selección de subarreglos en Three.js (`dbc`→`bcd`, `cda`→`acd`, `bac`→`abc`).
+- Corrección en `three/mundo.html`: se eliminó un `return` temprano fuera del recorrido que impedía invocar `world.draw()`, restaurando el cierre continuo del bucle con el recorrido periódico de cámara.
+- Verificado:
+  - Linter sin incidencias (20 subtítulos en 7 escenas).
+  - Duración exacta: video 112.175 s vs audio 112.175 s (diferencia 0.000011 s).
+  - Loop verificado: diferencia media de 1.18 entre primer y último cuadro (ruido de compresión H.264 normal, sin salto visual).
+  - Hoja de contacto generada en `review_sheet.png`.
+
 ### Video #1807 en el pale garden (laptop)
 
 - Entorno instalado en la laptop: skill de Manim en `~/.manim-skill-src` (venv que reusa el Python 3.12 global), registrada en Claude Code; `npm ci` y Chromium de Playwright; `extraer.py` (tomó la 26.1.2, la única versión con jar en esta PC); texturas de `claude.json` reexportadas. El reexport del spawn dio un `claude.json` idéntico al del repositorio.

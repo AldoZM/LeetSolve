@@ -1,21 +1,21 @@
 subtitles:
 - Integer to Roman, Minecraft edition. LeetCode problem number twelve.
 - We get a normal number, like nineteen ninety four, and we must write it in Roman numerals.
-- Romans use seven symbols, from I for one up to M for one thousand. Here the answer is M C M X C I V.
+- Romans use seven symbols, from I up to M. The answer here is M C M X C I V.
 - The first idea uses only those seven symbols. Pay with the biggest one that fits, again and again.
 - M for one thousand, D for five hundred, then four C's, an L, four X's and four I's.
 - That's fifteen symbols, and it's wrong. Romans never write the same symbol four times in a row.
 - Nine hundred is C M, and four is I V. A small symbol before a bigger one is subtracted.
-- Here's the trick. Treat those six subtractive pairs as coins of their own. C M is nine hundred, X C is ninety.
+- Here's the trick. Treat the six subtractive pairs as coins of their own, like C M for nine hundred.
 - Now we have thirteen coins. Always pay with the biggest coin that fits. That's a greedy algorithm.
-- Our villager pays nineteen ninety four, walking down the coin table once, from the biggest coin to the smallest.
+- Our villager pays nineteen ninety four, walking down the coin table once, biggest coin first.
 - One thousand fits. Write M. Nine hundred ninety four left.
 - Nine hundred fits. Write C M. Ninety four left.
 - Five hundred, four hundred and one hundred are too big. Ninety fits. Write X C. Four left.
 - Fifty, forty, ten, nine and five are all too big for four.
 - Four fits exactly. Write I V. Nothing left, we're done.
 - Advancement made. Nineteen ninety four is M C M X C I V.
-- The table has thirteen coins, and an answer has at most fifteen symbols. So the time is constant.
+- Thirteen coins, and at most fifteen symbols. So the time is constant.
 - And the memory is constant too, apart from the answer itself.
 - One table, one loop, and always the biggest coin.
 - Put the tricky cases into the table, and greedy does the rest.

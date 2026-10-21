@@ -347,7 +347,7 @@ def block_textures(names, out_dir, biome='plains'):
                 stem.alpha_composite(img)
                 img = stem
             looks[full] = {'kind': 'cube', 'side': save(base + sfx, img), 'cutout': True, 'h': 1 / 16}
-        elif any(base.startswith(c) or base.endswith(c) for c in CROSS):
+        elif any(base.startswith(c) or base.endswith(c) for c in CROSS) and not base.endswith(('_stem', '_block')):
             name = base
             if base == 'tall_grass':
                 name = 'tall_grass_bottom' if lower else 'tall_grass_top'

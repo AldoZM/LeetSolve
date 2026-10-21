@@ -20,6 +20,7 @@ BLOCKS = {  # output name -> texture inside the jar
     'emerald_ore': 'block/emerald_ore', 'stone': 'block/stone', 'dirt': 'block/dirt', 'planks': 'block/oak_planks',
     'gold_block': 'block/gold_block', 'log_side': 'block/oak_log', 'log_top': 'block/oak_log_top',
     'cobble': 'block/cobblestone', 'barrier': 'item/barrier', 'writable_book': 'item/writable_book',
+    'diorite': 'block/diorite',
 }
 GUI = {
     'generic_54': 'gui/container/generic_54', 'hotbar': 'gui/sprites/hud/hotbar',

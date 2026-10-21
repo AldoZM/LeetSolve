@@ -1,0 +1,145 @@
+{
+  "total_duration_s": 105.45,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Regular Expression Matching, Minecraft edition. LeetCode problem ten, a hard one.",
+      "start_s": 0.0,
+      "end_s": 6.05,
+      "duration_s": 6.05
+    },
+    {
+      "index": 1,
+      "text": "We get a text, a a b, and a pattern, c star a star b. Does the pattern match the whole text?",
+      "start_s": 6.05,
+      "end_s": 12.1,
+      "duration_s": 6.05
+    },
+    {
+      "index": 2,
+      "text": "A dot matches any one letter. A star means zero or more copies of the letter before it.",
+      "start_s": 12.1,
+      "end_s": 17.975,
+      "duration_s": 5.875
+    },
+    {
+      "index": 3,
+      "text": "The direct idea tries every choice. Each star matches zero letters, or one more.",
+      "start_s": 17.975,
+      "end_s": 23.5,
+      "duration_s": 5.525
+    },
+    {
+      "index": 4,
+      "text": "Every choice splits into two branches, and each branch keeps splitting.",
+      "start_s": 23.5,
+      "end_s": 27.85,
+      "duration_s": 4.35
+    },
+    {
+      "index": 5,
+      "text": "And the same small questions get asked again and again, in different branches.",
+      "start_s": 27.85,
+      "end_s": 32.775,
+      "duration_s": 4.925
+    },
+    {
+      "index": 6,
+      "text": "In the worst case, that's exponential time. Our pickaxe won't survive it.",
+      "start_s": 32.775,
+      "end_s": 37.575,
+      "duration_s": 4.8
+    },
+    {
+      "index": 7,
+      "text": "Here's the trick. Every question has the same shape. Does the text from i match the pattern from j?",
+      "start_s": 37.575,
+      "end_s": 43.975,
+      "duration_s": 6.4
+    },
+    {
+      "index": 8,
+      "text": "Answer each pair once, and store it in a table. That's dynamic programming.",
+      "start_s": 43.975,
+      "end_s": 48.875,
+      "duration_s": 4.9
+    },
+    {
+      "index": 9,
+      "text": "Our table is a grid. Rows are spots in the text, columns are spots in the pattern.",
+      "start_s": 48.875,
+      "end_s": 54.4,
+      "duration_s": 5.525
+    },
+    {
+      "index": 10,
+      "text": "The bottom right corner is true. An empty text matches an empty pattern.",
+      "start_s": 54.4,
+      "end_s": 59.35,
+      "duration_s": 4.95
+    },
+    {
+      "index": 11,
+      "text": "We fill it backwards. A letter matches if both letters are equal and the rest matches, one step diagonal.",
+      "start_s": 59.35,
+      "end_s": 66.25,
+      "duration_s": 6.9
+    },
+    {
+      "index": 12,
+      "text": "A star has two options. Skip it, two columns right. Or use one letter, one row down.",
+      "start_s": 66.25,
+      "end_s": 72.1,
+      "duration_s": 5.85
+    },
+    {
+      "index": 13,
+      "text": "With just b left, b matches b, and both stars can be skipped. That row lights up.",
+      "start_s": 72.1,
+      "end_s": 77.625,
+      "duration_s": 5.525
+    },
+    {
+      "index": 14,
+      "text": "With a b, the a star uses its a. With a a b, it uses one more.",
+      "start_s": 77.625,
+      "end_s": 82.1,
+      "duration_s": 4.475
+    },
+    {
+      "index": 15,
+      "text": "The top left corner lights up. Advancement made. The pattern matches the whole text.",
+      "start_s": 82.1,
+      "end_s": 87.675,
+      "duration_s": 5.575
+    },
+    {
+      "index": 16,
+      "text": "Each cell takes constant time, so the time is m times n.",
+      "start_s": 87.675,
+      "end_s": 91.725,
+      "duration_s": 4.05
+    },
+    {
+      "index": 17,
+      "text": "The table holds m times n answers. Exponential becomes polynomial.",
+      "start_s": 91.725,
+      "end_s": 96.975,
+      "duration_s": 5.25
+    },
+    {
+      "index": 18,
+      "text": "Two loops, two cases, and one table.",
+      "start_s": 96.975,
+      "end_s": 99.875,
+      "duration_s": 2.9
+    },
+    {
+      "index": 19,
+      "text": "When the same question repeats, answer it once and store it. That's dynamic programming.",
+      "start_s": 99.875,
+      "end_s": 105.45,
+      "duration_s": 5.575
+    }
+  ]
+}

@@ -124,13 +124,13 @@ function faceMats(maps, shade = SHADE) {
   });
 }
 
-// A block; `label` prints a value on the front face with the game font
-export function makeBlock(imgs, name, { size = 1, label = null, top = name, bottom = name, front = name } = {}) {
+// A block; `label` prints a value on the front face with the game font (labelColor for light blocks like diorite)
+export function makeBlock(imgs, name, { size = 1, label = null, top = name, bottom = name, front = name, labelColor = MC.white } = {}) {
   let frontMap = tex(imgs, front);
   if (label !== null) {
     const c = pixelCanvas(imgs[front], 160, 160, (ctx) => {
       const s = String(label);
-      drawText(ctx, s, 80 - 4, 84, s.length > 1 ? 8 : 10, MC.white);
+      drawText(ctx, s, 80 - 4, 84, s.length > 1 ? 8 : 10, labelColor);
     });
     frontMap = nearest(new THREE.CanvasTexture(c));
   }

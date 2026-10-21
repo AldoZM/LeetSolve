@@ -140,7 +140,9 @@ class Scene3_AddAll(Base):
         step = max(0.3, (DUR[4] - 0.8) / len(SYMS))
         for k in range(len(SYMS)):
             self.sfx("orb", 0.22)
-            self.beat(cur.animate.move_to(row[k]), Transform(tot, total_at(k + 1)), pulse(row[k], 1.12), rt=min(step, 0.45))
+            nxt = total_at(k + 1)
+            self.beat(cur.animate.move_to(row[k]), FadeTransform(tot, nxt), pulse(row[k], 1.12), rt=min(step, 0.45))
+            tot = nxt
         self.close_seg()
 
         self.seg(5)
@@ -177,8 +179,8 @@ class Scene4_Idea(Base):
         cur = outline(pair[0], MC_YELLOW, 8)
         peek = outline(pair[1], MC_AQUA, 8)
         lt = MT("<", 70, MC_AQUA, PIXEL).move_to(pair)
-        rule1 = eq_line([("next bigger", MC_AQUA), ("->", MC_GRAY), ("subtract", MC_RED)], 46, TERM, 0.3).move_to([0, 0.2, 0])
-        rule2 = eq_line([("otherwise", MC_WHITE), ("->", MC_GRAY), ("add", MC_GREEN)], 46, TERM, 0.3).move_to([0, -0.9, 0])
+        rule1 = eq_line([("next bigger", MC_AQUA), ("->", MC_GRAY), ("subtract", MC_RED)], 46, TERM, 0.3).move_to([0, -0.15, 0])
+        rule2 = eq_line([("otherwise", MC_WHITE), ("->", MC_GRAY), ("add", MC_GREEN)], 46, TERM, 0.3).move_to([0, -1.2, 0])
         minus = MT("-100", 46, MC_RED, PIXEL).next_to(vc, DOWN, buff=0.25)
 
         self.seg(7)

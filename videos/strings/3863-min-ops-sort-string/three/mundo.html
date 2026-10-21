@@ -1,0 +1,248 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import { THREE, prog, easeInOut, easeOut, easeOutBack, lerp, V, bezier, pose, mixPose } from '/vendor/lib/stage.js';
+import { MC, loadTheme, makeWorld, makeTerrain, makeBlock, makeFrame, makeSign, pixelSprite,
+         makeOrb, makeClouds } from '/vendor/tema/mc.js';
+import { makeMobs } from '/vendor/tema/mobs.js';
+
+const walk = await (await fetch('/walk.json')).json();
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const seg = (i) => subs[i].start_s;
+const TOTAL = subs[subs.length - 1].end_s;
+const W0 = seg(walk.first), W1 = subs[walk.last].end_s;
+const at = (spec) => seg(spec[0]) + spec[1];
+const E = walk.events;
+
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'planks', 'leaves', 'log_side', 'log_top',
+                              ...walk.ores.map((o) => `${o}_ore`)]);
+
+const world = makeWorld({ fov: 40, offset: 0.34, fog: [55, 120] });
+const { scene } = world;
+const terrain = await makeTerrain('/vendor/tema/mundos/claude.json', { turn: Math.PI / 2, plot: [-5, 5, -2, 7] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+
+const mobs = await makeMobs(terrain, {
+  total: TOTAL,
+  avoid: [[-3.5, 3.5, -1.5, 3.5]],
+  extra: [
+    { id: 'cow', x: -5.5, z: 2 },
+    { id: 'sheep', x: 5.5, z: 1.5, color: 0 },
+    { id: 'pig', x: -4.5, z: -3 },
+    { id: 'chicken', x: 4.0, z: -3 },
+    { id: 'sheep', x: -2.5, z: -5, color: 5 },
+    { id: 'cow', x: 5.0, z: -5 },
+    { id: 'pig', x: 4.8, z: 4 },
+    { id: 'chicken', x: -4.5, z: 4 },
+    { id: 'sheep', x: 1.5, z: -6, color: 3 },
+    { id: 'cow', x: -6.5, z: -1 },
+    { id: 'pig', x: 6.5, z: -1 },
+  ],
+  max: 25,
+});
+scene.add(mobs.g);
+
+const stage = new THREE.Group();
+scene.add(stage);
+
+const SP = 1.2;
+const bx = (pos) => (pos - 1.5) * SP;
+
+// 4 blocks: 0: 'd' (diamond), 1: 'b' (lapis), 2: 'c' (coal), 3: 'a' (iron)
+const chars = walk.chars;
+const blocks = chars.map((ch, i) => {
+  const b = makeBlock(imgs, `${walk.ores[i]}_ore`, { label: ch });
+  stage.add(b.g);
+  return b;
+});
+
+const idxSprites = [0, 1, 2, 3].map((i) => {
+  const s = pixelSprite(String(i), MC.gray, 0.42);
+  s.position.set(bx(i), 0.05, 1.6);
+  stage.add(s);
+  return s;
+});
+
+// Selection frames
+const selFrames = [0, 1, 2].map(() => {
+  const f = makeFrame(1.08, 0.045, MC.yellow);
+  stage.add(f);
+  return f;
+});
+
+const goldFrames = [0, 1, 2, 3].map(() => {
+  const f = makeFrame(1.08, 0.045, MC.gold);
+  stage.add(f);
+  return f;
+});
+
+// Experience orbs
+let seed = 42;
+const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+const orbs = Array.from({ length: 28 }, (_, k) => {
+  const o = makeOrb(imgs, 0.32, [1, 2, 4, 5, 6][k % 5]);
+  o.userData = { fromPos: k % 4, vx: (rnd() - 0.5) * 3.2, vy: 2.8 + rnd() * 2.5, vz: (rnd() - 0.3) * 2.2, delay: rnd() * 0.4 };
+  stage.add(o);
+  return o;
+});
+
+// Fix sprite rendering order
+stage.traverse((o) => {
+  if (o.isSprite) {
+    o.renderOrder = 10;
+  }
+});
+
+// Timing moments
+const tIntro = at(E.intro_row);
+const tCheckSorted = at(E.check_sorted);
+const tCheckMinFirst = at(E.check_min_first);
+const tCheckMinPref = at(E.check_min_prefix);
+const tStuck = at(E.stuck);
+
+const tOp1Sel = at(E.op1_select);
+const tOp1Sort = at(E.op1_sort);
+const tOp2Sel = at(E.op2_select);
+const tOp2Sort = at(E.op2_sort);
+const tOp3Sel = at(E.op3_select);
+const tOp3Sort = at(E.op3_sort);
+const tDone = at(E.sorted_done);
+const tToast = at(E.toast);
+
+function blockPos(blockIdx, t) {
+  // Returns [x, y, z] for blockIdx at time t
+  // Initial order: pos 0: D(0), pos 1: B(1), pos 2: C(2), pos 3: A(3)
+  let p0 = blockIdx; // initial pos equals index
+  
+  // Op 1 (tOp1Sort to tOp1Sort + 0.6):
+  // [D, B, C] -> [B, C, D]
+  // D(0): 0 -> 2
+  // B(1): 1 -> 0
+  // C(2): 2 -> 1
+  // A(3): 3 -> 3
+  const p1Target = [2, 0, 1, 3][blockIdx];
+  const k1 = easeInOut(prog(t, tOp1Sort, tOp1Sort + 0.65));
+  let curPos = lerp(p0, p1Target, k1);
+  let lift = 0;
+  if (k1 > 0 && k1 < 1 && blockIdx < 3) {
+    lift = Math.sin(k1 * Math.PI) * 0.4;
+  }
+
+  // Op 2 (tOp2Sort to tOp2Sort + 0.6):
+  // After Op 1: B is at 0, C is at 1, D is at 2, A is at 3
+  // Op 2 sorts indices 1..3: [C, D, A] -> [A, C, D]
+  // B(1): 0 -> 0
+  // C(2): 1 -> 2
+  // D(0): 2 -> 3
+  // A(3): 3 -> 1
+  const p2Target = [3, 0, 2, 1][blockIdx];
+  const k2 = easeInOut(prog(t, tOp2Sort, tOp2Sort + 0.65));
+  curPos = lerp(curPos, p2Target, k2);
+  if (k2 > 0 && k2 < 1 && p1Target >= 1) {
+    lift = Math.sin(k2 * Math.PI) * 0.4;
+  }
+
+  // Op 3 (tOp3Sort to tOp3Sort + 0.6):
+  // After Op 2: B is at 0, A is at 1, C is at 2, D is at 3
+  // Op 3 sorts indices 0..2: [B, A, C] -> [A, B, C]
+  // A(3): 1 -> 0
+  // B(1): 0 -> 1
+  // C(2): 2 -> 2
+  // D(0): 3 -> 3
+  const p3Target = [3, 1, 2, 0][blockIdx];
+  const k3 = easeInOut(prog(t, tOp3Sort, tOp3Sort + 0.65));
+  curPos = lerp(curPos, p3Target, k3);
+  if (k3 > 0 && k3 < 1 && p2Target <= 2) {
+    lift = Math.sin(k3 * Math.PI) * 0.4;
+  }
+
+  const x = bx(curPos);
+  const baseDrop = easeOut(prog(t, tIntro, tIntro + 0.7));
+  const y = lerp(8, 0.5, baseDrop) + lift;
+  return [x, y, 0];
+}
+
+window.renderAt = function(t) {
+  const sway = 0.4 * Math.sin(t * 0.35);
+  const walkPose = pose(V(sway, 6.6, 15.0), V(sway * 0.4, 1.6, 0.0));
+  
+  const a = 2 * Math.PI * t / TOTAL;
+  const roamPose = pose(V(6 * Math.sin(a), 3.4 + 0.8 * Math.sin(2 * a), 13 + 2.5 * Math.cos(a)), V(3 * Math.sin(a), 4.2, -30));
+  
+  const k = easeInOut(prog(t, W0 - 1.6, W0 - 0.1)) * (1 - easeInOut(prog(t, W1 + 0.1, W1 + 1.6)));
+  const cam = mixPose(roamPose, walkPose, k);
+  world.look(cam.pos, cam.look);
+  world.camera.setViewOffset(world.W, world.H, 0, world.H * lerp(0.12, 0.34, k), world.W, world.H);
+  clouds.position.x = 4 * Math.sin(a);
+  mobs.update(t);
+
+  const inWalk = t >= W0 - 0.5 && t < W1;
+  stage.visible = inWalk;
+  if (inWalk) {
+    blocks.forEach((b, i) => {
+      const [x, y, z] = blockPos(i, t);
+      b.g.position.set(x, y, z);
+    });
+
+    const op1Active = t >= tOp1Sel && t < tOp2Sel;
+    const op2Active = t >= tOp2Sel && t < tOp3Sel;
+    const op3Active = t >= tOp3Sel && t < tDone;
+
+    selFrames.forEach((f, k) => {
+      if (op1Active) {
+        f.position.set(bx(k), 0.5, 0);
+        f.visible = true;
+      } else if (op2Active) {
+        f.position.set(bx(k + 1), 0.5, 0);
+        f.visible = true;
+      } else if (op3Active) {
+        f.position.set(bx(k), 0.5, 0);
+        f.visible = true;
+      } else {
+        f.visible = false;
+      }
+    });
+
+    const doneK = easeOut(prog(t, tDone, tDone + 0.5));
+    goldFrames.forEach((f, pos) => {
+      f.position.set(bx(pos), 0.5, 0);
+      f.visible = doneK > 0;
+      f.scale.setScalar(lerp(1.3, 1.0, doneK));
+    });
+
+    const orbProg = prog(t, tToast, tToast + 2.5);
+    orbs.forEach((o) => {
+      if (orbProg <= 0 || orbProg >= 1) {
+        o.visible = false;
+        return;
+      }
+      const ot = Math.max(0, orbProg - o.userData.delay);
+      if (ot <= 0) {
+        o.visible = false;
+        return;
+      }
+      o.visible = true;
+      const originX = bx(o.userData.fromPos);
+      o.position.x = originX + o.userData.vx * ot;
+      o.position.y = 0.5 + o.userData.vy * ot - 4.9 * ot * ot;
+      o.position.z = o.userData.vz * ot;
+    });
+  }
+
+  world.draw(t, TOTAL, 0, 0);
+};
+
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

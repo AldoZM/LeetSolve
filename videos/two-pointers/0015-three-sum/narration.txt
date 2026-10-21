@@ -1,13 +1,13 @@
 subtitles:
-- Three Sum, Minecraft edition. LeetCode problem number fifteen, an interview favorite.
+- Three Sum, Minecraft edition. LeetCode problem fifteen, an interview favorite.
 - We get a row of numbers, some of them negative. Find every group of three that adds up to zero.
-- Each triple counts only once, even when a number repeats. Here the answer is two triples.
+- Each triple counts once, even if a number repeats. Here there are two.
 - The direct idea is to try every triple of blocks.
 - Three nested loops. Pick one, pick a second, pick a third, and check the sum.
 - With six blocks, that's twenty triples. And we still have to remove the repeated ones.
-- It grows cubically. A thousand blocks already means over a hundred and sixty six million triples.
+- It grows cubically. A thousand blocks means over a hundred and sixty million triples.
 - Here's the trick. Sort the row first. Then fix one block, and find the other two with two pointers.
-- If the sum is too small, move the left pointer right. If it's too big, move the right pointer left.
+- Sum too small? Move the left pointer right. Too big? Move the right pointer left.
 - Sorted, the row is minus four, minus one, minus one, zero, one, two.
 - Fix minus four. Every pair is too small, so the left pointer runs all the way. Nothing.
 - Fix minus one. Minus one, plus minus one, plus two makes zero. Found one!
@@ -15,7 +15,7 @@ subtitles:
 - The next minus one is the same value as before, so we skip it.
 - Fix zero. One plus two is too big, and the pointers meet. Done.
 - Advancement made. Two triples. Minus one, minus one, two. And minus one, zero, one.
-- Sorting costs n log n. Then each fixed block moves the pointers once, so the total is n squared.
+- Sorting costs n log n. Each fixed block walks the pointers once, so the total is n squared.
 - From n cubed down to n squared, and sorting makes repeats easy to skip.
 - Sort, fix one, and squeeze with two pointers.
 - Sorting turns a search into a squeeze. That's the lesson of Three Sum.

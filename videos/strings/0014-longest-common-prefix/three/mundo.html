@@ -1,0 +1,137 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import { THREE, prog, easeInOut, easeOut, easeOutBack, lerp, V, pose } from '/vendor/lib/stage.js';
+import { MC, makeBlock, makeFrame, pixelSprite, makeOrb } from '/vendor/tema/mc.js';
+import { makeScene } from '/vendor/tema/escena.js';
+
+const walk = await (await fetch('/walk.json')).json();
+// One clip for the whole video: times are absolute. The walk happens in [W0, W1]
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const seg = (i) => subs[i].start_s;
+const TOTAL = subs[subs.length - 1].end_s;
+const W0 = seg(walk.first), W1 = subs[walk.last].end_s;
+const at = (spec) => seg(spec[0]) + spec[1];
+
+// The old growth birch forest of ClaudeEntorno, with its cows and chickens
+const sc = await makeScene({
+  map: 'claude_abedul', turn: 0, total: TOTAL, W0, W1, textures: walk.tex,
+  mobs: { extra: [{ id: 'cow', x: -8, z: -7 }, { id: 'chicken', x: 7, z: -6 }, { id: 'chicken', x: 8.5, z: -8 },
+                  { id: 'sheep', x: -11, z: -12, color: 0 }] },
+});
+const { stage, imgs, onTop } = sc;
+
+const T = {};
+for (const k of ['intro_rows', 'scan', 'stop', 'ret', 'toast', 'answer']) T[k] = at(walk[k]);
+const cols = walk.cols.map((c) => ({ ...c, showT: at(c.show), readT: c.reads.map(at), verdictT: at(c.verdict) }));
+const SP = 1.15;
+const bx = (c) => (c - 3) * SP;
+const by = (w) => 0.5 + (walk.words.length - 1 - w) * 1.15;
+
+// The words stacked like walls, the top one first; each letter is a block of the material the word names
+const rows = walk.words.map((word, w) => [...word].map((ch) => {
+  const b = makeBlock(imgs, walk.tex[w], { label: ch, labelColor: walk.tex[w] === 'diorite' ? 0x3F3F3F : MC.white });
+  stage.add(b.g);
+  return b;
+}));
+// Outline on the column being read, one frame per word, and a white flash on the letter just read
+const colFrames = walk.words.map(() => { const f = makeFrame(1.05, 0.04, MC.yellow); stage.add(f); return f; });
+const readFrame = makeFrame(1.08, 0.05, MC.white);
+stage.add(readFrame);
+const crosses = [0, 1].map(() => { const s = onTop(pixelSprite('X', MC.red, 0.5)); stage.add(s); return s; });
+const goldFrames = [0, 1].map(() => { const f = makeFrame(1.06, 0.045, MC.gold); stage.add(f); return f; });
+
+let seed = 14;
+const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+const orbs = [];
+for (const c of cols.filter((q) => q.match)) {
+  for (let k = 0; k < 6; k++) orbs.push({ t0: c.verdictT + 0.04 * k, x: bx(c.c), y: by(0), vx: (rnd() - 0.5) * 1.4, vy: 2 + rnd() * 1.5, vz: rnd() * 1.2 });
+}
+for (let k = 0; k < 26; k++) orbs.push({ t0: T.toast + rnd() * 0.5, x: bx(k % 2), y: by(0) + 0.5, vx: (rnd() - 0.5) * 2.6, vy: 2.6 + rnd() * 2, vz: (rnd() - 0.3) * 2 });
+orbs.forEach((o, k) => { o.sp = onTop(makeOrb(imgs, 0.32, [1, 2, 4, 5, 6][k % 5])); stage.add(o.sp); });
+
+function scanX(t) {
+  let x = bx(0);
+  for (const c of cols) x = lerp(x, bx(c.c), easeInOut(prog(t, c.showT - 0.25, c.showT)));
+  return x;
+}
+
+function renderAt(t) {
+  const push = easeInOut(prog(t, T.ret - 0.3, T.ret + 0.8));
+  const sway = 0.5 * Math.sin(t * 0.35);
+  const walkPose = pose(V(sway, lerp(7.4, 7.0, push), lerp(17.6, 16.8, push)), V(sway * 0.4, 3.4, 0.0));
+  const g0 = sc.terrain.groundAt(0, 0);
+  const bad = cols.find((c) => !c.match);
+
+  rows.forEach((row, w) => row.forEach((b, c) => {
+    // Rows rise out of the ground one after another
+    const d = easeOutBack(prog(t, T.intro_rows + 0.25 * w + 0.04 * c, T.intro_rows + 0.25 * w + 0.04 * c + 0.5));
+    const col = cols.find((q) => q.c === c);
+    let glow = 0, hop = 0;
+    if (col && w < col.readT.length) {
+      const r = col.readT[w];
+      glow += 0.3 * Math.sin(Math.PI * prog(t, r - 0.05, r + 0.35));
+    }
+    if (col && col.match) {
+      hop = 0.3 * Math.sin(Math.PI * prog(t, col.verdictT + 0.05 * w, col.verdictT + 0.05 * w + 0.4));
+      glow += 0.2 * prog(t, col.verdictT, col.verdictT + 0.3);
+    }
+    // After the stop, the letters never read go dark
+    if (c >= bad.c) glow -= 0.45 * prog(t, at(walk.unread), at(walk.unread) + 0.5);
+    // The answer: the prefix of the first word lifts
+    const lift = w === 0 && c < walk.prefix.length ? 0.45 * easeOutBack(prog(t, T.ret + 0.15 * c, T.ret + 0.15 * c + 0.5)) : 0;
+    b.g.position.set(bx(c), by(w) + g0 - (1 - d) * (by(w) + 1) + hop + lift, 0);
+    b.g.visible = d > 0.01;
+    b.set({ glow, opacity: d > 0.01 ? 1 : 0 });
+  }));
+
+  const sx = scanX(t);
+  const scanOn = t > cols[0].showT - 0.3 && t < T.stop + 0.4;
+  colFrames.forEach((f, w) => {
+    f.visible = scanOn;
+    f.position.set(sx, by(w) + g0, 0);
+    f.userData.mat.color.set(t > bad.verdictT ? MC.red : MC.yellow);
+  });
+  let rf = null;
+  for (const c of cols) c.readT.forEach((r, w) => { if (t >= r && t < r + 0.35) rf = [c.c, w]; });
+  readFrame.visible = rf !== null;
+  if (rf) readFrame.position.set(bx(rf[0]), by(rf[1]) + g0, 0);
+
+  crosses.forEach((s, w) => {
+    const a = easeOutBack(prog(t, bad.verdictT + 0.1 * w, bad.verdictT + 0.1 * w + 0.3)) * (1 - prog(t, T.ret, T.ret + 0.3));
+    s.visible = a > 0.01;
+    s.setSize(a);
+    s.position.set(bx(bad.c) + 0.42, by(w) + g0 + 0.38, 0.6);
+  });
+  goldFrames.forEach((f, c) => {
+    const a = prog(t, T.ret + 0.15 * c, T.ret + 0.15 * c + 0.3);
+    f.visible = a > 0.01;
+    f.position.copy(rows[0][c].g.position);
+    f.userData.mat.opacity = a;
+  });
+
+  for (const o of orbs) {
+    const u = t - o.t0;
+    o.sp.visible = u > 0 && u < 1.5;
+    if (!o.sp.visible) continue;
+    o.sp.position.set(o.x + o.vx * u, Math.max(o.y + g0 + o.vy * u - 4.5 * u * u, 0.1), 0.6 + o.vz * u);
+    o.sp.tint(t + o.t0);
+    o.sp.material.opacity = 1 - prog(u, 1.1, 1.5);
+  }
+
+  sc.frame(t, walkPose);
+}
+
+window.renderAt = renderAt;
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>
