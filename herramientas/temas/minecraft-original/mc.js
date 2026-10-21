@@ -284,11 +284,11 @@ export function makeOrb(imgs, size = 0.32, frame = 5) {
   return s;
 }
 
-export function skyCanvas(bands = 28) {
+export function skyCanvas(bands = 28, top = SKY_TOP, bottom = SKY_BOTTOM) {
   const c = document.createElement('canvas');
   c.width = 4; c.height = 1440;
   const ctx = c.getContext('2d');
-  const a = new THREE.Color(SKY_TOP), b = new THREE.Color(SKY_BOTTOM);
+  const a = new THREE.Color(top), b = new THREE.Color(bottom);
   for (let k = 0; k < bands; k++) {
     ctx.fillStyle = '#' + a.clone().lerp(b, k / (bands - 1)).getHexString();
     ctx.fillRect(0, Math.floor(k * c.height / bands), 4, Math.ceil(c.height / bands) + 1);
@@ -299,7 +299,8 @@ export function skyCanvas(bands = 28) {
   return t;
 }
 
-export function makeWorld({ fov = 40, offset = 0.2, fog = [30, 70] } = {}) {
+// sky = [top, bottom] colors of the sky gradient; the fog takes the bottom one (a biome like the pale garden is gray)
+export function makeWorld({ fov = 40, offset = 0.2, fog = [30, 70], sky: skyColors = [SKY_TOP, SKY_BOTTOM] } = {}) {
   const params = new URLSearchParams(location.search);
   const W = Number(params.get('w') || 1080);
   const H = Number(params.get('h') || 1440);
@@ -314,9 +315,9 @@ export function makeWorld({ fov = 40, offset = 0.2, fog = [30, 70] } = {}) {
     window.gpuInfo = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
   }
   const scene = new THREE.Scene();
-  const sky = skyCanvas();
+  const sky = skyCanvas(28, skyColors[0], skyColors[1]);
   scene.background = sky;
-  scene.fog = new THREE.Fog(SKY_BOTTOM, fog[0], fog[1]);
+  scene.fog = new THREE.Fog(skyColors[1], fog[0], fog[1]);
   const camera = new THREE.PerspectiveCamera(fov, W / H, 0.1, 300);
   if (offset) camera.setViewOffset(W, H, 0, H * offset, W, H);
   const fadeMat = new THREE.MeshBasicMaterial({ map: sky, transparent: true, depthTest: false, depthWrite: false });
@@ -358,15 +359,16 @@ export function makeClouds(imgs, { cell = 6, y = 16, x0 = 96, z0 = 40, nx = 36, 
 
 // Terrain exported from a real world by mundo.py: one instanced mesh per block type.
 // Block (x, y, z) relative to the export center sits at (x, y + 0.5, z): the center column's ground top is y = 0.
-export async function makeTerrain(url, { turn = 0, plot = null } = {}) {
+export async function makeTerrain(url, { turn = 0, plot = null, clear = null } = {}) {
   const d = await (await fetch(url)).json();
+  const c = Math.cos(turn), s = Math.sin(turn);
+  const inRect = (r, x, z) => {
+    const sx = c * x + s * z, sz = -s * x + c * z;  // terrain -> scene coordinates
+    return sx >= r[0] && sx <= r[1] && sz >= r[2] && sz <= r[3];
+  };
   // plot = [x0, x1, z0, z1] in scene coordinates: leveled to a grass floor whose top is y = 0, like a player would build
   if (plot) {
-    const c = Math.cos(turn), s = Math.sin(turn);
-    const inPlot = (x, z) => {
-      const sx = c * x + s * z, sz = -s * x + c * z;  // terrain -> scene coordinates
-      return sx >= plot[0] && sx <= plot[1] && sz >= plot[2] && sz <= plot[3];
-    };
+    const inPlot = (x, z) => inRect(plot, x, z);
     const idx = (n) => d.names.indexOf(n);
     const grass = idx('grass_block'), dirt = idx('dirt');
     const low = new Map();
@@ -380,6 +382,12 @@ export async function makeTerrain(url, { turn = 0, plot = null } = {}) {
       d.blocks.push([x, -1, z, grass]);
       for (let y = -2; y >= Math.min(yMin, -2) && y >= -6; y--) d.blocks.push([x, y, z, dirt]);
     }
+  }
+  // clear = [x0, x1, z0, z1] in scene coordinates: trees and ground higher than the plot are cut away there, so a
+  // camera inside a dense forest sees the plot (the forest outside the rectangle stays as the background)
+  if (clear) {
+    const tree = /log|wood|leaves|hanging_moss|vine/;
+    d.blocks = d.blocks.filter(([x, y, z, n]) => !inRect(clear, x, z) || (y < 2 && !tree.test(d.names[n])));
   }
   const dir = url.replace(/[^/]*$/, '') + 'tex/';
   const maps = {};
@@ -417,7 +425,8 @@ export async function makeTerrain(url, { turn = 0, plot = null } = {}) {
       const side = await map(look.side);
       const top = look.top ? await map(look.top) : side;
       const bottom = look.bottom ? await map(look.bottom) : top;
-      geo = cube;
+      // Thin blocks (carpets) keep their bottom on the block's floor
+      geo = look.h ? new THREE.BoxGeometry(1, look.h, 1).translate(0, (look.h - 1) / 2, 0) : cube;
       mats = faceMats([side, side, top, bottom, side, side]);
       if (look.cutout) mats.forEach((mt) => { mt.transparent = false; mt.alphaTest = 0.5; mt.side = THREE.DoubleSide; });
     }
@@ -433,11 +442,10 @@ export async function makeTerrain(url, { turn = 0, plot = null } = {}) {
   const tops = new Map();
   d.blocks.forEach(([x, y, z, n]) => {
     const look = d.looks[d.names[n]];
-    if (look.kind === 'cube' && !look.cutout && (!tops.has(`${x},${z}`) || y + 1 > tops.get(`${x},${z}`))) tops.set(`${x},${z}`, y + 1);
+    if (look.kind === 'cube' && !look.cutout && !look.h && (!tops.has(`${x},${z}`) || y + 1 > tops.get(`${x},${z}`))) tops.set(`${x},${z}`, y + 1);
   });
   // turn rotates the whole terrain around the center column; groundAt takes scene coordinates
   g.rotation.y = turn;
-  const c = Math.cos(turn), s = Math.sin(turn);
   g.groundAt = (x, z) => tops.get(`${Math.round(c * x - s * z)},${Math.round(s * x + c * z)}`) ?? 0;
   return g;
 }

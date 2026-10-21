@@ -106,7 +106,7 @@ def sections(ch):
         bs = s.get('block_states')
         if not bs:
             continue
-        pal = [p['Name'].split(':', 1)[1] + _props(p) for p in bs['palette']]
+        pal = [_name(p) + _props(p) for p in bs['palette']]
         data = bs.get('data')
         if not data:
             out[s['Y']] = (pal, None)
@@ -123,9 +123,16 @@ def sections(ch):
     return out
 
 
+def _name(p):
+    # Up to 26.2 a palette entry is {Name, Properties}; 26.3 writes {id, properties}, a bare name, or {'': name}
+    if isinstance(p, str):
+        return p.split(':', 1)[1]
+    return (p.get('Name') or p.get('id') or p.get('')).split(':', 1)[1]
+
+
 def _props(p):
     # Keep the few properties that change how a block looks
-    pr = p.get('Properties', {})
+    pr = {} if isinstance(p, str) else p.get('Properties') or p.get('properties') or {}
     keep = [f'{k}={pr[k]}' for k in ('axis', 'half', 'type', 'facing') if k in pr]
     return ('[' + ','.join(keep) + ']') if keep else ''
 
@@ -136,7 +143,8 @@ AIR = {'air', 'cave_air', 'void_air'}
 SEE_THROUGH = ('leaves', 'glass', 'grass', 'fern', 'flower', 'poppy', 'dandelion', 'tulip', 'orchid', 'allium', 'bluet',
                'daisy', 'cornflower', 'lily', 'water', 'snow', 'vine', 'sapling', 'bush', 'dead_bush', 'sugar_cane',
                'kelp', 'seagrass', 'torch', 'mushroom', 'rose', 'peony', 'lilac', 'sunflower', 'petals', 'leaf_litter',
-               'firefly', 'cactus', 'pumpkin', 'melon', 'carpet', 'moss_carpet', 'bamboo', 'berry')
+               'firefly', 'cactus', 'pumpkin', 'melon', 'carpet', 'moss_carpet', 'bamboo', 'berry', 'hanging_moss',
+               'eyeblossom')
 
 
 def see_through(name):
@@ -181,7 +189,9 @@ def export(world, X, Y, Z, R, out, depth=40):
                 vis.append([x - X, y - Y, z - Z, name])
                 break
     names = sorted({v[3] for v in vis})
-    looks = block_textures(names, os.path.join(os.path.dirname(os.path.abspath(out)), 'tex'))
+    biome = biome_at(world, X, Y, Z)
+    print('biome at the center:', biome)
+    looks = block_textures(names, os.path.join(os.path.dirname(os.path.abspath(out)), 'tex'), biome)
     json.dump({'center': [X, Y, Z], 'radius': R, 'names': names, 'looks': looks,
                'blocks': [[x, y, z, names.index(n)] for x, y, z, n in vis]}, open(out, 'w'))
     counts = {}
@@ -191,14 +201,41 @@ def export(world, X, Y, Z, R, out, depth=40):
 
 
 GRASS_TINT, FOLIAGE_TINT, WATER_TINT = (145, 189, 89), (119, 171, 47), (63, 118, 228)
+# Biomes whose grass and foliage colors are not the plains ones: (grass, foliage)
+BIOME_TINTS = {'pale_garden': ((119, 130, 114), (135, 141, 118))}
+# Leaves with a fixed color in every biome
+LEAF_TINTS = {'birch_leaves': (128, 167, 85), 'spruce_leaves': (97, 153, 97)}
 CROSS = ('short_grass', 'tall_grass', 'fern', 'bush', 'dandelion', 'poppy', 'cornflower', 'azure_bluet', 'oxeye_daisy',
          'allium', 'tulip', 'orchid', 'lily_of_the_valley', 'sapling', 'dead_bush', 'sugar_cane', 'sweet_berry', 'mushroom',
-         'firefly_bush', 'pink_petals', 'wildflowers', 'leaf_litter')
+         'firefly_bush', 'pink_petals', 'wildflowers', 'leaf_litter', 'pale_hanging_moss', 'eyeblossom')
+
+
+def biome_at(world, x, y, z):
+    # Biome of the 4x4x4 cell holding (x, y, z)
+    ch = chunk(world, x >> 4, z >> 4)
+    for s in ch.get('sections', []) if ch else []:
+        if s['Y'] != y >> 4 or 'biomes' not in s:
+            continue
+        pal, data = s['biomes']['palette'], s['biomes'].get('data')
+        if not data:
+            return pal[0].split(':', 1)[1]
+        bits = max(1, (len(pal) - 1).bit_length())
+        per = 64 // bits
+        i = ((y & 15) >> 2) * 16 + ((z & 15) >> 2) * 4 + ((x & 15) >> 2)
+        v = data[i // per] & ((1 << 64) - 1)
+        return pal[(v >> ((i % per) * bits)) & ((1 << bits) - 1)].split(':', 1)[1]
+    return 'plains'
+
+
 TINTED_PLANTS = ('short_grass', 'tall_grass', 'fern', 'bush', 'sugar_cane')
 
 
-def block_textures(names, out_dir):
+def block_textures(names, out_dir, biome='plains'):
     # Copies the textures each block needs from the newest game jar; returns name -> {kind, top, side, bottom}
+    # Grass and foliage take the colors of the center's biome; those textures get the biome in their file name,
+    # so worlds sharing tex/ do not overwrite each other's plains ones
+    grass, foliage = BIOME_TINTS.get(biome, (GRASS_TINT, FOLIAGE_TINT))
+    sfx = f'_{biome}' if biome in BIOME_TINTS else ''
     from PIL import Image, ImageChops
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import extraer
@@ -221,12 +258,14 @@ def block_textures(names, out_dir):
     looks = {}
     for full in names:
         base = full.split('[')[0]
-        lower = 'half=lower' in full
+        # 26.3 leaves out properties at their default value, and the default half is the lower one
+        lower = 'half=upper' not in full
         if base == 'grass_block':
-            top = save('grass_block_top', extraer.tint(get('grass_block_top'), GRASS_TINT))
+            top = save('grass_block_top' + sfx, extraer.tint(get('grass_block_top'), grass))
             side = get('grass_block_side')
-            side.alpha_composite(extraer.tint(get('grass_block_side_overlay'), GRASS_TINT))
-            looks[full] = {'kind': 'cube', 'top': top, 'side': save('grass_block_side', side), 'bottom': save('dirt', get('dirt'))}
+            side.alpha_composite(extraer.tint(get('grass_block_side_overlay'), grass))
+            looks[full] = {'kind': 'cube', 'top': top, 'side': save('grass_block_side' + sfx, side),
+                           'bottom': save('dirt', get('dirt'))}
         elif base == 'water' or base == 'bubble_column':
             looks[full] = {'kind': 'water', 'top': save('water', extraer.tint(get('water_still'), WATER_TINT))}
         elif any(base.startswith(c) or base.endswith(c) for c in CROSS):
@@ -235,16 +274,22 @@ def block_textures(names, out_dir):
                 name = 'tall_grass_bottom' if lower else 'tall_grass_top'
             img = get(name) or get(base + ('_bottom' if lower else '_top')) or get('short_grass')
             if base.startswith(TINTED_PLANTS):
-                img = extraer.tint(img, GRASS_TINT)
+                img = extraer.tint(img, grass)
+                name += sfx
             looks[full] = {'kind': 'cross', 'side': save(name, img)}
         elif base.endswith('_log') or base.endswith('_wood'):
             looks[full] = {'kind': 'cube', 'axis': full.split('axis=')[1][0] if 'axis=' in full else 'y',
                            'top': save(base + '_top', get(base + '_top') or get(base)), 'side': save(base, get(base))}
         elif base.endswith('leaves'):
-            img = get(base)
+            img, key = get(base), base
             if base in ('oak_leaves', 'jungle_leaves', 'acacia_leaves', 'dark_oak_leaves', 'mangrove_leaves'):
-                img = extraer.tint(img, FOLIAGE_TINT)
-            looks[full] = {'kind': 'cube', 'side': save(base, img), 'cutout': True}
+                img, key = extraer.tint(img, foliage), base + sfx
+            elif base in LEAF_TINTS:
+                img = extraer.tint(img, LEAF_TINTS[base])
+            looks[full] = {'kind': 'cube', 'side': save(key, img), 'cutout': True}
+        elif base.endswith('carpet'):
+            # A thin layer on the ground
+            looks[full] = {'kind': 'cube', 'side': save(base, get(base) or get(base.replace('_carpet', '_block'))), 'h': 1 / 16}
         else:
             img = get(base) or get(base + '_side') or get('stone')
             top = get(base + '_top')

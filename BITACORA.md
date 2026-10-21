@@ -4,6 +4,23 @@ Registro de lo que se hizo en cada sesión, de la más reciente a la más antigu
 
 ## 2026-10-21
 
+### Video #1807 en el pale garden (laptop)
+
+- Entorno instalado en la laptop: skill de Manim en `~/.manim-skill-src` (venv que reusa el Python 3.12 global), registrada en Claude Code; `npm ci` y Chromium de Playwright; `extraer.py` (tomó la 26.1.2, la única versión con jar en esta PC); texturas de `claude.json` reexportadas. El reexport del spawn dio un `claude.json` idéntico al del repositorio.
+- Aldo pidió primero un bioma de nieve. ClaudeEntorno no tiene nieve generada, así que se copió el mundo a `%APPDATA%\.minecraft\saves` para abrirlo en 26.3. Aldo encontró ahí el **pale garden** (el bioma gris) y pidió usarlo.
+- `mundos/claude_pale.json`: orilla oeste de la meseta del pale garden, centro (128, 141, 470), radio 64.
+- Herramientas compartidas, sin cambiar los videos anteriores (plantilla verificada: cuadro 3D idéntico byte a byte):
+  - `mundo.py`: formato de bloques de 26.3, tinte de pasto y follaje por bioma (con el bioma en el nombre del archivo), musgo colgante y eyeblossom como plantas, alfombras delgadas, tinte de hojas de abedul y abeto, `half` por defecto de 26.3.
+  - `mc.js`: `makeWorld({ sky })`, `makeTerrain({ clear })` y bloques delgados (`h`).
+  - `build.py`: el paso `mux` usa `-/filter_complex` con ffmpeg 7 o más nuevo (ffmpeg 9 ya no tiene `-filter_complex_script`).
+- Video `videos/strings/1807-evaluate-bracket-pairs`: 94.0 s, 20 líneas, 60 efectos. Código con `split`: `chest = dict(knowledge)`, un paso por corchete.
+- Encontrado: los sprites de texto quedaban tapados por el terreno (ver "Problemas conocidos" en `GUIA.md`).
+- Verificado: duración del video igual a la del audio (94.0 s), hojas de cuadros de todas las escenas, cuadros 3D sueltos. Unión del loop: diferencia media 1.66, contra 1.02 entre dos cuadros seguidos (el bosque cercano y desenfocado cambia más por cuadro que la pradera). No se vio el video completo en movimiento.
+- Aldo aprobó el video ("Quedó") y pidió música de fondo: C418 - Dry Hands (Minecraft Volume Alpha), excepción a la regla de "sin música" por el riesgo de reclamos en YouTube. Nueva clave `musica` en `video.json` y pista en `extraer.py`; mezcla a 0.3, entrada de 1 s y salida de 3 s. No se escuchó el resultado; solo se midieron niveles (sin saturación, pico −5.8 dB).
+- Aldo vio los minerales del inventario "aplastados". `iso_block` tenía los lados a 0.5 del ancho y llenaba la casilla. Se agregaron `ISO_SIDE` e `ISO_FILL` en `tema.py` (por defecto igual que antes); el #1807 usa 0.61 y 0.88, como el icono del juego.
+- Bug encontrado al rearmar: el paso `lint` sobrescribía los cues de sonido de todas las escenas. Corregido en `build.py`; los 60 efectos del #1807 se regeneraron con renders reales.
+- Pendiente: el `ClaudeEntorno.zip` del repositorio es el de 26.2 y no incluye el pale garden. Para regenerar `mundos/tex/` de `claude_pale.json` en otra PC hace falta el mundo actualizado.
+
 ### Repositorio y documento para otros modelos
 
 - La carpeta quedó conectada a `github.com/AldoZM/LeetSolve`, encima de sus 2 commits anteriores (el video de árboles en `Three/` se conserva).

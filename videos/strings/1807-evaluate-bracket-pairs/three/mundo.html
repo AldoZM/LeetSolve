@@ -1,0 +1,260 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #C4C6C4; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import { THREE, prog, easeInOut, easeOut, easeOutBack, lerp, V, bezier, pose, mixPose } from '/vendor/lib/stage.js';
+import { MC, loadTheme, makeWorld, makeTerrain, makeBlock, makeChest, makeFrame, makeSign, pixelSprite,
+         makeOrb, makeClouds, textWidth } from '/vendor/tema/mc.js';
+
+const walk = await (await fetch('/walk.json')).json();
+// One clip for the whole video: times are absolute. The walk happens in [W0, W1]; the rest is a slow roam that
+// ends where it starts, so the video still loops.
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const seg = (i) => subs[i].start_s;
+const TOTAL = subs[subs.length - 1].end_s;
+const W0 = seg(walk.first), W1 = subs[walk.last].end_s;
+const at = (spec) => seg(spec[0]) + spec[1];
+const ORE = Object.fromEntries(walk.knowledge.map(([, v]) => [v, `${v}_ore`]));
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'planks', 'leaves', 'log_side', 'log_top', 'cobble',
+                              ...Object.values(ORE)]);
+
+const steps = walk.steps.map((s) => ({ ...s, visitT: at(s.visit), keyT: at(s.key_t), askT: at(s.ask),
+  hitT: s.hit ? at(s.hit) : null, missT: s.miss ? at(s.miss) : null, writeT: at(s.write),
+  wordT: s.word_t ? at(s.word_t) : null, copyT: s.copy ? at(s.copy) : null }));
+const T = {
+  row: at(walk.intro_row), brackets: at(walk.brackets), words: at(walk.words), chest: at(walk.chest_in),
+  demo: at(walk.demo_key), demoAsk: at(walk.demo_ask), toast: at(walk.toast), answer: at(walk.answer_t),
+};
+
+// The pale garden of ClaudeEntorno: gray sky and fog like the game's
+const world = makeWorld({ fov: 40, offset: 0.34, fog: [45, 110], sky: [0xA3A7AB, 0xCFD1CF] });
+const { scene } = world;
+// Terrain at the west edge of the pale garden plateau, turned so the camera looking toward -z sees into the forest.
+// The forest is dense: a glade is cut between the cameras and the plot
+const terrain = await makeTerrain('/vendor/tema/mundos/claude_pale.json',
+                                  { turn: Math.PI / 2, plot: [-5, 5, -2, 7], clear: [-9, 9, -2, 22] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+// Everything of the walk lives in its own group, hidden outside the walk
+const stage = new THREE.Group();
+scene.add(stage);
+
+// The terrain's blocks are drawn in the transparent pass too; sprites (which write no depth) go after them, on top
+const onTop = (sp) => { sp.renderOrder = 2; sp.material.depthTest = false; return sp; };
+
+// The row: a cobblestone block per bracket, floating words for the plain text between them
+const WORD_H = 0.55, GAP = 0.38;
+const width = (p) => (p.kind === 'key' ? 1 : WORD_H * (textWidth(p.text) + 2) / 10);
+const total = walk.pieces.reduce((a, p) => a + width(p), 0) + GAP * (walk.pieces.length - 1);
+let edge = -total / 2;
+const pieces = walk.pieces.map((p) => {
+  const w = width(p);
+  const x = edge + w / 2;
+  edge += w + GAP;
+  if (p.kind === 'word') {
+    const s = pixelSprite(p.text, MC.white, WORD_H);
+    onTop(s);
+    stage.add(s);
+    return { ...p, x, s };
+  }
+  const b = makeBlock(imgs, 'cobble', { label: `(${p.text})` });
+  stage.add(b.g);
+  return { ...p, x, b };
+});
+
+const CHEST = V(0, 0, 3.6);
+const chest = makeChest(imgs, 0.95);
+CHEST.y = terrain.groundAt(CHEST.x, CHEST.z);
+chest.g.position.copy(CHEST);
+stage.add(chest.g);
+
+// What the chest holds: one small ore per key, dropped in when it appears
+const stash = walk.knowledge.map(([, v]) => { const it = makeBlock(imgs, ORE[v], { size: 0.34 }); stage.add(it.g); return it; });
+
+// The game's block outline on the bracket being read
+const frame = makeFrame();
+stage.add(frame);
+
+// Per bracket: the key sign, the value block it turns into, the value's name and the item that flies out of the chest
+const per = steps.map((s) => {
+  const p = pieces[s.piece];
+  const sign = makeSign(imgs, [`key ${s.key}`], { w: 1.7, h: 0.8, post: false });
+  stage.add(sign);
+  const name = pixelSprite(s.value, s.hitT !== null ? MC.white : MC.red, s.hitT !== null ? 0.42 : 0.7);
+  onTop(name);
+  stage.add(name);
+  let ore = null, item = null;
+  if (s.hitT !== null) {
+    ore = makeBlock(imgs, ORE[s.value]);
+    stage.add(ore.g);
+    item = makeBlock(imgs, ORE[s.value], { size: 0.34 });
+    stage.add(item.g);
+  }
+  return { s, p, sign, name, ore, item };
+});
+const miss = onTop(pixelSprite('X', MC.red, 0.6));
+stage.add(miss);
+const goldFrames = per.filter((q) => q.ore).map(() => { const f = makeFrame(1.06, 0.045, MC.gold); stage.add(f); return f; });
+
+// Experience orbs that burst from the answer
+let seed = 11;
+const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+const orbs = Array.from({ length: 30 }, (_, k) => {
+  const o = onTop(makeOrb(imgs, 0.34, [1, 2, 4, 5, 6][k % 5]));
+  const from = pieces[k % pieces.length].x;
+  o.userData = { from, vx: (rnd() - 0.5) * 2.4, vy: 2.6 + rnd() * 2.2, vz: (rnd() - 0.3) * 2.0, delay: rnd() * 0.4 };
+  stage.add(o);
+  return o;
+});
+
+function cursorX(t) {
+  // Arrives at bracket i at its visit time
+  let x = pieces[steps[0].piece].x;
+  for (const s of steps) x = lerp(x, pieces[s.piece].x, easeInOut(prog(t, s.visitT - 0.28, s.visitT)));
+  return x;
+}
+
+function lidOpen(t) {
+  // Open while the knowledge drops in, for the demo question and for every lookup
+  let a = easeOut(prog(t, T.chest + 0.2, T.chest + 0.4)) * (1 - easeInOut(prog(t, T.chest + 1.4, T.chest + 1.6)));
+  a = Math.max(a, easeOut(prog(t, T.demoAsk - 0.1, T.demoAsk + 0.15)) * (1 - easeInOut(prog(t, T.demoAsk + 0.9, T.demoAsk + 1.15))));
+  for (const s of steps) {
+    const close = s.hitT !== null ? s.writeT + 0.1 : s.missT + 0.5;
+    a = Math.max(a, easeOut(prog(t, s.askT - 0.08, s.askT + 0.12)) * (1 - easeInOut(prog(t, close, close + 0.18))));
+  }
+  return a;
+}
+
+function renderAt(t) {
+  // Walk camera: wide front view with a slow drift, a small push in for the answer
+  const push = easeInOut(prog(t, T.toast - 0.3, T.toast + 0.8));
+  const sway = 0.5 * Math.sin(t * 0.35);
+  const walkPose = pose(V(sway, lerp(6.6, 6.3, push), lerp(15.0, 14.3, push)), V(sway * 0.4, 1.6, 0.0));
+  // Roam camera: one slow loop over the plateau for the whole video
+  const a = 2 * Math.PI * t / TOTAL;
+  const roamPose = pose(V(6 * Math.sin(a), 3.4 + 0.8 * Math.sin(2 * a), 13 + 2.5 * Math.cos(a)), V(3 * Math.sin(a), 4.2, -30));
+  const k = easeInOut(prog(t, W0 - 1.6, W0 - 0.1)) * (1 - easeInOut(prog(t, W1 + 0.1, W1 + 1.6)));
+  const cam = mixPose(roamPose, walkPose, k);
+  world.look(cam.pos, cam.look);
+  // The walk keeps its content high in the frame (the overlay uses the bottom); the roam shows more sky
+  world.camera.setViewOffset(world.W, world.H, 0, world.H * lerp(0.12, 0.34, k), world.W, world.H);
+  clouds.position.x = 4 * Math.sin(a);
+  stage.visible = t < W1;
+
+  // Pieces drop in from above, one after another; brackets and words pulse when the narration names them
+  pieces.forEach((p, i) => {
+    const d = prog(t, T.row + 0.12 * i, T.row + 0.12 * i + 0.55);
+    const fall = d < 1 ? (1 - d) * (1 - d) * 4.5 : 0;
+    const bounce = d >= 0.75 ? 0.18 * Math.sin(Math.PI * prog(d, 0.75, 1)) : 0;
+    const y = 0.5 + fall + bounce + terrain.groundAt(p.x, 0);
+    if (p.kind === 'word') {
+      p.s.visible = d > 0;
+      p.s.position.set(p.x, y, 0);
+      const named = Math.sin(Math.PI * prog(t, T.words, T.words + 0.6));
+      const st = steps.find((q) => q.word === i);
+      const hot = st ? prog(t, st.wordT, st.wordT + 0.15) * (1 - prog(t, st.copyT + 0.35, st.copyT + 0.5)) : 0;
+      const pop = st ? Math.sin(Math.PI * prog(t, st.copyT, st.copyT + 0.35)) : 0;
+      p.s.setSize(Math.max(d > 0 ? 1 : 0, 1e-4) * (1 + 0.18 * named + 0.25 * pop));
+      p.s.material.color.set(hot > 0.5 ? MC.yellow : 0xffffff);
+      p.s.material.opacity = d > 0 ? 1 : 0;
+      return;
+    }
+    const st = per.find((q) => q.s.piece === i);
+    // A bracket with a known key turns into its ore when the value is written
+    const swap = st && st.ore ? prog(t, st.s.writeT - 0.05, st.s.writeT + 0.2) : 0;
+    let glow = 0.3 * Math.sin(Math.PI * prog(t, T.brackets + 0.15 * (i / 2), T.brackets + 0.15 * (i / 2) + 0.5));
+    if (st && t >= st.s.visitT - 0.1 && t < st.s.visitT + 0.35) glow = 0.25 * Math.sin(Math.PI * prog(t, st.s.visitT - 0.1, st.s.visitT + 0.35));
+    p.b.g.position.set(p.x, y, 0);
+    p.b.g.scale.setScalar(Math.max(1 - swap, 1e-4));
+    p.b.set({ glow, opacity: d > 0 && swap < 1 ? 1 : 0 });
+    if (st && st.ore) {
+      const g = easeOutBack(prog(t, st.s.writeT, st.s.writeT + 0.35));
+      // The answer blocks lift a little at the end
+      const lift = easeOutBack(prog(t, T.toast, T.toast + 0.5));
+      st.ore.g.position.set(p.x, y + 0.35 * lift, 0);
+      st.ore.g.scale.setScalar(Math.max(g, 1e-4));
+      st.ore.set({ glow: lift > 0 ? 0.3 * lift + 0.12 * Math.sin(t * 6) * lift : 0, opacity: g > 0.001 ? 1 : 0 });
+    }
+  });
+
+  // Chest pops in, the knowledge drops into it, its lid opens for every lookup
+  const cIn = easeOutBack(prog(t, T.chest, T.chest + 0.5));
+  chest.g.scale.setScalar(Math.max(cIn, 1e-4));
+  chest.g.visible = cIn > 0.001;
+  chest.open(lidOpen(t));
+  stash.forEach((it, j) => {
+    const f = prog(t, T.chest + 0.35 + 0.25 * j, T.chest + 0.75 + 0.25 * j);
+    it.g.visible = f > 0 && f < 1;
+    it.g.position.copy(CHEST).add(V(0, lerp(3.2, 0.7, easeInOut(f)), 0));
+    it.g.rotation.set(0.4, 5 * f, 0);
+  });
+
+  // Selection frame on the current bracket
+  const fIn = prog(t, T.demo, T.demo + 0.25);
+  frame.visible = fIn > 0 && t < steps[steps.length - 1].writeT + 0.3;
+  frame.position.set(cursorX(t), 0.5 + terrain.groundAt(cursorX(t), 0), 0);
+
+  per.forEach((q, j) => {
+    const { s, p } = q;
+    // Key sign above the bracket, from reading the key until the value is written
+    const sA = easeOutBack(prog(t, s.keyT - 0.05, s.keyT + 0.25)) * (1 - prog(t, s.writeT - 0.1, s.writeT + 0.05));
+    q.sign.visible = sA > 0.01;
+    q.sign.scale.setScalar(Math.max(sA, 1e-4));
+    q.sign.position.set(Math.max(-2.3, Math.min(2.3, p.x)), 1.75 + 0.05 * Math.sin(t * 3), 0);
+    // The value's name (or a red question mark) appears over the block
+    const nA = easeOutBack(prog(t, s.writeT, s.writeT + 0.3)) * (1 - prog(t, W1 - 0.4, W1));
+    q.name.visible = nA > 0.01;
+    q.name.setSize(nA);
+    q.name.position.set(p.x, 1.45 + 0.04 * Math.sin(t * 3 + j), 0);
+    // The item flies from the open chest to the bracket
+    if (q.item) {
+      const f = prog(t, s.hitT, s.writeT);
+      q.item.g.visible = f > 0 && f < 1;
+      q.item.g.position.copy(bezier(CHEST.clone().add(V(0, 0.75, 0)), V((CHEST.x + p.x) / 2, 2.6, 1.6), V(p.x, 0.6, 0.2), easeInOut(f)));
+      q.item.g.rotation.set(0.4, 6 * f, 0);
+    }
+  });
+
+  // Miss marker over the chest
+  let mA = 0;
+  for (const s of steps) if (s.missT !== null) mA = Math.max(mA, Math.sin(Math.PI * prog(t, s.missT, s.missT + 0.6)));
+  miss.visible = mA > 0.01;
+  miss.setSize(0.5 + 0.5 * mA);
+  miss.position.copy(CHEST).add(V(0, 1.75, 0));
+
+  per.filter((q) => q.ore).forEach((q, j) => {
+    const f = goldFrames[j];
+    const a = prog(t, T.toast + 0.2 * j, T.toast + 0.2 * j + 0.3);
+    f.visible = a > 0.01;
+    f.position.copy(q.ore.g.position);
+    f.userData.mat.opacity = a;
+  });
+
+  // Orbs: a short ballistic burst over the whole row
+  for (const o of orbs) {
+    const { from, vx, vy, vz, delay } = o.userData;
+    const u = t - (T.toast + delay);
+    o.visible = u > 0 && u < 1.6 && t < W1;
+    if (!o.visible) continue;
+    const y = 1.35 + vy * u - 4.5 * u * u;
+    o.position.set(from + vx * u, Math.max(y, 0.1), vz * u);
+    o.tint(t + delay);
+    o.material.opacity = 1 - prog(u, 1.2, 1.6);
+  }
+
+  world.draw(t, TOTAL, 0, 0);
+}
+
+window.renderAt = renderAt;
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

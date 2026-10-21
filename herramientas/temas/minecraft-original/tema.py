@@ -120,12 +120,18 @@ def pickaxe(w=1.2):
 
 
 # ---------- inventory icons ----------
-def iso_block(tex, w=0.6):
+# Side height of the icon over its width, and how much of a slot an inventory item fills. The game's icon (orthographic,
+# tilted 30 degrees) has sides of about 0.61 and fills about 14 of 16 pixels; 0.5 and 1.0 keep the template's look
+ISO_SIDE = 0.5
+ISO_FILL = 1.0
+
+
+def iso_block(tex, w=0.6, side=None):
     # The inventory look: top, left and right faces in a 2:1 isometric view with the game's face shading
     img = _load(tex)
     faces = VGroup()
     L, B, R, F = np.array([-w / 2, w / 4, 0]), np.array([0, w / 2, 0]), np.array([w / 2, w / 4, 0]), np.array([0, 0, 0])
-    down = np.array([0, -w / 2, 0])
+    down = np.array([0, -w * (ISO_SIDE if side is None else side), 0])
     for e1, e2, center, light in [
         (F - L, B - L, (L + R) / 2, 1.0),
         (F - L, -down, (L + F) / 2 + down / 2, 0.8),
@@ -160,7 +166,7 @@ def block_row(values, y, size=1.0, gap=0.25, x=0.0, num_h=0.42):
 def item_stack(value, count, slot_w, count_color=MC_YELLOW):
     # Inventory item: isometric block with its value in white on it; the stack count (bottom-right, like the game) is the index
     u = slot_w / 18
-    icon = iso_block(f"{ORE_OF[value]}_ore", 16 * u)
+    icon = iso_block(f"{ORE_OF[value]}_ore", 16 * u * ISO_FILL)
     val = gui_text(str(value), MC_WHITE, u * 1.15)
     val.move_to(icon).shift(UP * 2 * u)
     cnt = gui_text(str(count), count_color, u)

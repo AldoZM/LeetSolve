@@ -1,0 +1,176 @@
+{
+ "first": 9,
+ "last": 15,
+ "s": "(a)and(b)make(c)",
+ "knowledge": [
+  [
+   "a",
+   "iron"
+  ],
+  [
+   "b",
+   "gold"
+  ],
+  [
+   "d",
+   "coal"
+  ]
+ ],
+ "pieces": [
+  {
+   "kind": "key",
+   "text": "a"
+  },
+  {
+   "kind": "word",
+   "text": "and"
+  },
+  {
+   "kind": "key",
+   "text": "b"
+  },
+  {
+   "kind": "word",
+   "text": "make"
+  },
+  {
+   "kind": "key",
+   "text": "c"
+  }
+ ],
+ "answer": "ironandgoldmake?",
+ "intro_row": [
+  9,
+  0.0
+ ],
+ "brackets": [
+  9,
+  1.817
+ ],
+ "words": [
+  9,
+  3.133
+ ],
+ "chest_in": [
+  10,
+  0.0
+ ],
+ "demo_key": [
+  10,
+  3.021
+ ],
+ "demo_ask": [
+  10,
+  4.254
+ ],
+ "toast": [
+  15,
+  0.05
+ ],
+ "answer_t": [
+  15,
+  1.324
+ ],
+ "steps": [
+  {
+   "piece": 0,
+   "key": "a",
+   "value": "iron",
+   "out_value": "iron",
+   "visit": [
+    11,
+    0.0
+   ],
+   "key_t": [
+    11,
+    0.333
+   ],
+   "ask": [
+    11,
+    0.583
+   ],
+   "write": [
+    11,
+    2.083
+   ],
+   "hit": [
+    11,
+    1.417
+   ],
+   "word": 1,
+   "rest": "and",
+   "word_t": [
+    12,
+    0.621
+   ],
+   "copy": [
+    12,
+    2.621
+   ],
+   "out_rest": "ironand"
+  },
+  {
+   "piece": 2,
+   "key": "b",
+   "value": "gold",
+   "out_value": "ironandgold",
+   "visit": [
+    12,
+    3.204
+   ],
+   "key_t": [
+    13,
+    0.05
+   ],
+   "ask": [
+    13,
+    0.22
+   ],
+   "write": [
+    13,
+    0.535
+   ],
+   "hit": [
+    13,
+    0.4
+   ],
+   "word": 3,
+   "rest": "make",
+   "word_t": [
+    13,
+    0.994
+   ],
+   "copy": [
+    13,
+    2.065
+   ],
+   "out_rest": "ironandgoldmake"
+  },
+  {
+   "piece": 4,
+   "key": "c",
+   "value": "?",
+   "out_value": "ironandgoldmake?",
+   "visit": [
+    14,
+    0.0
+   ],
+   "key_t": [
+    14,
+    0.257
+   ],
+   "ask": [
+    14,
+    0.449
+   ],
+   "write": [
+    14,
+    2.952
+   ],
+   "miss": [
+    14,
+    0.77
+   ]
+  }
+ ]
+}

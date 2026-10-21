@@ -34,6 +34,8 @@ SOUNDS = {
     'challenge': 'ui/toast/challenge_complete', 'toast_in': 'ui/toast/in',
     **{f'stone_dig{k}': f'dig/stone{k}' for k in range(1, 5)}, **{f'stone_step{k}': f'step/stone{k}' for k in range(1, 7)},
     **{f'wood_dig{k}': f'dig/wood{k}' for k in range(1, 5)},
+    # Background music, only for videos whose video.json asks for it (C418's tracks get YouTube copyright claims)
+    'music_dry_hands': 'music/game/dry_hands',
 }
 
 

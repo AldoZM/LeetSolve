@@ -77,6 +77,7 @@ Secciones (por tema de LeetCode): `arrays-hashing`, `linked-list`, `sliding-wind
 - `pruebas/0001-two-sum-horizontal`: primera prueba en 16:9, sin código a la par.
 - `pruebas/0001-two-sum-minecraft`: Two Sum con el tema de Minecraft. Se arma con `python ../../herramientas/build.py` (está a dos niveles, no a tres).
 - `pruebas/0001-two-sum-minecraft-original`: **plantilla del estilo aprobado**. Two Sum con los assets y sonidos del juego, en el mundo ClaudeEntorno.
+- `strings/1807-evaluate-bracket-pairs`: Evaluate the Bracket Pairs of a String, Medium. Primer video del estilo aprobado fuera de la plantilla. Ejemplo `"(a)and(b)make(c)"` con a→iron, b→gold, d→coal: sale `"ironandgoldmake?"`. Fondo en el **pale garden** de ClaudeEntorno (`mundos/claude_pale.json`), con cielo gris.
 
 Al terminar un video nuevo, agrégalo a esta lista.
 
@@ -91,6 +92,7 @@ Al terminar un video nuevo, agrégalo a esta lista.
 - Herramientas de la skill: `~/.manim-skill-src/skills/manim-skill/tools/` (`tts-generate.py`, `lint-subtitles.py`, `video_viewer.py`).
 - Render 3D: `herramientas/three/render.mjs` (Node + Playwright Chromium, usa la RX 6600 por D3D11). En una PC nueva, correr `npm ci` y `npx playwright install chromium` dentro de `herramientas/three`. Sirve su propia carpeta como `/vendor/lib/` (ahí está `stage.js`).
 - En otra PC, si la skill no está en `~/.manim-skill-src`, definir `MANIM_SKILL_TOOLS` con la carpeta `tools/` de github.com/Yusuke710/manim-skill.
+- Instalación usada en la laptop (2026-10-21): `git clone https://github.com/Yusuke710/manim-skill ~/.manim-skill-src`, venv con `py -3.12 -m venv .venv --system-site-packages` (reusa manim, kokoro y torch del Python 3.12 global) y `pip install --no-deps manim==0.22.0` para tener `manim.exe` en el venv. La skill se registra en Claude Code con un junction `~/.claude/skills/manim-skill` → `~/.manim-skill-src/skills/manim-skill`.
 - LaTeX: MiKTeX. ffmpeg y ffprobe en el PATH.
 
 ## Archivos de cada video
@@ -182,6 +184,7 @@ Un tema cambia el estilo sin tocar el flujo. Vive en `herramientas/temas/<tema>/
 - Tema `minecraft-original` (prueba en `pruebas/0001-two-sum-minecraft-original`): usa los assets del juego instalado en la PC.
   - Antes de usarlo: `python herramientas/temas/minecraft-original/extraer.py` copia de `%APPDATA%\.minecraft` (la versión más nueva) las texturas, la interfaz (cofre, barra de objetos, barra de experiencia, aviso de logro), la fuente `ascii.png` y los sonidos.
   - Esos archivos no se pueden redistribuir: `tex/`, `gui/`, `font/` y `sounds/` están en `.gitignore` y nunca se suben a un repositorio. Al publicar un video, poner "Not an official Minecraft product" en la descripción y no usar el logo del juego.
+  - Iconos de inventario (`iso_block`, `Inventory.item`, `Hotbar.item`): por defecto salen más chatos que en el juego (lado 0.5 del ancho, llenan la casilla). Para las proporciones del juego, pon `ISO_SIDE, ISO_FILL = 0.61, 0.88` al inicio de `scenes.py`, como en el #1807. La plantilla usa los valores por defecto.
   - Su `tema.py` empieza con `# extends: minecraft`: `build.py` pega primero el tema base y después este, que reemplaza el texto (fuente del juego dibujada como pixel art), los bloques, `Inventory` (pantalla del cofre con 9 casillas), `Hotbar`, `toast`, `xp_bar`, `level_text`, `iso_block` (bloque en vista de inventario), `chest_icon` y el panel de código.
   - `mc.js` arma el cofre con el modelo y la textura del juego, el contorno negro del bloque apuntado, orbes de experiencia con su color cambiante y nubes sacadas de `clouds.png`.
 
@@ -196,12 +199,19 @@ Un tema cambia el estilo sin tocar el flujo. Vive en `herramientas/temas/<tema>/
 - El mundo de prueba es "ClaudeEntorno" (perfil "YouTube DSA" del launcher, en `%APPDATA%\.minecraft-youtube\saves`), exportado alrededor del spawn con radio 64.
 - El repositorio trae una copia del mundo en `mundos/ClaudeEntorno.zip` (sin la carpeta `players/`) y su exportación `mundos/claude.json`. Para verlo en el juego, descomprimir el zip en la carpeta `saves` de Minecraft Java 26.2 o más nuevo. Las texturas de `mundos/tex/` no se suben: las vuelve a copiar `mundo.py export` desde el juego instalado.
 - La cámara del clip completo hace un recorrido periódico (`sin` y `cos` de `2π t / TOTAL`) para que el último cuadro sea igual al primero. Entra y sale de la cámara del recorrido del algoritmo en 1.5 s.
+- Otros lugares de ClaudeEntorno:
+  - `mundos/claude_pale.json`: el **pale garden** (bioma gris) en la orilla oeste de su meseta, centro (128, 141, 470), radio 64. Se exportó de la copia del mundo abierta en 26.3, que ya tiene esa zona generada. El zip del repositorio es la versión 26.2 y no la tiene.
+  - Bosque denso: `makeTerrain(..., { clear: [x0, x1, z0, z1] })` corta árboles y terreno alto (y ≥ 2) en ese rectángulo de la escena, para que las cámaras vean el lote. Se aplica después de `plot`.
+  - Cielo de otro color: `makeWorld({ ..., sky: [arriba, abajo] })`. La niebla toma el color de abajo. El pale garden usa `[0xA3A7AB, 0xCFD1CF]`.
+- `mundo.py export` toma el bioma del centro: si está en `BIOME_TINTS` (por ahora `pale_garden`), tiñe pasto y follaje con sus colores y guarda esas texturas con el bioma en el nombre (`grass_block_top_pale_garden.png`), para no pisar las de otros mundos en `mundos/tex/`. También entiende el formato de bloques de 26.3, el musgo colgante y las eyeblossoms como plantas, y las alfombras como capa delgada (`h` en `looks`).
 
 ## Efectos de sonido
 
 - En cualquier escena: `self.sfx("nombre", gain, delay=0)` agenda un sonido en el momento actual (más `delay`). Cada escena guarda sus sonidos en `media/sfx/<Escena>.json` al renderizarse.
 - El paso `mux` de `build.py` mezcla esos sonidos con la voz, sin bajar el volumen de la voz. Los archivos salen de `sounds/<nombre>.ogg` del tema.
 - Volúmenes que funcionaron: 0.22 a 0.45. Los sonidos del juego son fuertes y no deben tapar la narración.
+- Música de fondo (opcional): `"musica": {"sound": "music_dry_hands", "gain": 0.3, "fade": [1.0, 3.0]}` en `video.json`. `build.py` la repite hasta cubrir el video, con entrada y salida suaves, y la mezcla bajo la voz. `extraer.py` copia "Dry Hands" de C418 a `sounds/music_dry_hands.ogg` (68 s, termina con 2 s de silencio, por eso el reinicio no se nota). Con 0.3 queda unos 10 dB debajo de la voz.
+- La regla general sigue siendo **sin música del juego**: las pistas de C418 suelen recibir reclamos de Content ID en YouTube. Aldo pidió Dry Hands para el #1807 sabiendo ese riesgo; es una excepción, no el estilo por defecto.
 
 ## Lista de revisión antes de entregar
 
@@ -228,3 +238,7 @@ Un tema cambia el estilo sin tocar el flujo. Vive en `herramientas/temas/<tema>/
 - Con la fuente del juego, los espacios iniciales no tienen píxeles. Cada línea de código lleva un rectángulo invisible del ancho completo para no perder la sangría.
 - La mezcla de audio va en mono. Pasar la voz mono a estéreo la bajaba 3 dB.
 - El juego puede estar abierto mientras se lee el mundo, pero solo se ve lo que ya se guardó. Si se construye algo nuevo, hay que guardar (salir al menú) y volver a exportar.
+- Los bloques del terreno tienen material `transparent`, así que se dibujan en la misma pasada que los sprites. Un `pixelSprite` no escribe profundidad y el suelo puede taparlo, parcial o completo. En una página nueva, dale `renderOrder = 2` y `depthTest = false` a los sprites de texto (ver `onTop` en `videos/strings/1807-evaluate-bracket-pairs/three/mundo.html`). `mc.js` no se cambió para no alterar la plantilla aprobada.
+- El linter corre las escenas con objetos falsos y sus `self.sfx()` sobrescribían `media/sfx/*.json` con cues incompletos. En una corrida parcial (`script lint render Scene4_Idea ... mux`), las escenas que no se renderizaban se mezclaban con los sonidos del linter. Desde 2026-10-21, el paso `lint` de `build.py` respalda y restaura esos archivos.
+- Minecraft 26.3 omite las propiedades que tienen su valor por defecto: un `tall_grass` sin `half` es la mitad de abajo.
+- Si la PC tiene dos GPU, Chromium puede usar la integrada. El render 3D sale igual, solo tarda más.

@@ -1,0 +1,21 @@
+subtitles:
+- Evaluate the Bracket Pairs, Minecraft edition. LeetCode problem eighteen oh seven, a medium one.
+- We get a string with keys inside brackets, and a list of knowledge that says what each key means.
+- Replace every bracket with its value. If a key is unknown, write a question mark instead.
+- The direct idea is to search the whole list for every bracket.
+- Key A is first in the list, one check. Key B, two checks. Key C, three checks, and it's not even there.
+- Six checks for just three brackets. Every bracket pays for the whole list.
+- With thirty thousand brackets and a hundred thousand keys, that's billions of checks.
+- Here's the trick. Before reading the string, put all the knowledge into a chest.
+- That chest is a hash map. Give it a key, and it hands back the value in constant time.
+- Here is the string as a row. Three brackets, with plain words between them.
+- The chest holds the knowledge. For each bracket, we read the key and ask the chest once.
+- Key A. The chest has it. Iron!
+- The word "and" is plain text, so it's copied as it is.
+- Key B. Gold! Then the word "make".
+- Key C. It's not in the chest, so it becomes a question mark.
+- Advancement made. Iron and gold make, question mark.
+- Each lookup takes constant time, so we read the string once and the list once.
+- That's O of n plus k time, and O of k memory for the chest.
+- One chest, one pass, and just a few lines of code.
+- Look it up, don't search for it. That's the lesson of bracket pairs.
