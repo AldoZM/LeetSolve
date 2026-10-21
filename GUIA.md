@@ -222,6 +222,19 @@ Un tema cambia el estilo sin tocar el flujo. Vive en `herramientas/temas/<tema>/
 - **Riesgo al publicar:** las canciones de C418 (Subwoofer Lullaby, Sweden, Wet Hands...) reciben reclamos de derechos de autor en YouTube; no entran en los permisos de Mojang para videos. Se usa solo cuando Aldo lo pide, y antes de publicar se le recuerda.
 - Primer video con música: `trees/0297-serialize-tree` (Subwoofer Lullaby, a petición de Aldo).
 
+## Errores ya cometidos (no repetir)
+
+Aldo los encontró en el #297 o salieron en su revisión. Antes de entregar un video, revisar esta lista uno por uno en las hojas de cuadros.
+
+1. **Varillas encima de los bloques.** Si las líneas de un árbol se animan después de que los bloques ya están en escena, quedan por encima. Solución: `self.add(edges, *blocks)` antes de `Create(edges)` (las líneas primero, los bloques al frente).
+2. **Pixel art pintado de un color.** `Indicate(..., color=...)` sobre bloques, objetos o barreras los vuelve un cuadro sólido. Solución: un pulso de escala (`m.animate(rate_func=there_and_back).scale(1.15)`). `Indicate` solo en texto.
+3. **Íconos 3D tapados por el terreno.** Los sprites (barreras, orbes) desaparecen cuando el terreno queda detrás. Solución: `stage.traverse((o) => { if (o.isSprite) o.renderOrder = 10; })`.
+4. **Comas que parecen puntos.** Cada pieza de texto se centra por sus píxeles y la coma sube. Solución: piezas con caja de altura de línea completa (`glyphs` en el #297) y `arrange(RIGHT, buff=0)`.
+5. **Bloques del inventario que se ven aplastados.** Un número encima del ícono isométrico tapa la cara de arriba y el bloque parece plano. Solución: el valor en la esquina inferior derecha, dentro de la casilla, como la cantidad en el juego (`slot_item` del #297). `item_stack` del tema todavía pone el valor encima: no usarlo así en videos nuevos.
+6. **Aviso de logro tapando el 3D.** El `toast` de ancho 5.6 en `TOP_Y` tapaba el bloque de arriba. Revisar qué hay del 3D en esa esquina; en el #297 se usó `w=4.6` en y = 5.5.
+7. **Contenido 3D fuera del cuadro.** La cámara de la plantilla no sirve para otra forma (un árbol es más alto que una fila). Probar con cuadros sueltos (`--stills`) antes del clip completo. El contenido 3D debe quedar entre los píxeles 130 y 735 de alto, arriba del inventario.
+8. **Linter por eventos muy juntos.** Si dos eventos del recorrido caen a menos de 0.35 s, los `beat` se acumulan y se pasan del tiempo de la línea. Usar `rt` de 0.08 a 0.15 en esos eventos.
+
 ## Lista de revisión antes de entregar
 
 - `build.py` imprime la duración del video y la del audio: deben coincidir.

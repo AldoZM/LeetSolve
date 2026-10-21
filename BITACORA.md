@@ -30,6 +30,8 @@ Registro de lo que se hizo en cada sesión, de la más reciente a la más antigu
   - Loop: diferencia media de 1.24 entre el primer y el último cuadro. Es ruido de compresión en los bordes; el contenido es el mismo.
 - No verificado: ver el video completo en movimiento y escuchar los volúmenes.
 - Aldo encontró las varillas encima de los bloques en "The problem" (y pasaba igual en "The trick"): se agregan antes que los bloques.
+- Aldo vio los bloques del inventario aplastados: el número encima del ícono isométrico tapaba la cara de arriba. Se movió a la esquina inferior derecha, dentro de la casilla.
+- Todas las correcciones quedaron juntas en `GUIA.md`, "Errores ya cometidos (no repetir)", y `INSTRUCCIONES_IA.md` pide revisarlas antes de entregar.
 - A petición de Aldo, música de fondo: C418 - Subwoofer Lullaby (`"musica"` en `video.json`, `MUSIC` en `extraer.py`). Riesgo de reclamos en YouTube anotado en la guía.
 
 ## 2026-10-20

@@ -140,8 +140,9 @@ def slot_item(inv, k):
         icon.move_to(inv.slots[k])
         return icon
     icon = iso_block(f"{t['ore']}_ore", 16 * inv.u)
-    val = gui_text(t["tok"], MC_WHITE, inv.u * 1.3)
-    val.move_to(icon).shift(UP * 2 * inv.u)
+    # Value in the corner where the game prints stack counts: on top of the block it hid the top face and looked flat
+    val = gui_text(t["tok"], MC_WHITE, inv.u * 1.15)
+    val.move_to(icon.get_corner(DR) + np.array([1 * inv.u, 0.5 * inv.u, 0]), aligned_edge=DR)
     item = VGroup(icon, val)
     item.move_to(inv.slots[k])
     return item

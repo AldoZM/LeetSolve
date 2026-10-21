@@ -256,9 +256,10 @@ Si el linter falla, el tiempo de alguna línea se pasa de su presupuesto. Corrig
    ```bash
    node ../../../herramientas/three/render.mjs --page three/mundo.html --tema ../../../herramientas/temas/minecraft-original --stills 2,40,60 --outdir review3d
    ```
-4. **Loop:** la diferencia media entre el primer y el último cuadro debe ser menor a 1.
-5. **Visor:** ábrelo con `video_viewer.py video.mp4 --order concat.txt --script script.py --port 80NN`.
-6. **Reporte:** di qué verificaste y qué no. Por ejemplo, si no viste el video en movimiento, dilo.
+4. **Errores conocidos:** recorre la lista "Errores ya cometidos (no repetir)" de `GUIA.md` contra tus hojas de cuadros: varillas encima de bloques, pixel art pintado de un color, íconos 3D tapados, comas, números encima de íconos, avisos tapando el 3D y contenido 3D fuera del cuadro.
+5. **Loop:** la diferencia media entre el primer y el último cuadro debe ser menor a 1. Si queda un poco arriba, revisa el mapa de diferencias: si solo hay bordes, es ruido de compresión.
+6. **Visor:** ábrelo con `video_viewer.py video.mp4 --order concat.txt --script script.py --port 80NN`.
+7. **Reporte:** di qué verificaste y qué no. Por ejemplo, si no viste el video en movimiento, dilo.
 
 Al terminar:
 
