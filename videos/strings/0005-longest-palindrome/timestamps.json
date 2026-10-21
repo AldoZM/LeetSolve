@@ -1,123 +1,137 @@
 {
-  "total_duration_s": 85.325,
+  "total_duration_s": 89.2,
   "subtitles": [
     {
       "index": 0,
-      "text": "Longest Palindromic Substring. LeetCode number five.",
+      "text": "Longest Palindromic Substring, Minecraft edition. LeetCode number five.",
       "start_s": 0.0,
-      "end_s": 4.0,
-      "duration_s": 4.0
+      "end_s": 5.175,
+      "duration_s": 5.175
     },
     {
       "index": 1,
-      "text": "Given a string, return the longest substring that reads the same forwards and backwards.",
-      "start_s": 4.0,
-      "end_s": 9.675,
-      "duration_s": 5.675
+      "text": "Given a row of letter blocks, return the longest run that reads the same forwards and backwards.",
+      "start_s": 5.175,
+      "end_s": 11.45,
+      "duration_s": 6.275
     },
     {
       "index": 2,
       "text": "In a b a r a c e c a r, the answer is racecar.",
-      "start_s": 9.675,
-      "end_s": 13.55,
+      "start_s": 11.45,
+      "end_s": 15.325,
       "duration_s": 3.875
     },
     {
       "index": 3,
-      "text": "Brute force checks every substring to see if it's a palindrome. That's n squared substrings, times n for each check.",
-      "start_s": 13.55,
-      "end_s": 20.95,
-      "duration_s": 7.4
+      "text": "Brute force checks every run to see if it's a palindrome.",
+      "start_s": 15.325,
+      "end_s": 19.1,
+      "duration_s": 3.775
     },
     {
       "index": 4,
-      "text": "But a palindrome is a mirror. Every one of them has a center.",
-      "start_s": 20.95,
-      "end_s": 25.1,
-      "duration_s": 4.15
+      "text": "That's n squared runs, times n for each check. Cubic time.",
+      "start_s": 19.1,
+      "end_s": 23.475,
+      "duration_s": 4.375
     },
     {
       "index": 5,
-      "text": "So pick a center, and expand outward while the two ends match.",
-      "start_s": 25.1,
-      "end_s": 29.25,
+      "text": "But a palindrome is a mirror. Every one of them has a center.",
+      "start_s": 23.475,
+      "end_s": 27.625,
       "duration_s": 4.15
     },
     {
       "index": 6,
-      "text": "A center can be a letter, for odd lengths, or the gap between two letters, for even lengths.",
-      "start_s": 29.25,
-      "end_s": 34.725,
-      "duration_s": 5.475
+      "text": "So pick a center, and expand outward while the two ends match.",
+      "start_s": 27.625,
+      "end_s": 31.775,
+      "duration_s": 4.15
     },
     {
       "index": 7,
-      "text": "Let's run it on a b a r a c e c a r, trying every center from left to right.",
-      "start_s": 34.725,
-      "end_s": 40.3,
-      "duration_s": 5.575
+      "text": "A center can be a block, for odd lengths, or the gap between two blocks, for even lengths.",
+      "start_s": 31.775,
+      "end_s": 37.175,
+      "duration_s": 5.4
     },
     {
       "index": 8,
-      "text": "Center on b. a matches a, so a b a is a palindrome of length three. Our best so far.",
-      "start_s": 40.3,
-      "end_s": 46.075,
-      "duration_s": 5.775
+      "text": "Let's run it on a b a r a c e c a r, trying every center from left to right.",
+      "start_s": 37.175,
+      "end_s": 42.75,
+      "duration_s": 5.575
     },
     {
       "index": 9,
-      "text": "Most other centers stop almost right away, because the two sides don't match.",
-      "start_s": 46.075,
-      "end_s": 51.125,
-      "duration_s": 5.05
+      "text": "Center on b. a matches a, so a b a is a palindrome of length three. Our best so far.",
+      "start_s": 42.75,
+      "end_s": 48.525,
+      "duration_s": 5.775
     },
     {
       "index": 10,
-      "text": "Now center on e. c matches c. a matches a. r matches r.",
-      "start_s": 51.125,
-      "end_s": 55.325,
-      "duration_s": 4.2
+      "text": "Most other centers stop almost right away, because the two sides don't match.",
+      "start_s": 48.525,
+      "end_s": 53.575,
+      "duration_s": 5.05
     },
     {
       "index": 11,
-      "text": "We've hit the end of the string, so the expansion stops. racecar, length seven, is the new best.",
-      "start_s": 55.325,
-      "end_s": 61.525,
-      "duration_s": 6.2
+      "text": "Now center on e. c matches c. a matches a. r matches r.",
+      "start_s": 53.575,
+      "end_s": 57.775,
+      "duration_s": 4.2
     },
     {
       "index": 12,
-      "text": "The last few centers are checked too, but nothing beats seven.",
-      "start_s": 61.525,
-      "end_s": 65.425,
-      "duration_s": 3.9
+      "text": "We've hit the end of the row, so the expansion stops.",
+      "start_s": 57.775,
+      "end_s": 61.225,
+      "duration_s": 3.45
     },
     {
       "index": 13,
-      "text": "There are two n minus one centers, and each one can expand up to n steps. So the time is n squared.",
-      "start_s": 65.425,
-      "end_s": 72.275,
-      "duration_s": 6.85
+      "text": "Advancement made. Racecar, length seven, is the new best.",
+      "start_s": 61.225,
+      "end_s": 65.4,
+      "duration_s": 4.175
     },
     {
       "index": 14,
-      "text": "But we only track two pointers and the best range, so the extra space is constant.",
-      "start_s": 72.275,
-      "end_s": 77.725,
-      "duration_s": 5.45
+      "text": "The last few centers are checked too, but nothing beats seven.",
+      "start_s": 65.4,
+      "end_s": 69.3,
+      "duration_s": 3.9
     },
     {
       "index": 15,
-      "text": "No table, no extra memory. Just expand around each center.",
-      "start_s": 77.725,
-      "end_s": 82.25,
-      "duration_s": 4.525
+      "text": "There are two n minus one centers, and each one can expand up to n steps. So the time is n squared.",
+      "start_s": 69.3,
+      "end_s": 76.15,
+      "duration_s": 6.85
     },
     {
       "index": 16,
+      "text": "But we only track two pointers and the best range, so the extra space is constant.",
+      "start_s": 76.15,
+      "end_s": 81.6,
+      "duration_s": 5.45
+    },
+    {
+      "index": 17,
+      "text": "No table, no extra memory. Just expand around each center.",
+      "start_s": 81.6,
+      "end_s": 86.125,
+      "duration_s": 4.525
+    },
+    {
+      "index": 18,
       "text": "Every palindrome has a middle. Start there.",
-      "start_s": 82.25,
-      "end_s": 85.325,
+      "start_s": 86.125,
+      "end_s": 89.2,
       "duration_s": 3.075
     }
   ]

@@ -191,6 +191,9 @@ def export(world, X, Y, Z, R, out, depth=40):
 
 
 GRASS_TINT, FOLIAGE_TINT, WATER_TINT = (145, 189, 89), (119, 171, 47), (63, 118, 228)
+# Birch and spruce leaves ignore the biome and always use the same color in the game
+FIXED_LEAF_TINT = {'birch_leaves': (128, 167, 85), 'spruce_leaves': (97, 153, 97)}
+DRY_FOLIAGE_TINT = (164, 122, 74)
 CROSS = ('short_grass', 'tall_grass', 'fern', 'bush', 'dandelion', 'poppy', 'cornflower', 'azure_bluet', 'oxeye_daisy',
          'allium', 'tulip', 'orchid', 'lily_of_the_valley', 'sapling', 'dead_bush', 'sugar_cane', 'sweet_berry', 'mushroom',
          'firefly_bush', 'pink_petals', 'wildflowers', 'leaf_litter')
@@ -227,6 +230,9 @@ def block_textures(names, out_dir):
             side = get('grass_block_side')
             side.alpha_composite(extraer.tint(get('grass_block_side_overlay'), GRASS_TINT))
             looks[full] = {'kind': 'cube', 'top': top, 'side': save('grass_block_side', side), 'bottom': save('dirt', get('dirt'))}
+        elif base == 'leaf_litter':
+            # A flat layer on the ground, colored like dry foliage (a gray cross without it)
+            looks[full] = {'kind': 'flat', 'top': save('leaf_litter', extraer.tint(get('leaf_litter'), DRY_FOLIAGE_TINT))}
         elif base == 'water' or base == 'bubble_column':
             looks[full] = {'kind': 'water', 'top': save('water', extraer.tint(get('water_still'), WATER_TINT))}
         elif any(base.startswith(c) or base.endswith(c) for c in CROSS):
@@ -244,6 +250,8 @@ def block_textures(names, out_dir):
             img = get(base)
             if base in ('oak_leaves', 'jungle_leaves', 'acacia_leaves', 'dark_oak_leaves', 'mangrove_leaves'):
                 img = extraer.tint(img, FOLIAGE_TINT)
+            elif base in FIXED_LEAF_TINT:
+                img = extraer.tint(img, FIXED_LEAF_TINT[base])
             looks[full] = {'kind': 'cube', 'side': save(base, img), 'cutout': True}
         else:
             img = get(base) or get(base + '_side') or get('stone')

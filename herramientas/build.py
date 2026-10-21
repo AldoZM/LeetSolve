@@ -1,6 +1,7 @@
 # Builds one LeetCode video in the current session folder.
 # Needs video.json: {"groups": [["Scene1_Hook", [0]], ...], "three": {"scene": "Scene5_Walk", "page": "three/walk.html"}}
 # or, for one 3D world behind the whole video: "fondo": {"page": "three/mundo.html", "sharp": ["Scene5_Walk"]}
+#   ("formato": "9:16" with "fondo" gives a 1080 x 1920 video; the scenes stay 1080 x 1440 in the middle)
 #   (every scene renders transparent over its slice of that clip; scenes not listed in "sharp" get the world blurred)
 # Usage: python build.py [script] [lint] [render [Scene ...]] [three] [composite] [sync [Scene ...]] [mux]   (no args = all)
 import json, os, subprocess, sys
@@ -21,6 +22,10 @@ fondo = cfg.get('fondo')
 # Optional visual theme: herramientas/temas/<name>/ with tema.py (Manim) and assets for the 3D page
 TEMA = os.path.join(HERE, 'temas', cfg['tema']) if cfg.get('tema') else None
 names = [g[0] for g in groups]
+# "formato": "9:16" makes a 1080 x 1920 video: the 3D world is rendered taller and every 1080 x 1440 scene sits centered on it
+TALL = cfg.get('formato') == '9:16'
+SIZE3D = ['--width', '1080', '--height', '1920'] if TALL else []
+TOP = 240 if TALL else 0
 
 
 def run(cmd, **kw):
@@ -95,7 +100,7 @@ def step_three():
     extra = ['--tema', TEMA] if TEMA else []
     if fondo:
         total = frame_bounds()[names[-1]][1]
-        run(['node', RENDER3D, '--page', fondo['page'], '--lib', LIB3D, *extra, '--frames', str(total), '--out',
+        run(['node', RENDER3D, '--page', fondo['page'], '--lib', LIB3D, *extra, *SIZE3D, '--frames', str(total), '--out',
              'media/three/fondo.mp4'])
         return
     a, b = frame_bounds()[three['scene']]
@@ -112,7 +117,7 @@ def step_composite_fondo(only):
         look = '' if name in fondo.get('sharp', []) else ',gblur=sigma=5,colorchannelmixer=rr=0.82:gg=0.82:bb=0.82'
         run(['ffmpeg', '-v', 'error', '-y', '-i', 'media/three/fondo.mp4', '-i', ov, '-filter_complex',
              f'[0:v]trim=start_frame={a}:end_frame={b},setpts=PTS-STARTPTS{look}[bg];'
-             f'[1:v]tpad=stop_mode=clone:stop={pad + 2}[ov];[bg][ov]overlay=format=auto:eof_action=repeat,format=yuv420p[v]',
+             f'[1:v]tpad=stop_mode=clone:stop={pad + 2}[ov];[bg][ov]overlay=x=0:y={TOP}:format=auto:eof_action=repeat,format=yuv420p[v]',
              '-map', '[v]', '-frames:v', str(n), '-c:v', 'libx264', '-crf', '16', '-preset', 'slow', '-r', str(FPS),
              f'{OUT}/{name}.mp4'])
 

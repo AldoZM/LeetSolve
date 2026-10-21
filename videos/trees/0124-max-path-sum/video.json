@@ -1,3 +1,4 @@
-{"groups": [["Scene1_Hook", [0]], ["Scene2_Problem", [1, 2]], ["Scene3_Brute", [3]], ["Scene4_Idea", [4, 5, 6]],
-            ["Scene5_Walk", [7, 8, 9, 10, 11, 12]], ["Scene6_Complexity", [13, 14]], ["Scene7_Outro", [15, 16]]],
- "three": {"scene": "Scene5_Walk", "page": "three/walk.html"}}
+{"tema": "minecraft-original", "formato": "9:16",
+ "groups": [["Scene1_Hook", [0]], ["Scene2_Problem", [1, 2]], ["Scene3_Brute", [3]], ["Scene4_Idea", [4, 5, 6]],
+            ["Scene5_Walk", [7, 8, 9, 10, 11, 12, 13]], ["Scene6_Complexity", [14, 15]], ["Scene7_Outro", [16, 17]]],
+ "fondo": {"page": "three/mundo.html", "sharp": ["Scene5_Walk"]}}

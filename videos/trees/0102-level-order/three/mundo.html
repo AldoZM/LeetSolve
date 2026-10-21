@@ -1,0 +1,177 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import { THREE, prog, easeInOut, easeOut, easeOutBack, lerp, V, bezier, pose, mixPose } from '/vendor/lib/stage.js';
+import { MC, loadTheme, makeWorld, makeTerrain, makeBlock, makeFrame, pixelSprite, makeOrb, makeClouds, tex } from '/vendor/tema/mc.js';
+import { loadMobs, planLife, makeLife, setTime } from '/vendor/tema/vida.js';
+
+const walk = await (await fetch('/walk.json')).json();
+// One clip for the whole video: times are absolute. The walk happens in [W0, W1]; the rest is a slow roam that
+// ends where it starts, so the video still loops.
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const seg = (i) => subs[i].start_s;
+const TOTAL = subs[subs.length - 1].end_s;
+const W0 = seg(walk.first), W1 = subs[walk.last].end_s;
+const at = (spec) => seg(spec[0]) + spec[1];
+const nodes = walk.nodes;
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'planks', 'leaves', 'log_side', 'log_top',
+                              ...new Set(nodes.map((n) => `${n.ore}_ore`))]);
+const T = { tree: at(walk.tree_in), init: at(walk.init), toast: at(walk.toast) };
+const FLY = 0.35;  // seconds an item takes between the tree and its queue slot
+
+// Replay the queue to know which slot every push lands in and every pop leaves from
+const events = walk.events.map((e) => ({ ...e, T: at(e.t) }));
+{
+  const q = [];
+  for (const e of events) {
+    if (e.kind === 'push') { e.slot = q.length; q.push(e.node); }
+    if (e.kind === 'pop') { e.slot = 0; q.shift(); }
+  }
+}
+const pushT = {}, popT = {};
+events.forEach((e) => { if (e.kind === 'push') pushT[e.node] = e; if (e.kind === 'pop') popT[e.node] = e; });
+const doneT = events.filter((e) => e.kind === 'done').map((e) => e.T);
+
+const world = makeWorld({ fov: 40, offset: 0.34, fog: [55, 120] });
+const { scene, camera } = world;
+// Terrain of the ClaudeEntorno world (closed oak forest in the north, see mundos/lugares.json), turned so the camera looking
+// toward -z sees the forest behind the tree; trees and plants are cleared where the camera stands
+const terrain = await makeTerrain('/vendor/tema/mundos/oak-forest.json', { turn: 0.0, plot: [-5, 5, -2, 7], clear: [-10, 10, 7, 24] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+// Night in the forest: hostile mobs among the trees; the walk itself keeps full light so it reads well
+const LIFE = [{ kind: 'zombie', count: 2 }, { kind: 'skeleton', count: 1 }, { kind: 'spider', count: 2 }, { kind: 'creeper', count: 1, graze: 1 }];
+await loadMobs(imgs, LIFE.map((g) => g.kind));
+const dim = await setTime(world, 'night', { terrain, clouds, imgs });
+const life = makeLife(imgs, terrain, planLife(terrain, LIFE, { seed: 23 }), TOTAL, dim);
+scene.add(life.g);
+// Everything of the walk lives in its own group, hidden outside the walk
+const stage = new THREE.Group();
+scene.add(stage);
+
+// Tree in the plane z = 0: level 0 on top
+const Y0 = 5.0, DY = 1.45;
+const spot = (i) => V(nodes[i].x, Y0 - nodes[i].lvl * DY, 0);
+const rodMat = new THREE.MeshBasicMaterial({ map: tex(imgs, 'planks') });
+rodMat.color.setScalar(0.8);
+const rodGeo = new THREE.BoxGeometry(0.12, 0.12, 1);
+rodGeo.translate(0, 0, 0.5);
+const rods = nodes.map((n, i) => {
+  if (n.parent === null) return null;
+  const r = new THREE.Mesh(rodGeo, rodMat);
+  r.position.copy(spot(n.parent));
+  r.lookAt(spot(i));
+  r.userData.len = spot(n.parent).distanceTo(spot(i));
+  stage.add(r);
+  return r;
+});
+const blocks = nodes.map((n) => { const b = makeBlock(imgs, `${n.ore}_ore`, { label: n.val }); stage.add(b.g); return b; });
+
+// The block outline on the node being popped
+const frame = makeFrame(1.04, 0.035, MC.yellow);
+stage.add(frame);
+
+// Items flying between the tree and the queue slots (one in for the push, one out for the pop)
+const flyer = (n) => { const it = makeBlock(imgs, `${n.ore}_ore`, { size: 0.36 }); stage.add(it.g); return it.g; };
+const ins = nodes.map(flyer), outs = nodes.map(flyer);
+
+// Experience orbs that burst from the whole tree
+let seed = 11;
+const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+const orbs = Array.from({ length: 26 }, (_, n) => {
+  const o = makeOrb(imgs, 0.34, [1, 2, 4, 5, 6][n % 5]);
+  o.userData = { from: n % nodes.length, vx: (rnd() - 0.5) * 2.4, vy: 2.2 + rnd() * 2.0, vz: (rnd() - 0.3) * 2.0, delay: rnd() * 0.35 };
+  stage.add(o);
+  return o;
+});
+
+// Terrain materials are transparent (alpha-tested) and sorted with the sprites; sprites go last so the ground can't paint over them
+stage.traverse((o) => { if (o.isSprite) o.renderOrder = 10; });
+
+// Queue slot k of the 2D overlay (Inventory(9) at y = -1.15 in Manim's 9 x 12 frame), as a point in front of the camera
+function slotPoint(k) {
+  const xm = -3.52 + 0.88 * k, ym = -1.39;
+  const ndc = V(xm / 4.5, ym / 6 * world.ndcY, 0.5);
+  ndc.unproject(camera);
+  const dir = ndc.sub(camera.position).normalize();
+  return camera.position.clone().add(dir.multiplyScalar(7));
+}
+
+function renderAt(t) {
+  // Walk camera: far and level so the whole tree fits in the top half; roam camera: one slow loop over the meadow
+  const sway = 0.5 * Math.sin(t * 0.35);
+  const walkPose = pose(V(sway, 5.0, 18), V(sway * 0.4, 4.6, 0.0));
+  const a = 2 * Math.PI * t / TOTAL;
+  const roamPose = pose(V(6 * Math.sin(a), 3.4 + 0.8 * Math.sin(2 * a), 13 + 2.5 * Math.cos(a)), V(3 * Math.sin(a), 4.2, -30));
+  const k = easeInOut(prog(t, W0 - 1.6, W0 - 0.1)) * (1 - easeInOut(prog(t, W1 + 0.1, W1 + 1.6)));
+  const cam = mixPose(roamPose, walkPose, k);
+  world.look(cam.pos, cam.look);
+  // The walk keeps its content high in the frame (the overlay uses the bottom); the roam shows more sky
+  camera.setViewOffset(world.W, world.H, 0, world.H * lerp(0.12, 0.34, k), world.W, world.H);
+  camera.updateMatrixWorld();
+  clouds.position.x = 4 * Math.sin(a);
+  life.update(t);
+  stage.visible = t < W1;
+  const fin = prog(t, T.toast, T.toast + 0.4);
+
+  nodes.forEach((n, i) => {
+    // Blocks drop in from the top level down
+    const d = prog(t, T.tree + 0.1 * i, T.tree + 0.1 * i + 0.5);
+    const p = spot(i);
+    const pop = popT[i];
+    const done = doneT[n.lvl];
+    let glow = pop ? 0.45 * Math.sin(Math.PI * prog(t, pop.T, pop.T + 0.6)) : 0;
+    glow += 0.3 * Math.sin(Math.PI * prog(t, done, done + 0.8));
+    glow += fin * (0.2 + 0.1 * Math.sin(t * 6));
+    blocks[i].g.position.set(p.x, p.y + (d < 1 ? (1 - d) * (1 - d) * 4 : 0), 0);
+    blocks[i].set({ glow, opacity: d > 0 ? 1 : 0 });
+    if (rods[i]) {
+      const g = prog(t, T.tree + 0.1 * i + 0.3, T.tree + 0.1 * i + 0.6);
+      rods[i].visible = g > 0;
+      rods[i].scale.set(1, 1, Math.max(rods[i].userData.len * g, 1e-4));
+    }
+    // Push: a copy flies from the node to its slot at the back of the queue; pop: from slot 0 back to the node
+    const ps = pushT[i] ?? (i === 0 ? { T: T.init, slot: 0 } : null);
+    const fi = ps ? prog(t, ps.T, ps.T + FLY) : 0;
+    ins[i].visible = fi > 0 && fi < 1;
+    if (ins[i].visible) { const q = slotPoint(ps.slot); ins[i].position.copy(bezier(p, p.clone().lerp(q, 0.5).add(V(0, 1.2, 0)), q, easeInOut(fi))); }
+    const fo = pop ? prog(t, pop.T, pop.T + FLY) : 0;
+    outs[i].visible = fo > 0 && fo < 1;
+    if (outs[i].visible) { const q = slotPoint(0); outs[i].position.copy(bezier(q, q.clone().lerp(p, 0.5).add(V(0, 1.2, 0)), p, easeInOut(fo))); }
+  });
+
+  // Frame on the latest popped node
+  let cur = null;
+  for (const e of events) if (e.kind === 'pop' && t >= e.T) cur = e.node;
+  frame.visible = cur !== null && t < T.toast;
+  if (cur !== null) frame.position.copy(spot(cur));
+
+  // Orbs burst from every block
+  for (const o of orbs) {
+    const { from: i, vx, vy, vz, delay } = o.userData;
+    const u = t - (T.toast + delay);
+    o.visible = u > 0 && u < 1.6;
+    if (!o.visible) continue;
+    const p = spot(i);
+    o.position.set(p.x + vx * u, Math.max(p.y + vy * u - 4.5 * u * u, 0.1), vz * u);
+    o.tint(t + delay);
+    o.material.opacity = 1 - prog(u, 1.2, 1.6);
+  }
+
+  world.draw(t, TOTAL, 0, 0);
+}
+
+window.renderAt = renderAt;
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

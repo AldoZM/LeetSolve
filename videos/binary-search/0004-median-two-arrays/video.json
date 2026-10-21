@@ -1,3 +1,4 @@
-{"groups": [["Scene1_Hook", [0]], ["Scene2_Problem", [1, 2]], ["Scene3_Merge", [3, 4]], ["Scene4_Idea", [5, 6, 7, 8]],
+{"tema": "minecraft-original", "formato": "9:16",
+ "groups": [["Scene1_Hook", [0]], ["Scene2_Problem", [1, 2]], ["Scene3_Merge", [3, 4]], ["Scene4_Idea", [5, 6, 7, 8]],
             ["Scene5_Walk", [9, 10, 11, 12, 13, 14]], ["Scene6_Complexity", [15, 16]], ["Scene7_Outro", [17, 18]]],
- "three": {"scene": "Scene5_Walk", "page": "three/walk.html"}}
+ "fondo": {"page": "three/mundo.html", "sharp": ["Scene5_Walk"]}}

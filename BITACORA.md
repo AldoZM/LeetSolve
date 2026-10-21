@@ -4,6 +4,78 @@ Registro de lo que se hizo en cada sesión, de la más reciente a la más antigu
 
 ## 2026-10-21
 
+### Formato 9:16 para Shorts
+
+- Aldo preguntó si los videos estaban en 9:16; estaban en 3:4 (1080×1440). Eligió pasarlos a 9:16.
+- Se hizo sin tocar las escenas: el mundo 3D se renderiza a 1080×1920 y las escenas de Manim van centradas encima, a 240 px de arriba.
+  - Opción `"formato": "9:16"` en `video.json` (`build.py`).
+  - `makeWorld` ensancha la vista para que la franja central quede idéntica; `world.ndcY` para las páginas que usan `unproject`.
+- Se comprobó con cuadros sueltos: la franja central del recorrido es idéntica a la de 3:4. En el paseo solo cambia un poco el degradado del cielo.
+- Pasaron a 9:16 los 9 videos convertidos y el #297. El #60 no, porque es del otro agente.
+
+### Los 9 videos anteriores al estilo Minecraft, cada uno en su lugar, con mobs y hora del día
+
+- A petición de Aldo, #1 a #7, #102 y #124 se rehicieron en el estilo aprobado. La narración se adaptó a Minecraft, se generó la voz nueva y se hicieron sus escenas y su 3D nuevos.
+  - Las versiones neón quedaron como `video_neon.mp4` (fuera de git) y sus fuentes, en el commit `35c573f`.
+  - #1 es la plantilla aprobada, con una sola corrección: el valor del inventario pasó a la esquina (error #5 de la guía).
+- Duraciones (video = audio en todos): #1 97.2 s, #2 100.5, #3 103.7, #4 103.8, #5 89.2, #6 88.8, #7 94.0, #102 90.2 y #124 98.5.
+- Aldo pidió que cada video pasara en un lugar distinto del mundo:
+  - Se hizo un mapa de todo ClaudeEntorno y se calificó cada punto (cámara libre, lote plano, algo enfrente). Se eligieron 9 lugares: lago con playa, río ancho, meandro entre colinas, colina en terrazas, bosque de abedules, lomas con arena, loma del sur, bosque de robles y bosque con piedra.
+  - La lista está en `mundos/lugares.json`.
+  - Nuevo en `makeTerrain`: `clear` quita árboles y plantas donde va la cámara, y `surfaceAt` dice qué bloque hay arriba de cada columna.
+  - `mundo.py` ahora tiñe las hojas de abedul (salían grises) y dibuja la hojarasca como una capa plana (salía como cruces blancas).
+- Aldo pidió vida en el fondo y eligió "horas variadas, con noche":
+  - Nuevo `vida.js`, con modelos de los mobs del juego hechos de cajas con su textura, caminata, horas del día (`day`, `dawn`, `dusk`, `night`, con sol, luna y estrellas) y un planificador de caminos según el terreno.
+  - `extraer.py` copia las texturas de los mobs y la luna a `mobs/` (en `.gitignore`).
+  - Horas: #1, #3 y #5 de día; #2 y #124 al amanecer; #4 y #6 al atardecer; #7 y #102 de noche, con zombis, esqueletos, creepers y arañas.
+  - De noche el recorrido conserva toda su luz.
+- Correcciones durante la revisión (todas anotadas en "Errores ya cometidos" de la guía, números 9 a 15):
+  - El aviso de logro tapaba encabezados largos.
+  - Los bloques atenuados con `set_opacity` se volvían blancos.
+  - Una función propia tapaba `level_text` del tema.
+  - El linter fallaba al indexar listas vacías.
+  - Había textos que no cabían en el cuadro.
+  - En el #6 la narración decía "most" y el dibujo mostraba un tercio.
+  - Faltaban símbolos en la fuente del juego.
+- Verificado:
+  - Linter sin problemas en los 9.
+  - Duración del video igual a la del audio.
+  - Hojas de cuadros de cada video, con sus correcciones.
+  - Cuadros sueltos del 3D de cada lugar y del banco de pruebas de los mobs (`mundos/vistas/mobs.html`).
+  - Loop: diferencia media de 1.3 a 1.8 entre el primer y el último cuadro. El mapa de diferencias solo muestra bordes (ruido de compresión); el contenido es el mismo.
+- No verificado:
+  - Ver los videos completos en movimiento y escuchar los volúmenes.
+- Otro agente trabajó a la vez en el repositorio (#60 Permutation Sequence):
+  - Cambió `makeLife` en `vida.js` para que los mobs salten los escalones. #1 a #7 y #124 se renderizaron antes de ese cambio; #102, después.
+  - Su #60 usa la colina en terrazas, que ya era el lugar de #4.
+
+### #60 Permutation Sequence (Hard), segundo video del estilo aprobado
+
+- Carpeta `videos/math/0060-permutation-sequence`, 119.875 s, 20 líneas.
+- Metáfora: 4 bloques de mena (`coal`=1, `iron`=2, `gold`=3, `diamond`=4) con letrero de target `k = 9`.
+  - Fuerza bruta: generar todas las ramas recursivas por backtracking hasta que el pico se rompe; muestra el crecimiento explosivo de $9! = 362,880$.
+  - Truco: sistema factorial. Fijar el primer bloque deja $(n-1)! = 3! = 6$ opciones por grupo. Con $k-1 = 8$, la división $8 // 6 = 1$ salta directamente al segundo bloque (2, hierro) con residuo 2.
+  - Recorrido y cofre 3D: cofre centrado al frente en $z = 3.2$; los ítems extraídos saltan en parábola Bézier adentro del cofre abierto mientras su tapa abre y cierra auténticamente, y los bloques van a las casillas del inventario formando "2314".
+  - Logro: *Advancement Made! Permutation Sequence solved* con ráfaga de orbes de experiencia multicolores, letrero de chat y código Python sincronizado.
+- Correcciones y mejoras aplicadas:
+  - **Físicas y comportamiento auténtico de mobs de Minecraft (`vida.js`):**
+    - Eliminado el deslizamiento continuo e interpolación flotante. Mobs pisan sobre alturas discretas de vóxeles (`terrain.groundAt`).
+    - Al subir un desnivel de 1 bloque, ejecutan un salto parabólico discreto ($\Delta y = 0.52 \cdot \sin(\pi w)$) con pose de salto (patas delanteras extendidas hacia adelante, traseras hacia atrás, cuerpo ligeramente inclinado).
+    - Al descender, aplican aceleración de caída por gravedad.
+    - Trote cuadrúpedo diagonal alternado auténtico del juego (`cos(s)` para pata delantera izquierda y trasera derecha contra delantera derecha y trasera izquierda).
+    - Gallinas con aleteo rápido periódico (`sin(t * 22)`).
+    - Ovejas y vacas con ciclo natural de pastoreo (bajada e inclinación de cabeza al suelo).
+  - **Splash text ("Minecraft edition!"):**
+    - Se reemplazó el updater continuo que acumulaba deriva de rotación por pulsos discretos `animate(rate_func=there_and_back).scale(1.15)` manteniendo el ángulo estrictamente fijo en 18°.
+  - **Vista de bloques de inventario:**
+    - `iso_block_tall` evita que los cubos se vean achatados o aplastados; números de posición reubicados en la esquina inferior derecha.
+- Verificaciones y control de calidad:
+  - Linter: 20 subtítulos en 7 escenas sin solapamientos ni desbordes.
+  - Sincronización exacta: video `video.mp4` (119.875 s) y audio (119.875 s).
+  - Loop continuo: diferencia media de 1.67 entre primer y último cuadro.
+  - Hojas de contacto generadas (`sheet_verification_v3.png`, `sheet_mobs.png`) comprobando splash, mobs y trayectoria al cofre.
+
+
 ### Repositorio y documento para otros modelos
 
 - La carpeta quedó conectada a `github.com/AldoZM/LeetSolve`, encima de sus 2 commits anteriores (el video de árboles en `Three/` se conserva).
@@ -60,7 +132,21 @@ Registro de lo que se hizo en cada sesión, de la más reciente a la más antigu
 - Hechos: #1 Two Sum, #2 Add Two Numbers, #3 a #7 y los árboles #102 (Medium) y #124 (Hard). Todos verticales, con código a la par, sección 3D y loop.
 - Herramientas compartidas: `prelude.py`, `build.py` (render en paralelo con reintento, 3D, composición, sincronía, mezcla) y `sheet.py`.
 
+### Video #60 Permutation Sequence (Hard) - Minecraft Original
+
+- Carpeta: `videos/math/0060-permutation-sequence/`
+- Algoritmo: Sistema numérico factorial con pop de dígitos en `O(n^2)` para $n=4, k=9 \implies \text{"2314"}$.
+- Duración: 119.875 s (20 subtítulos en 7 escenas, 31 efectos de sonido mezclados).
+- Mejoras aplicadas según feedback:
+  1. **Cubos de inventario desaplastados (`iso_block_tall`)**: Se incrementó la profundidad vertical ($h\_ratio = 0.78$) para coincidir con la proyección isométrica real 16x11 de Minecraft Java, y se reubicó el número indicador a la esquina inferior derecha con escala pequeña (`inv.u * 0.85`), idéntico al HUD del juego.
+  2. **Splash pulsante continuo**: En `Scene1_Hook` se implementó un updater continuo con pulso armónico que reproduce la animación de la pantalla de título de Minecraft durante toda la escena inicial.
+  3. **Escenario y Vida Ambiental en 3D (`vida.js`)**: Se configuró la ubicación `terraced-hill.json` al amanecer (`dawn`) con iluminación matutina y ciclo de mobs autónomos en bucle cerrado (vacas y ovejas pastando, gallinas y cerdos explorando las terrazas), manteniendo un cierre de loop imperceptible (diferencia de 1.848).
+
 ## Pendientes
+
+- Elegir otro lugar para el #60, que repite la colina en terrazas del #4 (Aldo pidió un lugar por video).
+- Si se quieren los mobs iguales en todos, volver a renderizar el 3D de #1 a #7 y #124 con el `makeLife` nuevo (`build.py three composite sync mux`).
+- Ver los 9 videos en movimiento.
 
 - Antes de publicar el #297: decidir si se queda Subwoofer Lullaby, por el riesgo de reclamo en YouTube.
 

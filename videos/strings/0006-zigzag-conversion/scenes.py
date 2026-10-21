@@ -1,22 +1,9 @@
 WALK = json.load(open('walk.json', encoding='utf-8'))
 S, R = WALK["s"], WALK["rows"]
-LET = WALK["letters"]
-ROW_COLORS = [CYAN, VIOLET, GREEN]
-ROWS = ["".join(e["ch"] for e in LET if e["row"] == r) for r in range(R)]
-ANSWER = "".join(ROWS)
-
-
-def grid_pos():
-    # Column of each letter in the drawn zigzag: straight down in one column, then one column per step up
-    out, col = [], 0
-    for k, e in enumerate(LET):
-        if k > 0 and e["row"] < LET[k - 1]["row"]:
-            col += 1
-        out.append((col, e["row"]))
-    return out
-
-
-GRID = grid_pos()
+LETTERS = WALK["letters"]
+ROWS = WALK["row_strings"]
+ROW_ORE = ["gold_ore", "diamond_ore", "emerald_ore"]
+ROW_COL = [MC_GOLD, MC_AQUA, MC_GREEN]
 
 CODE = """def convert(s, numRows):
     if numRows == 1: return s
@@ -30,243 +17,328 @@ CODE = """def convert(s, numRows):
     return "".join(rows)"""
 
 
-def zigzag(center_y, size=0.7, dx=0.95, dy=0.95):
-    # Letter tiles at their zigzag cells plus the path that visits them in order
-    ncol = GRID[-1][0] + 1
-    x0 = -(ncol - 1) * dx / 2
-    tiles = VGroup(*[Tile(e["ch"], ROW_COLORS[e["row"]], size).move_to([x0 + c * dx, center_y + (1 - r) * dy, 0])
-                     for e, (c, r) in zip(LET, GRID)])
-    path = VMobject(stroke_color=YELLOW, stroke_width=4, stroke_opacity=0.6)
-    path.set_points_as_corners([t.get_center() for t in tiles])
-    return tiles, path
+def at(i, phrase, nth=0):
+    # Seconds into line i where the nth `phrase` starts (even speaking rate inside a line)
+    text, dur = SUBS[i]['text'], SUBS[i]['duration_s']
+    k = -1
+    for _ in range(nth + 1):
+        k = text.find(phrase, k + 1)
+    return min(dur - 0.1, dur * k / len(text))
+
+
+def hdr(text, color):
+    return chat(text, color, 42).move_to([0, TOP_Y, 0]).to_edge(LEFT, buff=0.4)
+
+
+def pulse(m, k=1.15):
+    # Emphasis that keeps the pixel art's colors (Indicate would paint it one flat color)
+    return m.animate(rate_func=there_and_back).scale(k)
+
+
+def string_row(y, size=0.55, gap=0.05):
+    # The input string: plain stone blocks with a letter each
+    row = VGroup(*[Block(ch, "stone", size) for ch in S]).arrange(RIGHT, buff=gap)
+    row.move_to([0, y, 0])
+    return row
+
+
+def zig(y0, size=0.75, step=0.95, dy=0.95, x0=None):
+    # The zigzag: letter k at its column and row, in its row's ore
+    x0 = -3 * step if x0 is None else x0
+    return VGroup(*[Block(e["ch"], ROW_ORE[e["row"]], size).move_to([x0 + e["col"] * step, y0 - e["row"] * dy, 0]) for e in LETTERS])
+
+
+def row_chat(q, text, size=42):
+    return chat(f"row {q}: {text}", ROW_COL[q], size)
 
 
 def cover():
-    # Opening frame and closing frame are the same, so the video loops seamlessly
-    title, tglow = gradient_title(["Zigzag", "Conversion"], size=100, y=3.3)
-    tiles, path = zigzag(-0.6)
-    return title, tglow, VGroup(path, tiles)
+    # The first and the last frame of the video: both ends draw exactly this
+    t1 = stone_title("ZIGZAG", width=5.0).move_to([0, 4.85, 0])
+    t2 = stone_title("CONVERSION", width=7.2).move_to([0, 3.75, 0])
+    spl = splash("Minecraft edition!", 21).move_to([2.55, 2.75, 0])
+    z = zig(1.6, size=0.75, step=0.95, dy=0.95)
+    path = VMobject(stroke_color=MC_YELLOW, stroke_width=5, stroke_opacity=0.8).set_points_as_corners([b.get_center() for b in z])
+    tags = VGroup(chat("LeetCode #6", MC_AQUA, 46), chat("Medium", MC_GOLD, 46), chat("Strings", MC_GREEN, 46))
+    tags.arrange(RIGHT, buff=0.25).move_to([0, -3.05, 0])
+    # Over a 3D world the dirt strip is not needed; an empty group keeps the unpacking in Scene1_Hook
+    ground = VGroup() if globals().get("FONDO") else ground_strip(-5.15)
+    # The path goes behind the blocks
+    return VGroup(ground, t1, t2, spl, path, z, tags)
 
 
 class Scene1_Hook(Base):
     def construct(self):
-        title, tglow, art = cover()
-        self.add(tglow, title, art)
-        path, tiles = art
-        rng = random.Random(6)
-        bg = VGroup(*[
-            M(rng.choice("PAYLISHRNG"), rng.randint(18, 34), rng.choice([CYAN, MAGENTA, VIOLET])).set_opacity(rng.uniform(0.12, 0.28))
-            .move_to([rng.uniform(-4.1, 4.1), rng.choice([rng.uniform(-5.6, -4.3), rng.uniform(5.0, 5.7)]), 0])
-            for _ in range(20)
-        ])
-        tags = tags_block([("LeetCode #6", CYAN), ("Medium", YELLOW), ("Simulation", VIOLET)], y=-3.5)
+        art = cover()
+        ground, t1, t2, spl, path, z, tags = art
+        self.add(art)
 
         self.seg(0)
-        self.beat(LaggedStart(*[FadeIn(d, scale=0.4) for d in bg], lag_ratio=0.04),
-                  LaggedStart(*[FadeIn(t, shift=UP * 0.3) for t in [*tags[0], *tags[1]]], lag_ratio=0.3), rt=0.9)
-        self.beat(ShowPassingFlash(path.copy().set_stroke(WHITE, width=8, opacity=1), time_width=0.4), rt=1.2)
-        self.finish(FadeOut(VGroup(title, tglow, tags, bg, path, tiles)), rt=0.5)
+        self.beat(spl.animate(rate_func=there_and_back).scale(1.15), rt=0.7)
+        # The blocks hop in zigzag order, the path flashes along them
+        self.sfx("stone_dig1", 0.35, delay=0.3)
+        self.beat(LaggedStart(*[b.animate(rate_func=there_and_back).shift(UP * 0.3) for b in z], lag_ratio=0.12),
+                  ShowPassingFlash(path.copy().set_stroke(MC_WHITE, 10), time_width=0.4), rt=1.8)
+        self.beat(spl.animate(rate_func=there_and_back).scale(1.15), rt=0.7)
+        self.clear_all(rt=0.5)
         self.close_seg()
 
 
 class Scene2_Problem(Base):
     def construct(self):
-        hdr = header("THE PROBLEM", CYAN)
-        line = tile_row(list(S), CYAN, 3.6, size=0.52, gap=0.08)
-        rows_lab = T("numRows = 3", 28, YELLOW).move_to([0, 2.7, 0])
+        h = hdr("THE PROBLEM", MC_AQUA)
+        row = string_row(3.4)
+        nr = MT("numRows = 3", 40, MC_WHITE).move_to([0, 2.55, 0])
 
         self.seg(1)
-        self.beat(FadeIn(hdr, shift=RIGHT * 0.3), LaggedStart(*[FadeIn(t, shift=DOWN * 0.2) for t in line], lag_ratio=0.05), rt=1.0)
-        self.beat(FadeIn(rows_lab), rt=0.4)
+        self.beat(FadeIn(h, shift=RIGHT * 0.3), rt=0.4)
+        for b in row:
+            b.shift(UP * 8)
+        self.add(row)
+        for k in range(0, len(row), 2):
+            self.sfx(f"stone_dig{k % 4 + 1}", 0.26, delay=k * 0.07 + 0.36)
+        self.beat(LaggedStart(*[b.animate(rate_func=rate_functions.ease_out_bounce).shift(DOWN * 8) for b in row],
+                              lag_ratio=0.07), rt=1.6)
+        self.until(at(1, "number of rows") - 0.2)
+        self.beat(FadeIn(nr, shift=UP * 0.1), rt=0.4)
         self.close_seg()
 
-        tiles, path = zigzag(0.6, size=0.66, dx=0.95, dy=1.0)
-        row_labs = VGroup(*[T(f"row {r}", 22, ROW_COLORS[r]).move_to([-4.0, tiles[0].get_y() - r * 1.0, 0]) for r in range(R)])
+        z = zig(1.2)
+        path = VMobject(stroke_color=MC_YELLOW, stroke_width=5, stroke_opacity=0.8).set_points_as_corners([b.get_center() for b in z])
+        flies = [b.copy() for b in row]
 
         self.seg(2)
-        self.beat(FadeIn(row_labs), rt=0.4)
-        per = (DUR[2] - 1.4) / len(S)
-        for k in range(len(S)):
-            self.beat(ReplacementTransform(line[k].copy(), tiles[k]), rt=per)
+        self.until(at(2, "the blocks go") - 0.4)
+        # Each stone block flies to its zigzag spot and becomes its row's ore
+        for k in range(0, len(S), 2):
+            self.sfx(f"stone_step{k % 6 + 1}", 0.25, delay=0.16 * k)
+        self.beat(LaggedStart(*[Transform(f, z[k]) for k, f in enumerate(flies)], lag_ratio=0.16), rt=3.0)
+        self.add(path, *flies)
         self.beat(Create(path), rt=0.8)
         self.close_seg()
 
-        out_rows = VGroup(*[M(s, 40, ROW_COLORS[r]) for r, s in enumerate(ROWS)]).arrange(RIGHT, buff=0.25).move_to([0, -2.4, 0])
-        res = VGroup(T("output", 26, MUTED), M(f'"{ANSWER}"', 40, YELLOW)).arrange(DOWN, buff=0.15).move_to([0, -3.9, 0])
+        reads = VGroup(*[row_chat(q, " ".join(ROWS[q]), 46) for q in range(R)]).arrange(DOWN, buff=0.22, aligned_edge=LEFT)
+        reads.move_to([0, -2.6, 0])
 
         self.seg(3)
-        self.beat(FadeOut(path), rt=0.3)
-        for r in range(R):
-            members = [tiles[k] for k, e in enumerate(LET) if e["row"] == r]
-            self.beat(LaggedStart(*[ring(t.box, YELLOW) for t in members], lag_ratio=0.1),
-                      FadeIn(out_rows[r], shift=DOWN * 0.2), rt=1.1)
-            self.hold(0.3)
-        self.beat(FadeIn(res, shift=UP * 0.2), rt=0.6)
+        for q, (phrase, lead) in enumerate([("P A H N", 0.2), ("A P L S", 0.3), ("Y I R", 0.9)]):
+            self.until(at(3, phrase) - lead)
+            self.sfx("click", 0.3)
+            self.beat(FadeIn(reads[q], shift=RIGHT * 0.2), *[pulse(f, 1.15) for f, e in zip(flies, LETTERS) if e["row"] == q], rt=0.4)
         self.clear_all()
         self.close_seg()
 
 
 class Scene3_Grid(Base):
     def construct(self):
-        hdr = header("FULL GRID?", RED)
-        ncol = GRID[-1][0] + 1
-        cs = 0.95
-        x0 = -(ncol - 1) * cs / 2
-        used = {(c, r) for c, r in GRID}
-        cells = VGroup()
-        for r in range(R):
-            for c in range(ncol):
-                box = Square(cs - 0.1, stroke_color=MUTED, stroke_width=1.5, fill_opacity=0).move_to([x0 + c * cs, 2.2 - r * cs, 0])
-                cells.add(box)
-        tiles, _ = zigzag(2.2 - cs, size=0.7, dx=cs, dy=cs)
-        empty = [cells[r * ncol + c] for r in range(R) for c in range(ncol) if (c, r) not in used]
-        note = T(f"{len(empty)} of {R * ncol} cells wasted", 28, RED).move_to([0, -1.2, 0])
-        o, o_lab, o_glow = big_o(r"O(\text{rows} \times n)", RED, -3.0, "space", size=64)
+        h = hdr("FULL GRID?", MC_RED)
+        step, dy, size = 0.95, 0.95, 0.75
+        cells = VGroup(*[Rectangle(width=0.85, height=0.85, fill_color="#8B8B8B", fill_opacity=0.85, stroke_color="#373737",
+                                   stroke_width=4).move_to([-3 * step + c * step, 2.6 - r * dy, 0]) for r in range(R) for c in range(7)])
+        z = zig(2.6)
+        used = {(e["row"], e["col"]) for e in LETTERS}
+        empty = VGroup(*[cells[r * 7 + c] for r in range(R) for c in range(7) if (r, c) not in used])
+        crosses = VGroup(*[MT("x", 44, MC_RED, PIXEL).move_to(c) for c in empty])
+        cnt = MT("7 of 21 cells empty", 44, MC_RED).move_to([0, -1.2, 0])
 
         self.seg(4)
-        self.beat(FadeIn(hdr, shift=RIGHT * 0.3), LaggedStart(*[Create(c) for c in cells], lag_ratio=0.02), rt=0.9)
-        self.beat(LaggedStart(*[FadeIn(t, scale=0.6) for t in tiles], lag_ratio=0.05), rt=0.9)
-        self.until(DUR[4] * 0.5)
-        self.beat(*[c.animate.set_fill(RED, opacity=0.25).set_stroke(RED) for c in empty], FadeIn(note), rt=0.6)
-        self.beat(Write(o), FadeIn(o_glow), FadeIn(o_lab), rt=0.8)
+        self.beat(FadeIn(h, shift=RIGHT * 0.3), LaggedStart(*[FadeIn(c, scale=0.7) for c in cells], lag_ratio=0.02), rt=0.8)
+        self.until(at(4, "place each") - 0.2)
+        for k in range(0, len(S), 3):
+            self.sfx("pop", 0.25, delay=0.1 * k)
+        self.beat(LaggedStart(*[FadeIn(b, scale=1.4) for b in z], lag_ratio=0.1), rt=1.6)
+        self.close_seg()
+
+        self.seg(5)
+        self.until(at(5, "a third") - 0.1)
+        self.sfx("villager_no1", 0.4)
+        self.beat(*[c.animate.set_fill("#7A2A2A") for c in empty], FadeIn(crosses), rt=0.6)
+        self.beat(FadeIn(cnt, shift=UP * 0.15), rt=0.4)
         self.clear_all()
         self.close_seg()
 
 
 class Scene4_Idea(Base):
     def construct(self):
-        hdr = header("THE TRICK", YELLOW)
-        tiles, path = zigzag(2.4, size=0.66, dx=0.95, dy=1.0)
-        top_y = tiles[0].get_y()
-        packed = []
-        count = [0] * R
-        for e in LET:
-            packed.append([-2.4 + count[e["row"]] * 0.78, top_y - e["row"] * 1.0, 0])
-            count[e["row"]] += 1
-        labs = VGroup(*[T(f"rows[{r}]", 22, ROW_COLORS[r]).move_to([-3.25, top_y - r * 1.0, 0]) for r in range(R)])
-
-        self.seg(5)
-        self.beat(FadeIn(hdr, shift=RIGHT * 0.3), FadeIn(tiles), FadeIn(path), rt=0.6)
-        self.until(DUR[5] * 0.3)
-        self.beat(FadeOut(path), *[t.animate.move_to(p).shift(RIGHT * 0.45) for t, p in zip(tiles, packed)], rt=1.2)
-        self.beat(FadeIn(labs), rt=0.4)
-        self.close_seg()
-
-        ptr = Triangle(color=YELLOW, fill_opacity=1).scale(0.16).rotate(-PI / 2).move_to([-4.2, top_y, 0])
-        steps_lab = VGroup(T("step = +1  going down", 26, YELLOW), T("step = −1  going up", 26, MAGENTA)).arrange(DOWN, buff=0.25)
-        steps_lab.move_to([0, -1.2, 0])
-        bounce = [0, 1, 2, 1, 0, 1, 2]
+        h = hdr("THE TRICK", MC_GOLD)
+        z = zig(3.4)
+        packed = VGroup()
+        for q in range(R):
+            members = [k for k, e in enumerate(LETTERS) if e["row"] == q]
+            for j, k in enumerate(members):
+                packed.add(z[k].copy().move_to([-3 * 0.95 + j * 0.95, 3.4 - q * 0.95, 0]))
+        labs = VGroup(*[MT(f"row {q}", 34, ROW_COL[q]).next_to(packed[0], LEFT, buff=0.3).set_y(3.4 - q * 0.95) for q in range(R)])
 
         self.seg(6)
-        self.beat(FadeIn(ptr), FadeIn(steps_lab[0]), rt=0.5)
-        for k, r in enumerate(bounce[1:], 1):
-            going_up = r < bounce[k - 1]
-            anims = [ptr.animate.move_to([-4.2, top_y - r * 1.0, 0]).set_color(MAGENTA if going_up else YELLOW)]
-            if k == 3:
-                anims.append(FadeIn(steps_lab[1]))
-            self.beat(*anims, rt=0.45)
+        self.beat(FadeIn(h, shift=RIGHT * 0.3), FadeIn(z), rt=0.5)
+        self.until(at(6, "Columns") - 0.1)
+        self.sfx("stone_step2", 0.35)
+        order = [k for q in range(R) for k, e in enumerate(LETTERS) if e["row"] == q]
+        self.beat(*[z[k].animate.move_to(packed[n]) for n, k in enumerate(order)], rt=0.9)
+        self.until(at(6, "Only the row") - 0.1)
+        self.beat(FadeIn(labs, shift=RIGHT * 0.2), rt=0.4)
+        self.close_seg()
+
+        strs = VGroup(*[row_chat(q, '""', 46) for q in range(R)]).arrange(DOWN, buff=0.25, aligned_edge=LEFT).move_to([0.4, -0.6, 0])
+        arrow = MT("v", 64, MC_YELLOW, PIXEL).next_to(strs[0], LEFT, buff=0.4)
+        up = MT("^", 64, MC_YELLOW, PIXEL)
+        bounce = [0, 1, 2, 1, 0]
+
+        self.seg(7)
+        self.beat(FadeOut(z), FadeOut(labs), rt=0.3)
+        self.beat(LaggedStart(*[FadeIn(s, shift=RIGHT * 0.2) for s in strs], lag_ratio=0.2), rt=0.6)
+        self.until(at(7, "pointer") - 0.2)
+        self.beat(FadeIn(arrow), rt=0.3)
+        # The pointer bounces: down to the bottom, then back up to the top
+        for n in range(1, len(bounce)):
+            target = strs[bounce[n]]
+            going_up = bounce[n] < bounce[n - 1]
+            self.sfx("click", 0.25)
+            if going_up and bounce[n - 1] == R - 1:
+                up.move_to(arrow)
+                self.beat(Transform(arrow, up), rt=0.15)
+            self.beat(arrow.animate.set_y(target.get_y()), rt=0.4)
         self.clear_all()
         self.close_seg()
 
 
 class Scene5_Walk(Overlay):
     def construct(self):
-        hdr = header("BOUNCING POINTER", YELLOW)
-        code = code_panel(CODE, -3.85)
+        W = WALK
+        h = hdr("ZIGZAG", MC_GREEN)
+        code = code_panel(CODE, -4.35, max_h=3.0)
+        bar = line_bar(code, 2, 2, MC_YELLOW)
+        built = ["", "", ""]
+        st = {"badge": None, "rows": [None] * R}
+        Y = [-0.35, -1.05, -1.75]
 
-        def readout(ch, r, step):
-            parts = VGroup(pill(f"ch {ch}", CYAN, 28), pill(f"r {r}", ROW_COLORS[r] if r != "-" else MUTED, 28),
-                           pill(f"step {step}", YELLOW if step == "+1" else MAGENTA, 28))
-            return parts.arrange(RIGHT, buff=0.3).move_to([0, -1.35, 0])
+        def badge(step):
+            return chat(f"step {'+1 v' if step > 0 else '-1 ^'}", MC_YELLOW, 42).move_to([0, TOP_Y, 0]).to_edge(RIGHT, buff=0.4)
 
-        st = {"ch": "-", "r": 0, "step": "+1"}
-        ro = readout("-", 0, "+1")
-        bar = line_bar(code, 2, 3)
-        ev = []
-        for k, e in enumerate(LET):
-            ev.append((seg_time(WALK["first"], e["t"]), "place", k))
-            if e["turn"]:
-                ev.append((seg_time(WALK["first"], e["tturn"]), "turn", k))
-        ev.append((seg_time(WALK["first"], WALK["join"]), "join", 0))
+        def row_line(q):
+            return row_chat(q, " ".join(built[q]) or '""', 42).move_to([0, Y[q], 0]).to_edge(LEFT, buff=0.4)
+
+        ev = [(seg_time(W["first"], W[key]), key, None) for key in ("row_in", "rows_in", "pointer", "holds", "toast", "join", "read")]
+        for e in LETTERS:
+            ev.append((seg_time(W["first"], e["t"]), "place", e["k"]))
+            if "turn" in e:
+                ev.append((seg_time(W["first"], e["turn"]), "turn", e["k"]))
         ev.sort(key=lambda x: x[0])
 
-        def intro():
-            self.until(0.3)
-            self.beat(FadeIn(hdr, shift=RIGHT * 0.3), rt=0.5)
-            self.until(1.0)
-            self.beat(FadeIn(code, shift=UP * 0.3), rt=0.8)
-            self.until(2.4)
-            self.beat(FadeIn(bar), FadeIn(ro), rt=0.4)
+        def move_bar(k0, k1=None, color=MC_YELLOW, rt=0.12):
+            self.beat(Transform(bar, line_bar(code, k0, k1, color)), rt=rt)
+
+        def on_first():
+            self.beat(FadeIn(h, shift=RIGHT * 0.3), rt=0.35)
 
         def on(kind, k):
-            e = LET[k]
-            fast = k >= 5
-            if kind == "place":
-                st["ch"], st["r"] = e["ch"], e["row"]
-                self.beat(Transform(bar, line_bar(code, 5, 5, ROW_COLORS[e["row"]])), Transform(ro, readout(st["ch"], st["r"], st["step"])),
-                          rt=0.2 if fast else 0.3)
+            if kind == "row_in":
+                self.beat(FadeIn(code, shift=UP * 0.3), rt=0.5)
+            elif kind == "rows_in":
+                self.sfx("wood_dig1", 0.35)
+                for q in range(R):
+                    st["rows"][q] = row_line(q)
+                self.beat(FadeIn(bar),
+                          LaggedStart(*[FadeIn(r, shift=RIGHT * 0.2) for r in st["rows"]], lag_ratio=0.2), rt=0.6)
+            elif kind == "pointer":
+                st["badge"] = badge(1)
+                move_bar(3, rt=0.15)
+                self.beat(FadeIn(st["badge"], shift=LEFT * 0.2), rt=0.3)
+            elif kind == "place":
+                e = LETTERS[k]
+                q = e["row"]
+                built[q] += e["ch"]
+                self.sfx(f"stone_dig{k % 4 + 1}", 0.32, delay=0.2)
+                self.beat(Transform(bar, line_bar(code, 5, 5, ROW_COL[q])), Transform(st["rows"][q], row_line(q)), rt=0.15)
             elif kind == "turn":
-                st["step"] = "-1" if e["row"] == R - 1 else "+1"
-                line = 7 if e["row"] == R - 1 else 6
-                self.beat(Transform(bar, line_bar(code, line, line, MAGENTA if st["step"] == "-1" else YELLOW)),
-                          Transform(ro, readout(st["ch"], st["r"], st["step"])), rt=0.2 if fast else 0.3)
+                e = LETTERS[k]
+                self.sfx("click", 0.3)
+                self.beat(Transform(bar, line_bar(code, 6 if e["row"] == 0 else 7, None, MC_GOLD)),
+                          Transform(st["badge"], badge(1 if e["row"] == 0 else -1)), rt=0.12)
+            elif kind == "holds":
+                self.beat(*[pulse(r, 1.06) for r in st["rows"]], rt=0.5)
+            elif kind == "toast":
+                t = toast("Advancement Made!", "Zigzag read", w=4.6)
+                t.move_to([0, TOP_Y, 0]).to_edge(RIGHT, buff=0.3)
+                t.shift(RIGHT * 7)
+                self.sfx("challenge", 0.32)
+                for d in (0.1, 0.3, 0.5, 0.7):
+                    self.sfx("orb", 0.26, delay=d)
+                self.beat(t.animate.shift(LEFT * 7), FadeOut(st["badge"]), rt=0.5)
             elif kind == "join":
-                self.beat(Transform(bar, line_bar(code, 9, 9, GREEN)), rt=0.3)
+                ans = chat("".join(ROWS), MC_GREEN, 56).move_to([0, -1.05, 0])
+                self.sfx("book_put", 0.35)
+                move_bar(9, None, MC_GREEN, rt=0.15)
+                self.beat(*[Transform(r, ans.copy()) for r in st["rows"]], rt=0.6)
+            elif kind == "read":
+                self.beat(pulse(st["rows"][0], 1.08), rt=0.5)
 
-        def outro():
-            self.finish(FadeOut(VGroup(hdr, ro, code, bar)), rt=0.5)
+        def on_last():
+            # The rows leave the 3D clip when the walk ends; the overlay leaves with it
+            self.finish(FadeOut(Group(*self.mobjects)), rt=0.5)
 
-        self.run_events(WALK, ev, on, intro, outro)
+        self.run_events(W, ev, on, on_first=on_first, on_last=on_last)
 
 
 class Scene6_Complexity(Base):
     def construct(self):
-        hdr = header("COMPLEXITY", GREEN)
-        line = tile_row(list(S), CYAN, 3.6, size=0.52, gap=0.08)
-        dot = Triangle(color=YELLOW, fill_opacity=1).scale(0.12).rotate(PI).next_to(line[0], UP, buff=0.1)
-        o, o_lab, o_glow = big_o(r"O(n)", GREEN, 1.4, "time")
-
-        self.seg(13)
-        self.beat(FadeIn(hdr, shift=RIGHT * 0.3), FadeIn(line), FadeIn(dot), rt=0.5)
-        self.beat(dot.animate.next_to(line[-1], UP, buff=0.1),
-                  LaggedStart(*[restyle(t, lambda x: x.box.set_stroke(YELLOW, width=4)) for t in line], lag_ratio=0.1), rt=1.6)
-        self.beat(Write(o), FadeIn(o_glow), FadeIn(o_lab), rt=0.8)
-        self.close_seg()
-
-        rows = VGroup(*[M(s, 40, ROW_COLORS[r]) for r, s in enumerate(ROWS)]).arrange(DOWN, buff=0.2, aligned_edge=LEFT).move_to([0, -1.4, 0])
-        so, so_lab, so_glow = big_o(r"O(n)", VIOLET, -3.7, "extra space", size=72)
+        h = hdr("COMPLEXITY", MC_AQUA)
+        row = string_row(3.5)
+        tm = VGroup(MT("time", 56, MC_GRAY), level_text("O(n)", 1.0)).arrange(RIGHT, buff=0.4).move_to([0, 2.0, 0])
+        bg, fill = xp_bar(7.4)
+        bg.move_to([0, 1.0, 0])
+        xp = fill(1.0)
+        xp.save_state()
+        xp.stretch(0.01, 0, about_edge=LEFT)
 
         self.seg(14)
-        self.beat(LaggedStart(*[FadeIn(r, shift=RIGHT * 0.3) for r in rows], lag_ratio=0.2), rt=0.8)
-        self.beat(Write(so), FadeIn(so_glow), FadeIn(so_lab), rt=0.8)
+        self.beat(FadeIn(h, shift=RIGHT * 0.3), FadeIn(row), rt=0.5)
+        self.until(at(14, "placed") - 0.3)
+        # Each letter is touched exactly once
+        self.sfx("click", 0.25)
+        self.beat(LaggedStart(*[pulse(b, 1.2) for b in row], lag_ratio=0.12), rt=1.3)
+        self.until(at(14, "linear") - 0.5)
+        self.beat(FadeIn(tm, shift=UP * 0.2), FadeIn(bg), rt=0.35)
+        self.add(xp)
+        for d in (0.0, 0.25):
+            self.sfx("orb", 0.25, delay=d)
+        self.sfx("levelup", 0.3, delay=0.5)
+        self.beat(Restore(xp), rt=0.6)
+        self.close_seg()
+
+        rows = VGroup(*[row_chat(q, " ".join(ROWS[q]), 42) for q in range(R)]).arrange(DOWN, buff=0.2, aligned_edge=LEFT)
+        rows.move_to([0, -0.9, 0])
+        sp = VGroup(MT("space", 56, MC_GRAY), level_text("O(n)", 1.0)).arrange(RIGHT, buff=0.4).move_to([0, -3.2, 0])
+
+        self.seg(15)
+        self.sfx("pop", 0.3)
+        self.beat(LaggedStart(*[FadeIn(r, shift=RIGHT * 0.2) for r in rows], lag_ratio=0.2), rt=0.7)
+        self.until(at(15, "space") - 0.2)
+        self.beat(FadeIn(sp, shift=UP * 0.2), rt=0.4)
         self.clear_all()
         self.close_seg()
 
 
 class Scene7_Outro(Base):
     def construct(self):
-        code = code_panel(CODE, 1.0)
-        cglow = glow(code.background, VIOLET, max_w=22, max_op=0.25)
-        bar = line_bar(code, 2, 2, CYAN)
-
-        self.seg(15)
-        self.beat(FadeIn(code.background), FadeIn(cglow), rt=0.3)
-        self.beat(LaggedStart(*[FadeIn(l, shift=RIGHT * 0.2) for l in code.code_lines], lag_ratio=0.08),
-                  FadeIn(code.line_numbers), rt=0.8)
-        self.beat(FadeIn(bar), rt=0.25)
-        self.until(DUR[15] * 0.55)
-        self.beat(Transform(bar, line_bar(code, 6, 8, YELLOW)), rt=0.4)
-        self.close_seg()
-
-        tag = VGroup(T("Down and up.", 64), T("Row by row.", 64)).arrange(DOWN, buff=0.15)
-        tag.set_color_by_gradient(CYAN, VIOLET, MAGENTA).move_to([0, 0.8, 0])
-        tag_glow = glow(tag, VIOLET, layers=6, max_w=18, max_op=0.22)
-        title, tglow, art = cover()
+        code = code_panel(CODE, 1.6, width=8.4)
+        bar = line_bar(code, 2, 2, MC_YELLOW)
 
         self.seg(16)
-        self.beat(FadeOut(VGroup(code, cglow, bar), shift=UP * 0.4), FadeIn(tag), FadeIn(tag_glow), rt=0.6)
-        self.hold(0.5)
-        # Morph into the opening frame so the loop closes seamlessly
-        self.finish(ReplacementTransform(tag, title), FadeOut(tag_glow), FadeIn(tglow), FadeIn(art, shift=UP * 0.3), rt=1.1)
-        self.add(tglow, title, art)
+        self.beat(FadeIn(code.background),
+                  LaggedStart(*[FadeIn(l, shift=RIGHT * 0.2) for l in code.code_lines], lag_ratio=0.08), FadeIn(code.line_numbers),
+                  rt=0.7)
+        self.beat(FadeIn(bar), rt=0.25)
+        self.until(at(16, "bouncing") - 0.2)
+        self.beat(Transform(bar, line_bar(code, 6, 8, MC_GOLD)), rt=0.35)
+        self.close_seg()
+
+        self.seg(17)
+        msg = chat("Down, up, row by row", MC_GOLD, 58)
+        msg.move_to([0, -2.3, 0])
+        self.beat(FadeIn(msg, shift=UP * 0.2), Transform(bar, line_bar(code, 0, 9, MC_GREEN)), rt=0.4)
+        self.until(1.2)
+        self.beat(FadeOut(Group(code, bar, msg)), rt=0.45)
+        # Ends on the cover, so the last frame matches the first one
+        self.finish(FadeIn(cover()), rt=0.9)
         self.close_seg()

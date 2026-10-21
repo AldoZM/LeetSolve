@@ -1,14 +1,204 @@
 {
-  "first": 7,
-  "last": 12,
-  "steps": [
-    {"start": [8, 0.1], "card": [8, 0.45], "best": [8, 0.75]},
-    {"start": [8, 0.8], "card": [8, 1.15], "best": [8, 1.45]},
-    {"start": [8, 1.5], "card": [8, 1.85], "best": [8, 2.15]},
-    {"start": [9, 0.2], "check": [9, 1.4], "jump": [9, 3.9], "card": [9, 4.8], "best": [9, 5.3]},
-    {"start": [10, 0.1], "card": [10, 0.45], "best": [10, 0.75]},
-    {"start": [10, 0.9], "card": [10, 1.25], "best": [10, 1.6]},
-    {"start": [11, 0.3], "check": [11, 1.5], "card": [11, 5.0], "best": [12, 0.4]}
-  ],
-  "final": [12, 1.2]
+ "first": 9,
+ "last": 14,
+ "s": "abcbdea",
+ "ores": [
+  "gold",
+  "diamond",
+  "redstone",
+  "diamond",
+  "lapis",
+  "emerald",
+  "gold"
+ ],
+ "letters": [
+  "a",
+  "b",
+  "c",
+  "d",
+  "e"
+ ],
+ "ore_of": {
+  "a": "gold",
+  "b": "diamond",
+  "c": "redstone",
+  "d": "lapis",
+  "e": "emerald"
+ },
+ "row_in": [
+  9,
+  0.38
+ ],
+ "window_in": [
+  9,
+  1.141
+ ],
+ "chest_in": [
+  9,
+  2.979
+ ],
+ "grows3": [
+  10,
+  3.988
+ ],
+ "four": [
+  12,
+  3.479
+ ],
+ "toast": [
+  14,
+  0.05
+ ],
+ "five": [
+  14,
+  2.147
+ ],
+ "answer": [
+  14,
+  4.368
+ ],
+ "steps": [
+  {
+   "r": 0,
+   "ch": "a",
+   "ore": "gold",
+   "prev": -1,
+   "repeat": false,
+   "left0": 0,
+   "left": 0,
+   "best": 1,
+   "visit": [
+    10,
+    0.1
+   ],
+   "store": [
+    10,
+    1.69
+   ]
+  },
+  {
+   "r": 1,
+   "ch": "b",
+   "ore": "diamond",
+   "prev": -1,
+   "repeat": false,
+   "left0": 0,
+   "left": 0,
+   "best": 2,
+   "visit": [
+    10,
+    0.6
+   ],
+   "store": [
+    10,
+    2.14
+   ]
+  },
+  {
+   "r": 2,
+   "ch": "c",
+   "ore": "redstone",
+   "prev": -1,
+   "repeat": false,
+   "left0": 0,
+   "left": 0,
+   "best": 3,
+   "visit": [
+    10,
+    1.1
+   ],
+   "store": [
+    10,
+    2.59
+   ]
+  },
+  {
+   "r": 3,
+   "ch": "b",
+   "ore": "diamond",
+   "prev": 1,
+   "repeat": true,
+   "left0": 0,
+   "left": 2,
+   "best": 3,
+   "visit": [
+    11,
+    0.284
+   ],
+   "check": [
+    11,
+    1.559
+   ],
+   "jump": [
+    11,
+    5.954
+   ],
+   "store": [
+    11,
+    6.504
+   ]
+  },
+  {
+   "r": 4,
+   "ch": "d",
+   "ore": "lapis",
+   "prev": -1,
+   "repeat": false,
+   "left0": 2,
+   "left": 2,
+   "best": 3,
+   "visit": [
+    12,
+    0.1
+   ],
+   "store": [
+    12,
+    0.55
+   ]
+  },
+  {
+   "r": 5,
+   "ch": "e",
+   "ore": "emerald",
+   "prev": -1,
+   "repeat": false,
+   "left0": 2,
+   "left": 2,
+   "best": 4,
+   "visit": [
+    12,
+    0.75
+   ],
+   "store": [
+    12,
+    1.2
+   ]
+  },
+  {
+   "r": 6,
+   "ch": "a",
+   "ore": "gold",
+   "prev": 0,
+   "repeat": false,
+   "left0": 2,
+   "left": 2,
+   "best": 5,
+   "visit": [
+    13,
+    0.324
+   ],
+   "check": [
+    13,
+    0.907
+   ],
+   "ignore": [
+    13,
+    5.313
+   ],
+   "store": [
+    13,
+    5.713
+   ]
+  }
+ ]
 }

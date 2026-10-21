@@ -1,123 +1,130 @@
 {
-  "total_duration_s": 93.204,
+  "total_duration_s": 98.452,
   "subtitles": [
     {
       "index": 0,
-      "text": "Binary Tree Maximum Path Sum. LeetCode one twenty four, a classic hard.",
+      "text": "Binary Tree Maximum Path Sum, Minecraft edition. LeetCode one twenty four, a classic hard.",
       "start_s": 0.0,
-      "end_s": 5.426,
-      "duration_s": 5.426
+      "end_s": 6.75,
+      "duration_s": 6.75
     },
     {
       "index": 1,
-      "text": "A path is any chain of connected nodes, each used at most once. Find the path with the largest sum.",
-      "start_s": 5.426,
-      "end_s": 12.151,
+      "text": "A path is any chain of connected blocks, each used at most once. Find the path with the largest sum.",
+      "start_s": 6.75,
+      "end_s": 13.475,
       "duration_s": 6.725
     },
     {
       "index": 2,
       "text": "The path doesn't have to pass through the root. Here, the best one is fifteen, twenty, seven. That's forty two.",
-      "start_s": 12.151,
-      "end_s": 19.001,
+      "start_s": 13.475,
+      "end_s": 20.325,
       "duration_s": 6.85
     },
     {
       "index": 3,
-      "text": "Trying every pair of start and end nodes would be far too slow.",
-      "start_s": 19.001,
-      "end_s": 23.426,
-      "duration_s": 4.425
+      "text": "Trying every pair of start and end blocks would be far too slow.",
+      "start_s": 20.325,
+      "end_s": 24.45,
+      "duration_s": 4.125
     },
     {
       "index": 4,
-      "text": "Instead, look at the top of a path, its highest node. The path takes that node, plus its best branch on the left, plus its best branch on the right.",
-      "start_s": 23.426,
-      "end_s": 32.526,
-      "duration_s": 9.1
+      "text": "Instead, look at the top of a path, its highest block. The path takes that block, plus its best branch on the left, plus its best branch on the right.",
+      "start_s": 24.45,
+      "end_s": 33.6,
+      "duration_s": 9.15
     },
     {
       "index": 5,
-      "text": "But a path can only bend once. So when a node reports up to its parent, it can only offer one branch.",
-      "start_s": 32.526,
-      "end_s": 39.226,
-      "duration_s": 6.7
+      "text": "But a path can only bend once. So when a block reports up to its parent, it can only offer one branch.",
+      "start_s": 33.6,
+      "end_s": 40.325,
+      "duration_s": 6.725
     },
     {
       "index": 6,
       "text": "And if a branch is negative, we simply drop it, and use zero instead.",
-      "start_s": 39.226,
-      "end_s": 43.926,
+      "start_s": 40.325,
+      "end_s": 45.025,
       "duration_s": 4.7
     },
     {
       "index": 7,
       "text": "Let's run it bottom up. We start with the leaves on the left.",
-      "start_s": 43.926,
-      "end_s": 47.701,
+      "start_s": 45.025,
+      "end_s": 48.8,
       "duration_s": 3.775
     },
     {
       "index": 8,
       "text": "Minus four is negative, so its parent will drop it. Two offers a gain of two.",
-      "start_s": 47.701,
-      "end_s": 52.926,
+      "start_s": 48.8,
+      "end_s": 54.025,
       "duration_s": 5.225
     },
     {
       "index": 9,
       "text": "At nine, the best path through it is nine plus two, eleven. It offers eleven to its parent.",
-      "start_s": 52.926,
-      "end_s": 58.952,
+      "start_s": 54.025,
+      "end_s": 60.051,
       "duration_s": 6.026
     },
     {
       "index": 10,
       "text": "On the right, fifteen and seven offer themselves.",
-      "start_s": 58.952,
-      "end_s": 62.152,
+      "start_s": 60.051,
+      "end_s": 63.251,
       "duration_s": 3.2
     },
     {
       "index": 11,
       "text": "At twenty, the path fifteen, twenty, seven sums to forty two. That's the new best. It offers twenty plus fifteen, thirty five.",
-      "start_s": 62.152,
-      "end_s": 71.027,
+      "start_s": 63.251,
+      "end_s": 72.126,
       "duration_s": 8.875
     },
     {
       "index": 12,
       "text": "At the root, minus ten plus eleven plus thirty five is only thirty six. So the answer stays forty two.",
-      "start_s": 71.027,
-      "end_s": 78.253,
+      "start_s": 72.126,
+      "end_s": 79.352,
       "duration_s": 7.226
     },
     {
       "index": 13,
-      "text": "Each node is visited once, so the time is linear.",
-      "start_s": 78.253,
-      "end_s": 81.879,
-      "duration_s": 3.626
-    },
-    {
-      "index": 14,
-      "text": "The recursion goes as deep as the tree, so the space is the height.",
-      "start_s": 81.879,
-      "end_s": 86.079,
+      "text": "Advancement made. The best path is fifteen, twenty, seven.",
+      "start_s": 79.352,
+      "end_s": 83.552,
       "duration_s": 4.2
     },
     {
+      "index": 14,
+      "text": "Each block is visited once, so the time is linear.",
+      "start_s": 83.552,
+      "end_s": 87.127,
+      "duration_s": 3.575
+    },
+    {
       "index": 15,
-      "text": "Return one branch up, but score both branches at every node.",
-      "start_s": 86.079,
-      "end_s": 90.354,
-      "duration_s": 4.275
+      "text": "The recursion goes as deep as the tree, so the space is the height.",
+      "start_s": 87.127,
+      "end_s": 91.327,
+      "duration_s": 4.2
     },
     {
       "index": 16,
+      "text": "Return one branch up, but score both branches at every block.",
+      "start_s": 91.327,
+      "end_s": 95.602,
+      "duration_s": 4.275
+    },
+    {
+      "index": 17,
       "text": "Bend once at the top, and keep the best.",
-      "start_s": 90.354,
-      "end_s": 93.204,
+      "start_s": 95.602,
+      "end_s": 98.452,
       "duration_s": 2.85
     }
   ]

@@ -1,123 +1,130 @@
 {
-  "total_duration_s": 86.5,
+  "total_duration_s": 94.0,
   "subtitles": [
     {
       "index": 0,
-      "text": "Reverse Integer. LeetCode number seven, and it's trickier than it looks.",
+      "text": "Reverse Integer, Minecraft edition. LeetCode number seven, and it's trickier than it looks.",
       "start_s": 0.0,
-      "end_s": 4.65,
-      "duration_s": 4.65
+      "end_s": 6.05,
+      "duration_s": 6.05
     },
     {
       "index": 1,
       "text": "Given a signed thirty two bit integer, reverse its digits. One two three becomes three two one.",
-      "start_s": 4.65,
-      "end_s": 11.225,
+      "start_s": 6.05,
+      "end_s": 12.625,
       "duration_s": 6.575
     },
     {
       "index": 2,
       "text": "But if the reversed number doesn't fit in thirty two bits, return zero.",
-      "start_s": 11.225,
-      "end_s": 15.8,
+      "start_s": 12.625,
+      "end_s": 17.2,
       "duration_s": 4.575
     },
     {
       "index": 3,
       "text": "Turning it into a string is easy. The real challenge is catching overflow without a bigger integer type.",
-      "start_s": 15.8,
-      "end_s": 22.5,
+      "start_s": 17.2,
+      "end_s": 23.9,
       "duration_s": 6.7
     },
     {
       "index": 4,
       "text": "So we do it with math. Mod ten pops the last digit, and dividing by ten removes it.",
-      "start_s": 22.5,
-      "end_s": 28.325,
+      "start_s": 23.9,
+      "end_s": 29.725,
       "duration_s": 5.825
     },
     {
       "index": 5,
       "text": "Then times ten, plus the digit, pushes it onto the result.",
-      "start_s": 28.325,
-      "end_s": 32.35,
+      "start_s": 29.725,
+      "end_s": 33.75,
       "duration_s": 4.025
     },
     {
       "index": 6,
-      "text": "Before each push, check that the result can still grow without passing the limit.",
-      "start_s": 32.35,
-      "end_s": 37.35,
-      "duration_s": 5.0
+      "text": "Before each push, check that the result can still grow without passing the limit. Like the build limit of a world.",
+      "start_s": 33.75,
+      "end_s": 40.775,
+      "duration_s": 7.025
     },
     {
       "index": 7,
       "text": "Let's reverse one four six three. The result starts at zero.",
-      "start_s": 37.35,
-      "end_s": 41.6,
+      "start_s": 40.775,
+      "end_s": 45.025,
       "duration_s": 4.25
     },
     {
       "index": 8,
       "text": "Pop three, and push it. The result is three.",
-      "start_s": 41.6,
-      "end_s": 44.8,
+      "start_s": 45.025,
+      "end_s": 48.225,
       "duration_s": 3.2
     },
     {
       "index": 9,
       "text": "Pop six. Three times ten plus six is thirty six.",
-      "start_s": 44.8,
-      "end_s": 48.625,
+      "start_s": 48.225,
+      "end_s": 52.05,
       "duration_s": 3.825
     },
     {
       "index": 10,
       "text": "Pop four, three hundred sixty four. Pop one, three thousand six hundred forty one.",
-      "start_s": 48.625,
-      "end_s": 54.2,
+      "start_s": 52.05,
+      "end_s": 57.625,
       "duration_s": 5.575
     },
     {
       "index": 11,
       "text": "Now a dangerous one. One five three four two three six four six nine. The reverse keeps growing toward the limit.",
-      "start_s": 54.2,
-      "end_s": 61.65,
+      "start_s": 57.625,
+      "end_s": 65.075,
       "duration_s": 7.45
     },
     {
       "index": 12,
       "text": "With nine digits pushed, one more digit would pass two point one billion. So we stop, and return zero.",
-      "start_s": 61.65,
-      "end_s": 68.525,
+      "start_s": 65.075,
+      "end_s": 71.95,
       "duration_s": 6.875
     },
     {
       "index": 13,
-      "text": "Each step removes one digit, so the time is the number of digits. That's log of x.",
-      "start_s": 68.525,
-      "end_s": 74.15,
-      "duration_s": 5.625
+      "text": "Advancement made. The overflow was caught before it happened.",
+      "start_s": 71.95,
+      "end_s": 76.025,
+      "duration_s": 4.075
     },
     {
       "index": 14,
-      "text": "And we only keep a few numbers, so the space is constant.",
-      "start_s": 74.15,
-      "end_s": 78.05,
-      "duration_s": 3.9
+      "text": "Each step removes one digit, so the time is the number of digits. That's log of x.",
+      "start_s": 76.025,
+      "end_s": 81.65,
+      "duration_s": 5.625
     },
     {
       "index": 15,
-      "text": "Pop with mod, push with times ten, and check the limit before every push.",
-      "start_s": 78.05,
-      "end_s": 83.05,
-      "duration_s": 5.0
+      "text": "And we only keep a few numbers, so the space is constant.",
+      "start_s": 81.65,
+      "end_s": 85.55,
+      "duration_s": 3.9
     },
     {
       "index": 16,
+      "text": "Pop with mod, push with times ten, and check the limit before every push.",
+      "start_s": 85.55,
+      "end_s": 90.55,
+      "duration_s": 5.0
+    },
+    {
+      "index": 17,
       "text": "Reverse the digits, but never trust the overflow.",
-      "start_s": 83.05,
-      "end_s": 86.5,
+      "start_s": 90.55,
+      "end_s": 94.0,
       "duration_s": 3.45
     }
   ]

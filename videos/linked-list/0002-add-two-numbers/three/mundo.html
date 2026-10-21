@@ -1,0 +1,210 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import { THREE, prog, easeInOut, easeOut, easeOutBack, lerp, V, bezier, pose, mixPose } from '/vendor/lib/stage.js';
+import { MC, loadTheme, makeWorld, makeTerrain, makeBlock, makeFrame, makeOrb, makeClouds, tex } from '/vendor/tema/mc.js';
+import { loadMobs, planLife, makeLife, setTime } from '/vendor/tema/vida.js';
+
+const walk = await (await fetch('/walk.json')).json();
+// One clip for the whole video: times are absolute. The walk happens in [W0, W1]; the rest is a slow roam that
+// ends where it starts, so the video still loops.
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const seg = (i) => subs[i].start_s;
+const TOTAL = subs[subs.length - 1].end_s;
+const W0 = seg(walk.first), W1 = subs[walk.last].end_s;
+const at = (spec) => seg(spec[0]) + spec[1];
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'planks', 'leaves', 'log_side', 'log_top', 'barrier',
+                              'diamond_ore', 'lapis_ore', 'emerald_ore']);
+
+const steps = walk.steps.map((s) => ({ ...s, visitT: at(s.visit), sumT: at(s.sum), placeT: at(s.place),
+  carryT: s.carry ? at(s.carry) : null }));
+const T = { rows: at(walk.rows_in), cursor: at(walk.cursor), runOut: at(walk.run_out), toast: at(walk.toast),
+            read: walk.read.map(at) };
+
+const world = makeWorld({ fov: 40, offset: 0.34, fog: [55, 120] });
+const { scene } = world;
+// Terrain of the ClaudeEntorno world (wide river in the south, see mundos/lugares.json), turned so the camera
+// looking toward -z sees the river behind the chains; trees and plants are cleared where the camera stands
+const terrain = await makeTerrain('/vendor/tema/mundos/wide-river.json', { turn: 1.1781, plot: [-5, 5, -2, 7], clear: [-10, 10, 7, 24] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+// Dawn by the river: sheep and a cow on the banks, squid in the water
+const LIFE = [{ kind: 'sheep', count: 3, graze: 1 }, { kind: 'cow', count: 1 }, { kind: 'squid', count: 2 }];
+await loadMobs(imgs, LIFE.map((g) => g.kind));
+const dim = await setTime(world, 'dawn', { terrain, clouds, imgs });
+const life = makeLife(imgs, terrain, planLife(terrain, LIFE, { seed: 5 }), TOTAL, dim);
+scene.add(life.g);
+// Everything of the walk lives in its own group, hidden outside the walk
+const stage = new THREE.Group();
+scene.add(stage);
+
+// Three rows in the plane z = 0, one column per digit place: l1 on top, l2 in the middle, the sum on the ground
+const SP = 1.4;
+const bx = (k) => (k - 2) * SP;
+const Y1 = 3.3, Y2 = 1.9, Y0 = 0.5;
+const row = (vals, ore) => vals.map((v) => { const b = makeBlock(imgs, ore, { label: v }); stage.add(b.g); return b; });
+const b1 = row(walk.l1, 'diamond_ore');
+const b2 = row(walk.l2, 'lapis_ore');
+const b0 = row(walk.result, 'emerald_ore');
+
+// next pointers: wooden rods between neighbors; a faint red rod to the barrier (null) after the last block
+const rodMat = new THREE.MeshBasicMaterial({ map: tex(imgs, 'planks') });
+rodMat.color.setScalar(0.8);
+const nullMat = new THREE.MeshBasicMaterial({ color: 0x5a2020 });
+const rodGeo = new THREE.BoxGeometry(1, 0.12, 0.12);
+rodGeo.translate(0.5, 0, 0);
+const rod = (y, k, mat) => { const r = new THREE.Mesh(rodGeo, mat); r.position.set(bx(k) + 0.5, y, 0); stage.add(r); return r; };
+const rods1 = walk.l1.slice(1).map((_, k) => rod(Y1, k, rodMat));
+const rods2 = walk.l2.slice(1).map((_, k) => rod(Y2, k, rodMat));
+const rods0 = walk.result.slice(1).map((_, k) => rod(Y0, k, rodMat));
+const nullRod1 = rod(Y1, walk.l1.length - 1, nullMat);
+const nullRod2 = rod(Y2, walk.l2.length - 1, nullMat);
+const barrier = (k, y) => {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex(imgs, 'barrier'), transparent: true, depthWrite: false }));
+  s.position.set(bx(k), y, 0);
+  stage.add(s);
+  return s;
+};
+const null1 = barrier(walk.l1.length, Y1);
+const null2 = barrier(walk.l2.length, Y2);
+
+// The game's block outline on the two blocks of the current column
+const frames = [makeFrame(1.02, 0.03), makeFrame(1.02, 0.03)];
+frames.forEach((f) => stage.add(f));
+
+// The carry: an experience orb waiting above the next column
+const carryOrb = makeOrb(imgs, 0.8, 5);
+stage.add(carryOrb);
+
+// Experience orbs that burst from the finished sum
+let seed = 11;
+const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+const orbs = Array.from({ length: 24 }, (_, n) => {
+  const o = makeOrb(imgs, 0.34, [1, 2, 4, 5, 6][n % 5]);
+  o.userData = { from: n % walk.result.length, vx: (rnd() - 0.5) * 2.4, vy: 2.4 + rnd() * 2.0, vz: (rnd() - 0.3) * 2.0, delay: rnd() * 0.35 };
+  stage.add(o);
+  return o;
+});
+
+// Terrain materials are transparent (alpha-tested) and sorted with the sprites; sprites go last so the ground can't paint over them
+stage.traverse((o) => { if (o.isSprite) o.renderOrder = 10; });
+
+function cursorX(t) {
+  // Arrives at column k at its visit time
+  let x = bx(0);
+  for (const s of steps) x = lerp(x, bx(s.k), easeInOut(prog(t, s.visitT - 0.3, s.visitT)));
+  return x;
+}
+
+function renderAt(t) {
+  // Walk camera: front view of the three rows with a slow drift; roam camera: one slow loop over the meadow
+  const sway = 0.5 * Math.sin(t * 0.35);
+  const walkPose = pose(V(sway, 5.4, 15.5), V(sway * 0.4, 4.1, 0.0));
+  const a = 2 * Math.PI * t / TOTAL;
+  const roamPose = pose(V(6 * Math.sin(a), 3.4 + 0.8 * Math.sin(2 * a), 13 + 2.5 * Math.cos(a)), V(3 * Math.sin(a), 4.2, -30));
+  const k = easeInOut(prog(t, W0 - 1.6, W0 - 0.1)) * (1 - easeInOut(prog(t, W1 + 0.1, W1 + 1.6)));
+  const cam = mixPose(roamPose, walkPose, k);
+  world.look(cam.pos, cam.look);
+  // The walk keeps its content high in the frame (the overlay uses the bottom); the roam shows more sky
+  world.camera.setViewOffset(world.W, world.H, 0, world.H * lerp(0.12, 0.34, k), world.W, world.H);
+  clouds.position.x = 4 * Math.sin(a);
+  life.update(t);
+  stage.visible = t < W1;
+
+  // l1 and l2 drop in from above, one block after another, then their pointers grow
+  const drop = (blocks, rods, y, t0, nullRod, nullS) => {
+    blocks.forEach((b, i) => {
+      const d = prog(t, t0 + 0.12 * i, t0 + 0.12 * i + 0.55);
+      const fall = d < 1 ? (1 - d) * (1 - d) * 4.5 : 0;
+      // Glow while its column is visited and added
+      const st = steps[i];
+      const glow = 0.3 * Math.sin(Math.PI * prog(t, st.visitT - 0.1, st.visitT + 0.5)) + 0.25 * Math.sin(Math.PI * prog(t, st.sumT - 0.1, st.sumT + 0.5));
+      b.g.position.set(bx(i), y + fall, 0);
+      b.set({ glow, opacity: d > 0 ? 1 : 0 });
+    });
+    const n = blocks.length;
+    rods.forEach((r, i) => { const g = prog(t, t0 + 0.12 * n + 0.3 + 0.1 * i, t0 + 0.12 * n + 0.6 + 0.1 * i); r.visible = g > 0; r.scale.x = Math.max(g * (SP - 1), 1e-4); });
+    const g = prog(t, t0 + 0.12 * n + 0.5, t0 + 0.12 * n + 0.9);
+    nullRod.visible = g > 0;
+    nullRod.scale.x = Math.max(g * (SP - 1), 1e-4);
+    nullS.visible = g > 0;
+    nullS.scale.setScalar(0.62 * Math.max(easeOutBack(g), 1e-4));
+  };
+  drop(b1, rods1, Y1, T.rows, nullRod1, null1);
+  drop(b2, rods2, Y2, T.rows + 0.45, nullRod2, null2);
+  // The first chain runs out: its barrier pulses
+  null1.scale.multiplyScalar(1 + 0.45 * Math.sin(Math.PI * prog(t, T.runOut, T.runOut + 0.6)));
+
+
+  // Sum blocks drop onto the ground when their digit is placed; the pointer from the previous one grows after
+  b0.forEach((b, i) => {
+    const s = steps[i];
+    const d = prog(t, s.placeT, s.placeT + 0.45);
+    const fall = d < 1 ? (1 - d) * (1 - d) * 3 : 0;
+    let glow = 0.35 * Math.sin(Math.PI * prog(t, s.placeT, s.placeT + 0.7));
+    glow += 0.4 * Math.sin(Math.PI * prog(t, T.read[i] - 0.1, T.read[i] + 0.5));
+    glow += 0.2 * Math.sin(Math.PI * prog(t, T.toast, T.toast + 1.2));
+    b.g.position.set(bx(i), Y0 + fall + terrain.groundAt(bx(i), 0), 0);
+    b.set({ glow, opacity: d > 0 ? 1 : 0 });
+    if (i > 0) {
+      const g = prog(t, s.placeT + 0.3, s.placeT + 0.55);
+      rods0[i - 1].visible = g > 0;
+      rods0[i - 1].scale.x = Math.max(g * (SP - 1), 1e-4);
+      rods0[i - 1].position.y = Y0 + terrain.groundAt(bx(i), 0);
+    }
+  });
+
+  // Selection frames follow the column (on the barrier once a chain has run out)
+  const fOn = t >= T.cursor && t < T.toast;
+  const x = cursorX(t);
+  frames[0].visible = fOn;
+  frames[1].visible = fOn;
+  frames[0].position.set(x, Y1, 0);
+  frames[1].position.set(x, Y2, 0);
+
+  // Carry orb: appears above the next column when a carry is made, falls into the sum when that column adds it
+  let cA = 0, cX = 0, cY = Y1 + 1.0;
+  steps.forEach((s, i) => {
+    if (s.carryT === null) return;
+    const next = steps[i + 1];
+    const appear = easeOutBack(prog(t, s.carryT, s.carryT + 0.35));
+    const used = prog(t, next.sumT, next.sumT + 0.4);
+    if (appear > 0 && used < 1) {
+      cA = appear * (1 - prog(used, 0.75, 1));
+      cX = lerp(bx(s.k), bx(next.k), easeInOut(prog(t, s.carryT, s.carryT + 0.35)));
+      cY = lerp(Y1 + 1.0 + 0.08 * Math.sin(t * 5), Y0 + 0.9, easeInOut(used));
+    }
+  });
+  carryOrb.visible = cA > 0.01;
+  carryOrb.scale.setScalar(0.8 * Math.max(cA, 1e-4));
+  carryOrb.position.set(cX, cY, 0.6);
+  carryOrb.tint(t);
+
+  // Orbs: a short burst from every block of the sum
+  for (const o of orbs) {
+    const { from: i, vx, vy, vz, delay } = o.userData;
+    const u = t - (T.toast + delay);
+    o.visible = u > 0 && u < 1.6;
+    if (!o.visible) continue;
+    o.position.set(bx(i) + vx * u, Math.max(Y0 + 0.9 + vy * u - 4.5 * u * u, 0.1), vz * u);
+    o.tint(t + delay);
+    o.material.opacity = 1 - prog(u, 1.2, 1.6);
+  }
+
+  world.draw(t, TOTAL, 0, 0);
+}
+
+window.renderAt = renderAt;
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

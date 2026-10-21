@@ -302,10 +302,14 @@ export function skyCanvas(bands = 28) {
 export function makeWorld({ fov = 40, offset = 0.2, fog = [30, 70] } = {}) {
   const params = new URLSearchParams(location.search);
   const W = Number(params.get('w') || 1080);
-  const H = Number(params.get('h') || 1440);
+  const HR = Number(params.get('h') || 1440);
+  // Pages are laid out for a 3:4 picture (W x H). A taller render (9:16) keeps that picture as its middle band and
+  // shows more world above and below: the view offsets the pages ask for are widened by `pad` on each side
+  const H = Math.min(HR, Math.round(W * 4 / 3));
+  const pad = (HR - H) / 2;
   const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(1);
-  renderer.setSize(W, H);
+  renderer.setSize(W, HR);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   document.body.appendChild(renderer.domElement);
   {
@@ -318,7 +322,11 @@ export function makeWorld({ fov = 40, offset = 0.2, fog = [30, 70] } = {}) {
   scene.background = sky;
   scene.fog = new THREE.Fog(SKY_BOTTOM, fog[0], fog[1]);
   const camera = new THREE.PerspectiveCamera(fov, W / H, 0.1, 300);
-  if (offset) camera.setViewOffset(W, H, 0, H * offset, W, H);
+  if (pad) {
+    const setView = camera.setViewOffset.bind(camera);
+    camera.setViewOffset = (fw, fh, x, y, w, h) => setView(fw, fh, x, y - pad * fh / H, w, h + 2 * pad * fh / H);
+  }
+  if (offset || pad) camera.setViewOffset(W, H, 0, H * offset, W, H);
   const fadeMat = new THREE.MeshBasicMaterial({ map: sky, transparent: true, depthTest: false, depthWrite: false });
   const fade = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), fadeMat);
   const dist = 0.5;
@@ -335,7 +343,8 @@ export function makeWorld({ fov = 40, offset = 0.2, fog = [30, 70] } = {}) {
     fade.visible = fadeMat.opacity > 0.001;
     renderer.render(scene, camera);
   };
-  return { W, H, renderer, scene, camera, look, draw };
+  // ndcY: how a y of the 3:4 picture shrinks in normalized device coordinates when the render is taller
+  return { W, H, renderer, scene, camera, look, draw, ndcY: H / HR };
 }
 
 // Clouds from the game's cloud map: every white pixel is a flat cloud cell
@@ -358,8 +367,17 @@ export function makeClouds(imgs, { cell = 6, y = 16, x0 = 96, z0 = 40, nx = 36, 
 
 // Terrain exported from a real world by mundo.py: one instanced mesh per block type.
 // Block (x, y, z) relative to the export center sits at (x, y + 0.5, z): the center column's ground top is y = 0.
-export async function makeTerrain(url, { turn = 0, plot = null } = {}) {
+export async function makeTerrain(url, { turn = 0, plot = null, clear = null } = {}) {
   const d = await (await fetch(url)).json();
+  // clear = [x0, x1, z0, z1] in scene coordinates: trees and plants there are removed (where the camera stands)
+  if (clear) {
+    const c = Math.cos(turn), s = Math.sin(turn);
+    const tree = d.names.map((n) => d.looks[n].cutout || d.looks[n].kind === 'cross' || /_log|_wood/.test(n));
+    d.blocks = d.blocks.filter(([x, , z, n]) => {
+      const sx = c * x + s * z, sz = -s * x + c * z;
+      return !(tree[n] && sx >= clear[0] && sx <= clear[1] && sz >= clear[2] && sz <= clear[3]);
+    });
+  }
   // plot = [x0, x1, z0, z1] in scene coordinates: leveled to a grass floor whose top is y = 0, like a player would build
   if (plot) {
     const c = Math.cos(turn), s = Math.sin(turn);
@@ -400,6 +418,8 @@ export async function makeTerrain(url, { turn = 0, plot = null } = {}) {
     return geo;
   })();
   const water = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0.38, 0);
+  // Layers lying on the block below (leaf litter)
+  const flat = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, -0.47, 0);
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
   for (const [n, list] of byName.entries()) {
@@ -410,6 +430,9 @@ export async function makeTerrain(url, { turn = 0, plot = null } = {}) {
       geo = cross;
       mats = new THREE.MeshBasicMaterial({ map: await map(look.side), alphaTest: 0.5, side: THREE.DoubleSide });
       mats.color.setScalar(0.9);
+    } else if (look.kind === 'flat') {
+      geo = flat;
+      mats = new THREE.MeshBasicMaterial({ map: await map(look.top), alphaTest: 0.5, side: THREE.DoubleSide });
     } else if (look.kind === 'water') {
       geo = water;
       mats = new THREE.MeshBasicMaterial({ map: await map(look.top), transparent: true, opacity: 0.78, depthWrite: false });
@@ -439,6 +462,19 @@ export async function makeTerrain(url, { turn = 0, plot = null } = {}) {
   g.rotation.y = turn;
   const c = Math.cos(turn), s = Math.sin(turn);
   g.groundAt = (x, z) => tops.get(`${Math.round(c * x - s * z)},${Math.round(s * x + c * z)}`) ?? 0;
+  // What a mob would stand on: the highest block of the column that is not a plant ('water', 'leaves', 'log' or the
+  // block name), and how high it is; null outside the export
+  const surf = new Map();
+  d.blocks.forEach(([x, y, z, n]) => {
+    const name = d.names[n], look = d.looks[name];
+    if (look.kind === 'cross' || look.kind === 'flat') return;
+    const key = `${x},${z}`;
+    if (!surf.has(key) || y > surf.get(key).y) {
+      const kind = look.kind === 'water' ? 'water' : look.cutout ? 'leaves' : /_log|_wood/.test(name) ? 'log' : name.split('[')[0];
+      surf.set(key, { y, kind });
+    }
+  });
+  g.surfaceAt = (x, z) => surf.get(`${Math.round(c * x - s * z)},${Math.round(s * x + c * z)}`) ?? null;
   return g;
 }
 

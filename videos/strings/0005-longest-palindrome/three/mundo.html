@@ -1,0 +1,200 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import { THREE, prog, easeInOut, easeOut, easeOutBack, lerp, V, pose, mixPose } from '/vendor/lib/stage.js';
+import { MC, loadTheme, makeWorld, makeTerrain, makeBlock, makeFrame, pixelSprite, makeOrb, makeClouds, tex } from '/vendor/tema/mc.js';
+import { loadMobs, planLife, makeLife, setTime } from '/vendor/tema/vida.js';
+
+const walk = await (await fetch('/walk.json')).json();
+// One clip for the whole video: times are absolute. The walk happens in [W0, W1]; the rest is a slow roam that
+// ends where it starts, so the video still loops.
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const seg = (i) => subs[i].start_s;
+const TOTAL = subs[subs.length - 1].end_s;
+const W0 = seg(walk.first), W1 = subs[walk.last].end_s;
+const at = (spec) => seg(spec[0]) + spec[1];
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'planks', 'leaves', 'log_side', 'log_top', 'barrier',
+                              ...walk.letters.map((c) => `${walk.ore_of[c]}_ore`)]);
+
+const N = walk.s.length;
+const centers = walk.centers.map((e) => ({ ...e, startT: at(e.start), timesT: e.times.map(at), bestT: e.best ? at(e.best) : null }));
+centers.forEach((e, k) => { e.endT = k + 1 < centers.length ? centers[k + 1].startT - 0.05 : W1; });
+const T = { row: at(walk.row_in), toast: at(walk.toast) };
+const winner = centers.find((e) => e.len === 7);
+const bestCenters = centers.filter((e) => e.bestT !== null);
+
+const world = makeWorld({ fov: 40, offset: 0.34, fog: [55, 120] });
+const { scene } = world;
+// Terrain of the ClaudeEntorno world (edge of a birch forest, see mundos/lugares.json), turned so the camera looking
+// toward -z sees the birches behind the row; trees and plants are cleared where the camera stands
+const terrain = await makeTerrain('/vendor/tema/mundos/birch-forest.json', { turn: 1.5708, plot: [-5, 5, -2, 7], clear: [-10, 10, 7, 24] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+// Day at the birch forest: wolves roam, a sheep and a chicken nearby
+const LIFE = [{ kind: 'wolf', count: 2 }, { kind: 'sheep', count: 1, graze: 1 }, { kind: 'chicken', count: 1 }];
+await loadMobs(imgs, LIFE.map((g) => g.kind));
+const dim = await setTime(world, 'day', { terrain, clouds, imgs });
+const life = makeLife(imgs, terrain, planLife(terrain, LIFE, { seed: 17 }), TOTAL, dim);
+scene.add(life.g);
+// Everything of the walk lives in its own group, hidden outside the walk
+const stage = new THREE.Group();
+scene.add(stage);
+
+// The row: ten smaller blocks so the whole string fits
+const SZ = 0.85, SP = 0.95;
+const bx = (i) => (i - (N - 1) / 2) * SP;
+const blocks = walk.ores.map((o, i) => { const b = makeBlock(imgs, `${o}_ore`, { label: walk.s[i], size: SZ }); stage.add(b.g); return b; });
+const idx = walk.ores.map((_, i) => { const s = pixelSprite(String(i), MC.gray, 0.4); s.position.set(bx(i), 0.25, 1.05); stage.add(s); return s; });
+const Y = SZ / 2;
+
+// The mirror: a pale glass pane on the current center (a block or the gap between two)
+const mirrorMat = new THREE.MeshBasicMaterial({ color: 0xbfe8ff, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide });
+const mirrorFace = new THREE.Mesh(new THREE.BoxGeometry(0.07, 1.6, 1.1), mirrorMat);
+stage.add(mirrorFace);
+
+// The two ends being compared
+const frames = [makeFrame(SZ + 0.04, 0.035), makeFrame(SZ + 0.04, 0.035)];
+frames.forEach((f) => stage.add(f));
+const missX = pixelSprite('X', MC.red, 0.55);
+stage.add(missX);
+const sprite = (name, size) => {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex(imgs, name), transparent: true, depthWrite: false }));
+  s.scale.set(size, size, 1);
+  stage.add(s);
+  return s;
+};
+const edges = [sprite('barrier', 0.6), sprite('barrier', 0.6)];
+
+// Best palindrome so far: a gold box around it
+function makeBox(color) {
+  const mat = new THREE.MeshBasicMaterial({ color, toneMapped: false, transparent: true });
+  const g = new THREE.Group();
+  const bars = Array.from({ length: 12 }, () => { const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), mat); g.add(m); return m; });
+  const set = (x0, x1, y0, y1, z0, z1, th) => {
+    let k = 0;
+    for (const y of [y0, y1]) for (const z of [z0, z1]) { bars[k].position.set((x0 + x1) / 2, y, z); bars[k++].scale.set(x1 - x0 + th, th, th); }
+    for (const x of [x0, x1]) for (const z of [z0, z1]) { bars[k].position.set(x, (y0 + y1) / 2, z); bars[k++].scale.set(th, y1 - y0 + th, th); }
+    for (const x of [x0, x1]) for (const y of [y0, y1]) { bars[k].position.set(x, y, (z0 + z1) / 2); bars[k++].scale.set(th, th, z1 - z0 + th); }
+  };
+  return { g, mat, set };
+}
+const bestBox = makeBox(MC.gold);
+stage.add(bestBox.g);
+
+// Experience orbs that burst from racecar
+let seed = 11;
+const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+const orbs = Array.from({ length: 26 }, (_, k) => {
+  const o = makeOrb(imgs, 0.32, [1, 2, 4, 5, 6][k % 5]);
+  o.userData = { from: 3 + (k % 7), vx: (rnd() - 0.5) * 2.4, vy: 2.4 + rnd() * 2.0, vz: (rnd() - 0.3) * 2.0, delay: rnd() * 0.35 };
+  stage.add(o);
+  return o;
+});
+
+// Terrain materials are transparent (alpha-tested) and sorted with the sprites; sprites go last so the ground can't paint over them
+stage.traverse((o) => { if (o.isSprite) o.renderOrder = 10; });
+
+const centerX = (c) => (c % 2 ? (bx((c - 1) / 2) + bx((c + 1) / 2)) / 2 : bx(c / 2));
+const cmpX = (i) => (i < 0 ? bx(0) - SP : i >= N ? bx(N - 1) + SP : bx(i));
+
+function renderAt(t) {
+  // Walk camera: pulled back so the ten blocks fit, with a slow drift; roam camera: one slow loop over the meadow
+  const sway = 0.5 * Math.sin(t * 0.35);
+  const walkPose = pose(V(sway * 0.3, 5.4, 19.8), V(sway * 0.1, 2.3, 0.0));
+  const a = 2 * Math.PI * t / TOTAL;
+  const roamPose = pose(V(6 * Math.sin(a), 3.4 + 0.8 * Math.sin(2 * a), 13 + 2.5 * Math.cos(a)), V(3 * Math.sin(a), 4.2, -30));
+  const k = easeInOut(prog(t, W0 - 1.6, W0 - 0.1)) * (1 - easeInOut(prog(t, W1 + 0.1, W1 + 1.6)));
+  const cam = mixPose(roamPose, walkPose, k);
+  world.look(cam.pos, cam.look);
+  // The walk keeps its content high in the frame (the overlay uses the bottom); the roam shows more sky
+  world.camera.setViewOffset(world.W, world.H, 0, world.H * lerp(0.12, 0.34, k), world.W, world.H);
+  clouds.position.x = 4 * Math.sin(a);
+  life.update(t);
+  stage.visible = t < W1;
+
+  // Current center and its latest comparison
+  const cur = centers.find((e) => t >= e.startT && t < e.endT);
+  let cmp = null, cmpT = 0;
+  if (cur) cur.timesT.forEach((ct, q) => { if (t >= ct) { cmp = cur.cmps[q]; cmpT = ct; } });
+  const matched = new Set();
+  if (cur) cur.timesT.forEach((ct, q) => { const [l, r, kind] = cur.cmps[q]; if (t >= ct && kind === 'match') { matched.add(l); matched.add(r); } });
+  const fin = prog(t, T.toast, T.toast + 0.4);
+
+  blocks.forEach((b, i) => {
+    const d = prog(t, T.row + 0.08 * i, T.row + 0.08 * i + 0.55);
+    const fall = d < 1 ? (1 - d) * (1 - d) * 4.5 : 0;
+    let glow = matched.has(i) ? 0.3 : 0;
+    if (i >= 3 && i <= 9) glow += fin * (0.25 + 0.1 * Math.sin(t * 6)) * (1 - prog(t, W1 - 0.5, W1));
+    b.g.position.set(bx(i), Y + fall + terrain.groundAt(bx(i), 0), 0);
+    b.set({ glow, opacity: d > 0 ? 1 : 0 });
+    idx[i].material.opacity = prog(t, T.row + 0.4 + 0.08 * i, T.row + 0.8 + 0.08 * i);
+  });
+
+  // Mirror pane on the center
+  const mA = cur ? easeOut(prog(t, cur.startT, cur.startT + 0.15)) : 0;
+  mirrorFace.visible = mA > 0.01;
+  if (cur) mirrorFace.position.set(centerX(cur.c), Y + 0.1, 0);
+  mirrorFace.scale.set(1, Math.max(mA, 1e-4), 1);
+
+  // Frames on the compared pair: green on a match, red on a miss; barriers past the ends of the row
+  const fresh = Math.sin(Math.PI * prog(t, cmpT, cmpT + 0.4));
+  frames.forEach((f, q) => {
+    f.visible = !!cmp && cmp[2] !== 'edge';
+    if (!f.visible) return;
+    const i = cmp[q];
+    f.position.set(bx(i), Y, 0);
+    f.userData.mat.color.set(cmp[2] === 'match' ? MC.green : MC.red);
+    f.scale.setScalar(1 + 0.08 * fresh);
+  });
+  const isMiss = !!cmp && cmp[2] === 'miss';
+  missX.visible = isMiss;
+  if (isMiss) { missX.position.set((bx(cmp[0]) + bx(cmp[1])) / 2, Y + 1.0, 0); missX.setSize(0.6 + 0.4 * fresh); }
+  const isEdge = !!cmp && cmp[2] === 'edge';
+  edges.forEach((s, q) => {
+    const i = isEdge ? cmp[q] : 0;
+    s.visible = isEdge && (i < 0 || i >= N);
+    s.position.set(cmpX(i), Y, 0);
+  });
+
+  // Best box follows the best palindrome found so far
+  let lo = -1, hi = -1, bA = 0;
+  for (const e of bestCenters) {
+    if (t < e.bestT) continue;
+    const [l, r] = e.cmps[e.cmps.length - 1];
+    lo = l + 1; hi = r - 1;
+    bA = easeOutBack(prog(t, e.bestT, e.bestT + 0.35));
+  }
+  bestBox.g.visible = lo >= 0;
+  if (lo >= 0) {
+    const pad = 0.08 * (1 - bA);
+    bestBox.set(bx(lo) - SZ / 2 - 0.08 - pad, bx(hi) + SZ / 2 + 0.08 + pad, -0.04, SZ + 0.1 + 0.05 * fin, -0.55, 0.55, 0.06 + 0.03 * fin);
+  }
+
+  // Orbs burst from racecar
+  for (const o of orbs) {
+    const { from: i, vx, vy, vz, delay } = o.userData;
+    const u = t - (T.toast + delay);
+    o.visible = u > 0 && u < 1.6;
+    if (!o.visible) continue;
+    o.position.set(bx(i) + vx * u, Math.max(1.1 + vy * u - 4.5 * u * u, 0.1), vz * u);
+    o.tint(t + delay);
+    o.material.opacity = 1 - prog(u, 1.2, 1.6);
+  }
+
+  world.draw(t, TOTAL, 0, 0);
+}
+
+window.renderAt = renderAt;
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

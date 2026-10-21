@@ -12,7 +12,8 @@ Los videos nuevos se hacen con el **estilo Minecraft con assets del juego y su m
 - Efectos de sonido del juego mezclados bajo la voz (ver "Efectos de sonido").
 - Música de fondo opcional del juego, solo cuando Aldo la pide (ver "Música de fondo"). Aprobada en el #297 con Subwoofer Lullaby.
 - Videos hechos en este estilo: `trees/0297-serialize-tree` (aprobado con "Quedó perfecto"). Es buen ejemplo para árboles: `Tree2D`, `TokenLine`, barreras como nulos y un recorrido 3D que guarda y carga.
-- Los 9 videos de la lista hechos antes usan el estilo neón original y se quedan así.
+- Desde el 2026-10-21 los 9 videos anteriores (#1 a #7, #102 y #124) también están en este estilo. Sus versiones neón quedaron como `video_neon.mp4` (fuera de git) y sus fuentes siguen en el historial, en el commit `35c573f`.
+- Cada video pasa en **su propio lugar** del mundo, con su **hora del día** y **mobs** caminando al fondo (ver "Lugares del mundo" y "Vida en el fondo"). Aldo pidió los dos cambios para que no se repita el paisaje y se vea vivo.
 
 ### Receta para un video nuevo en este estilo
 
@@ -23,7 +24,11 @@ Los videos nuevos se hacen con el **estilo Minecraft con assets del juego y su m
 4. Ajustar `video.json`: los grupos de escenas según las líneas nuevas, con `"tema": "minecraft-original"` y `"fondo": {"page": "three/mundo.html", "sharp": ["Scene5_Walk"]}`.
 5. Reescribir `make_walk.py`: los datos del ejemplo, la mena de cada valor (`ores`), los eventos anclados a frases con `at(línea, "frase")` y `first`/`last` (las líneas del recorrido). Correrlo para generar `walk.json`.
 6. Reescribir `scenes.py` con las mismas 7 escenas y los ayudantes del tema: `block_row`, `Inventory`, `Hotbar`, `toast`, `xp_bar`, `level_text`, `chest_icon`, `pickaxe`, `chat`, `MT`, `big_o_pow`. Agregar `self.sfx(...)` en los momentos clave.
-7. En `three/mundo.html`, cambiar solo la parte del recorrido (objetos y eventos) según el algoritmo. El terreno, la cámara de paseo y la mezcla de cámaras (`W0`, `W1`) se quedan igual.
+7. En `three/mundo.html`:
+   - Elegir un lugar de `mundos/lugares.json` que ningún otro video use, con su `turn`, y anotar el video en ese archivo. Si no queda ninguno, buscar uno nuevo (ver "Lugares del mundo").
+   - Poner `clear: [-10, 10, 7, 24]` en `makeTerrain` para quitar árboles y plantas donde se para la cámara.
+   - Elegir la hora y los mobs del lugar (ver "Vida en el fondo").
+   - Cambiar la parte del recorrido (objetos y eventos) según el algoritmo. La mezcla de cámaras (`W0`, `W1`) y la cámara de paseo (`roamPose`) se quedan igual; `walkPose` se ajusta para que el contenido quepa entre los píxeles 130 y 735.
 8. `python ../../../herramientas/build.py`, hojas de cuadros con `sheet.py`, revisar el loop y abrir el visor.
 9. Si Aldo pide música: agregar `"musica"` a `video.json` y correr solo `build.py mux`.
 
@@ -43,7 +48,9 @@ Detalles aprendidos en el #297:
 
 ## Formato fijo de cada video
 
-- Vertical 1080×1440 (3:4), 30 fps. Frame de Manim 9×12.
+- Vertical 1080×1920 (9:16, para Shorts), 30 fps, desde el 2026-10-21. Las escenas de Manim siguen en 1080×1440 (frame 9×12) y van centradas, a 240 px del borde de arriba; el mundo 3D se renderiza más alto y llena las franjas de arriba y abajo con más cielo y más terreno.
+  - Se activa con `"formato": "9:16"` en `video.json`. Sin esa clave, el video sale en 3:4 como antes.
+  - `makeWorld` mantiene igual la franja central: las páginas 3D no cambian. Si una página convierte coordenadas de Manim a 3D (`unproject`), debe multiplicar la y por `world.ndcY` (como `slotPoint` en #102 y #297).
 - Narración en inglés con la voz `af_heart` (Kokoro, local). Duración típica: 85 a 105 segundos.
 - Mientras se resuelve el ejercicio, el código se muestra a la par y una barra resalta la línea que se está ejecutando.
 - Loop: el último cuadro es igual al primero. La portada (`cover()`) se dibuja igual en `Scene1_Hook` y al final de `Scene7_Outro`.
@@ -74,16 +81,17 @@ Secciones (por tema de LeetCode): `arrays-hashing`, `linked-list`, `sliding-wind
 
 ## Videos hechos
 
-- `arrays-hashing/0001-two-sum`: Two Sum, Easy. Hecho antes de `build.py`, usa su propio `sync.py`.
-- `linked-list/0002-add-two-numbers`: Add Two Numbers, Medium. Primer video con 3D, también usa su propio `sync.py`.
-- `sliding-window/0003-longest-substring`: Longest Substring Without Repeating Characters, Medium. Ejemplo "abcbdea".
-- `binary-search/0004-median-two-arrays`: Median of Two Sorted Arrays, Hard. Mediana 11.
-- `strings/0005-longest-palindrome`: Longest Palindromic Substring, Medium. Ejemplo "abaracecar".
-- `strings/0006-zigzag-conversion`: Zigzag Conversion, Medium. PAYPALISHIRING con 3 filas.
-- `math/0007-reverse-integer`: Reverse Integer, Medium. 1463 y el desbordamiento de 1534236469.
-- `trees/0102-level-order`: Binary Tree Level Order Traversal, Medium.
-- `trees/0124-max-path-sum`: Binary Tree Maximum Path Sum, Hard. Mejor camino 42.
+- `arrays-hashing/0001-two-sum`: Two Sum, Easy. La plantilla aprobada pasada a su carpeta. Lago con playa (`lake-beach`), de día.
+- `linked-list/0002-add-two-numbers`: Add Two Numbers, Medium. Cadenas de bloques (diamante y lapis) unidas por varillas, la suma en esmeralda y el acarreo como orbe. Río ancho (`wide-river`), al amanecer.
+- `sliding-window/0003-longest-substring`: Longest Substring Without Repeating Characters, Medium. Ejemplo "abcbdea"; la ventana es un contorno dorado y el cofre guarda el último índice. Meandro entre colinas (`river-hills`), de día.
+- `binary-search/0004-median-two-arrays`: Median of Two Sorted Arrays, Hard. Mediana 11, un corte rojo en cada fila y rayos cruzados para revisar. Colina en terrazas (`terraced-hill`), al atardecer.
+- `strings/0005-longest-palindrome`: Longest Palindromic Substring, Medium. Ejemplo "abaracecar", un espejo en cada centro. Bosque de abedules (`birch-forest`), de día.
+- `strings/0006-zigzag-conversion`: Zigzag Conversion, Medium. PAYPALISHIRING con 3 filas en repisas. Lomas con arena (`sand-hills`), al atardecer.
+- `math/0007-reverse-integer`: Reverse Integer, Medium. 1463 y el desbordamiento de 1534236469 como límite de construcción. Loma del sur (`south-hill`), de noche.
+- `trees/0102-level-order`: Binary Tree Level Order Traversal, Medium. La cola es el inventario. Bosque de robles (`oak-forest`), de noche.
+- `trees/0124-max-path-sum`: Binary Tree Maximum Path Sum, Hard. Mejor camino 42; cada bloque muestra lo que ofrece hacia arriba. Bosque con piedra (`stone-forest`), al amanecer.
 - `trees/0297-serialize-tree`: Serialize and Deserialize Binary Tree, Hard. Primer video del estilo aprobado. Árbol `[5,8,2,null,null,7]` guardado en 9 casillas (`5,8,#,#,2,7,#,#,#`), barreras para los hijos vacíos.
+- `math/0060-permutation-sequence`: Permutation Sequence, Hard. Segundo video del estilo aprobado. n = 4, k = 9 ("2314"), salto directo por divisiones sucesivas en el sistema numérico factorial.
 - `pruebas/0001-two-sum-horizontal`: primera prueba en 16:9, sin código a la par.
 - `pruebas/0001-two-sum-minecraft`: Two Sum con el tema de Minecraft. Se arma con `python ../../herramientas/build.py` (está a dos niveles, no a tres).
 - `pruebas/0001-two-sum-minecraft-original`: **plantilla del estilo aprobado**. Two Sum con los assets y sonidos del juego, en el mundo ClaudeEntorno.
@@ -207,6 +215,28 @@ Un tema cambia el estilo sin tocar el flujo. Vive en `herramientas/temas/<tema>/
 - El repositorio trae una copia del mundo en `mundos/ClaudeEntorno.zip` (sin la carpeta `players/`) y su exportación `mundos/claude.json`. Para verlo en el juego, descomprimir el zip en la carpeta `saves` de Minecraft Java 26.2 o más nuevo. Las texturas de `mundos/tex/` no se suben: las vuelve a copiar `mundo.py export` desde el juego instalado.
 - La cámara del clip completo hace un recorrido periódico (`sin` y `cos` de `2π t / TOTAL`) para que el último cuadro sea igual al primero. Entra y sale de la cámara del recorrido del algoritmo en 1.5 s.
 
+## Lugares del mundo
+
+- Cada video usa un lugar distinto de ClaudeEntorno. La lista con el centro, el giro (`turn`) y el video que lo usa está en `mundos/lugares.json`; cada lugar tiene su exportación en `mundos/<lugar>.json`.
+- Para buscar lugares nuevos se hizo un mapa de todo el mundo generado (unos 370 × 350 bloques) y se calificó cada centro y dirección: la zona de la cámara sin árboles ni terreno más alto que 2 bloques, el lote plano y algo interesante enfrente (agua, bosque, piedra, colinas). Luego se probaron con cuadros sueltos de la cámara de paseo.
+- `makeTerrain(url, { turn, plot, clear })`:
+  - `clear = [x0, x1, z0, z1]` quita árboles y plantas en esa zona de la escena (donde se para la cámara; no se ve).
+  - Si el terreno baja frente al lote, se ve una pared de tierra entre la cámara y el recorrido. En el #7 se resolvió alargando `plot` hasta la cámara (`[-12, 12, -2, 20]`).
+  - `terrain.surfaceAt(x, z)` dice qué bloque hay arriba de la columna (`water`, `leaves`, `log` o el nombre) y a qué altura. Lo usa `vida.js`.
+- `mundo.py` ahora tiñe las hojas de abedul y abeto con su color fijo y dibuja la hojarasca (`leaf_litter`) como una capa plana café. Antes salían grises y como cruces blancas.
+
+## Vida en el fondo (mobs y hora del día)
+
+- `herramientas/temas/minecraft-original/vida.js` (se sirve como `/vendor/tema/vida.js`):
+  - `loadMobs(imgs, kinds)` carga las texturas de `mobs/` (las copia `extraer.py`; no se suben).
+  - `setTime(world, hora, { terrain, clouds, imgs })` cambia el cielo, la niebla, la luz del terreno y las nubes, y pone sol o luna (y estrellas de noche). Horas: `day`, `dawn`, `dusk`, `night`. Devuelve la luz para los mobs.
+  - `planLife(terrain, grupos, { seed })` busca un lazo cerrado para cada mob donde de verdad puede caminar (sin agua, árboles ni escalones de más de un bloque, lejos del lote del recorrido), o en el agua para los calamares. `grupos = [{ kind, count, graze }]`; `graze` es cuántos se quedan quietos comiendo.
+  - `makeLife(imgs, terrain, specs, TOTAL, luz)` devuelve `{ g, update(t) }`. Cada lazo se recorre un número entero de veces en `TOTAL`, así que el loop del video no se rompe.
+- Mobs disponibles (modelos del juego hechos de cajas con su textura): `cow`, `pig`, `sheep`, `chicken`, `wolf`, `squid`, `zombie`, `skeleton`, `creeper` y `spider` (con ojos que brillan de noche).
+- Por zona: pradera y lomas con vacas, ovejas, cerdos y gallinas; bosques con lobos; agua con calamares; de noche, zombis, esqueletos, creepers y arañas.
+- La luz de la hora oscurece el terreno y los mobs, pero no el grupo `stage` del recorrido: de noche los bloques del algoritmo siguen bien iluminados.
+- Otro agente cambió `makeLife` para el #60: los mobs pisan alturas enteras y saltan los escalones. #1 a #7 y #124 se renderizaron con la versión anterior (subían los escalones de forma suave); #102 y #60, con la nueva.
+
 ## Efectos de sonido
 
 - En cualquier escena: `self.sfx("nombre", gain, delay=0)` agenda un sonido en el momento actual (más `delay`). Cada escena guarda sus sonidos en `media/sfx/<Escena>.json` al renderizarse.
@@ -234,6 +264,13 @@ Aldo los encontró en el #297 o salieron en su revisión. Antes de entregar un v
 6. **Aviso de logro tapando el 3D.** El `toast` de ancho 5.6 en `TOP_Y` tapaba el bloque de arriba. Revisar qué hay del 3D en esa esquina; en el #297 se usó `w=4.6` en y = 5.5.
 7. **Contenido 3D fuera del cuadro.** La cámara de la plantilla no sirve para otra forma (un árbol es más alto que una fila). Probar con cuadros sueltos (`--stills`) antes del clip completo. El contenido 3D debe quedar entre los píxeles 130 y 735 de alto, arriba del inventario.
 8. **Linter por eventos muy juntos.** Si dos eventos del recorrido caen a menos de 0.35 s, los `beat` se acumulan y se pasan del tiempo de la línea. Usar `rt` de 0.08 a 0.15 en esos eventos.
+9. **Aviso de logro tapando el encabezado.** Con encabezados largos ("WALK BOTH CHAINS") el `toast` los corta. En el recorrido, encabezados de 11 letras o menos y `toast(..., w=4.6)`.
+10. **Bloques que se vuelven cuadros blancos.** `set_opacity` sobre un `Block` también rellena su borde invisible. Para atenuar pixel art, poner encima un rectángulo negro semitransparente (`veil` en el #4).
+11. **Nombres que tapan los del tema.** Una función propia llamada `level_text` tapó la del tema (el número verde de nivel). No reusar nombres de `prelude.py` ni de `tema.py`.
+12. **El linter falla con listas vacías.** El escenario falso del linter devuelve grupos vacíos; indexar una lista hecha de ellos (`flies[k]`) rompe la simulación. Recorrer con `zip` en lugar de índices.
+13. **Textos que no caben.** Una cuenta larga en fuente PIXEL (`964632435 > 214748364 overflow!`) o varias cajas `chat` seguidas se salen del cuadro. Cada `chat` agrega 0.56 de relleno: juntar el texto en menos cajas o bajar el tamaño.
+14. **Narración que no coincide con el dibujo.** En el #6 la narración decía "most of that grid stays empty" y en la cuadrícula de 3 × 7 solo faltan 7 de 21. Se corrigió a "a third".
+15. **La fuente del juego no tiene todo.** No hay `³`, `≠` ni `✓`, y `..` se ve como un punto. Usar `^3`, `!=`, `ok` y palabras ("from 0 to 5").
 
 ## Lista de revisión antes de entregar
 

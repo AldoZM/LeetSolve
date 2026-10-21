@@ -1,0 +1,170 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import { THREE, prog, easeInOut, easeOut, easeOutBack, lerp, V, bezier, pose, mixPose } from '/vendor/lib/stage.js';
+import { MC, loadTheme, makeWorld, makeTerrain, makeBlock, pixelSprite, makeOrb, makeClouds, tex } from '/vendor/tema/mc.js';
+import { loadMobs, planLife, makeLife, setTime } from '/vendor/tema/vida.js';
+
+const walk = await (await fetch('/walk.json')).json();
+// One clip for the whole video: times are absolute. The walk happens in [W0, W1]; the rest is a slow roam that
+// ends where it starts, so the video still loops.
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const seg = (i) => subs[i].start_s;
+const TOTAL = subs[subs.length - 1].end_s;
+const W0 = seg(walk.first), W1 = subs[walk.last].end_s;
+const at = (spec) => seg(spec[0]) + spec[1];
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'planks', 'leaves', 'log_side', 'log_top', 'barrier',
+                              'iron_ore', 'emerald_ore']);
+
+const T = { row1: at(walk.row1_in), reset: at(walk.reset), row2: at(walk.row2_in), toast: at(walk.toast) };
+const timed = (ops) => ops.map((o) => ({ ...o, popT: at(o.pop), pushT: o.push ? at(o.push) : null,
+  stopT: o.stop ? at(o.stop) : null, checkT: at(o.check) }));
+const run1 = timed(walk.run1), run2 = timed(walk.run2);
+const over = run2[run2.length - 1];
+
+const world = makeWorld({ fov: 40, offset: 0.34, fog: [55, 120] });
+const { scene } = world;
+// Terrain of the ClaudeEntorno world (hill in the south, see mundos/lugares.json), turned so the camera looking
+// toward -z sees the hill behind the rows; the ground dips toward the camera, so the leveled lot reaches it
+const terrain = await makeTerrain('/vendor/tema/mundos/south-hill.json', { turn: 2.3562, plot: [-12, 12, -2, 20], clear: [-10, 10, 7, 24] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+// Night on the hill: hostile mobs wander behind the rows; the walk itself keeps full light so it reads well
+const LIFE = [{ kind: 'zombie', count: 2 }, { kind: 'skeleton', count: 2 }, { kind: 'creeper', count: 1, graze: 1 }, { kind: 'spider', count: 1 }];
+await loadMobs(imgs, LIFE.map((g) => g.kind));
+const dark = await setTime(world, 'night', { terrain, clouds, imgs });
+const life = makeLife(imgs, terrain, planLife(terrain, LIFE, { seed: 7 }), TOTAL, dark);
+scene.add(life.g);
+// Everything of the walk lives in its own group, hidden outside the walk
+const stage = new THREE.Group();
+scene.add(stage);
+
+// Ten columns: the number x on top (right-aligned), the reversed result below on the ground (left-aligned)
+const SZ = 0.68, SP = 0.76;
+const cx = (i) => (i - 4.5) * SP;
+const YX = 2.3, YR = SZ / 2;
+const digits = (x) => String(x).split('').map(Number);
+const xs1 = digits(walk.x1), xs2 = digits(walk.x2);
+const make = (vals, ore) => vals.map((v) => { const b = makeBlock(imgs, ore, { label: v, size: SZ }); stage.add(b.g); return b; });
+// Run 1: x blocks in columns 6..9; result blocks in columns 0..3. Run 2: columns 0..9 and 0..8
+const x1 = make(xs1, 'iron_ore'), r1 = make(run1.map((o) => o.d), 'emerald_ore');
+const x2 = make(xs2, 'iron_ore'), r2 = make(run2.slice(0, 9).map((o) => o.d), 'emerald_ore');
+
+// The build limit: a barrier where the tenth digit would go, with the limit written above it
+const barrier = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex(imgs, 'barrier'), transparent: true, depthWrite: false }));
+stage.add(barrier);
+const limitLab = pixelSprite('limit 2147483647', MC.red, 0.42);
+stage.add(limitLab);
+
+// Experience orbs at the end
+let seed = 11;
+const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+const orbs = Array.from({ length: 22 }, (_, n) => {
+  const o = makeOrb(imgs, 0.32, [1, 2, 4, 5, 6][n % 5]);
+  o.userData = { vx: (rnd() - 0.5) * 2.4, vy: 2.2 + rnd() * 2.0, vz: (rnd() - 0.3) * 2.0, delay: rnd() * 0.35 };
+  stage.add(o);
+  return o;
+});
+
+// Terrain materials are transparent (alpha-tested) and sorted with the sprites; sprites go last so the ground can't paint over them
+stage.traverse((o) => { if (o.isSprite) o.renderOrder = 10; });
+
+// One run: x blocks drop in, each pop flies the last one down to the end of the result
+function playRun(t, xb, rb, ops, xs, xCol0, tIn, tOut, perDigit) {
+  const n = xs.length;
+  const gone = prog(t, tOut, tOut + 0.5);
+  xb.forEach((b, i) => {
+    const d = prog(t, tIn + perDigit * i, tIn + perDigit * i + 0.45);
+    const fall = d < 1 ? (1 - d) * (1 - d) * 4 : 0;
+    // Digit i of x is popped by op n - 1 - i
+    const op = ops[n - 1 - i];
+    let x = cx(xCol0 + i), y = YX + fall, show = d > 0;
+    let glow = 0;
+    if (op) {
+      glow = 0.4 * Math.sin(Math.PI * prog(t, op.popT - 0.15, op.popT + 0.3));
+      const land = op.pushT ?? op.stopT;
+      const f = prog(t, op.popT + 0.1, land);
+      const slot = n - 1 - i;
+      if (op.pushT !== null && f > 0) {
+        // Arc from its spot in x to its slot in the result
+        const p = bezier(V(x, YX, 0), V((x + cx(slot)) / 2, YX + 1.2, 0.6), V(cx(slot), YR, 0), easeInOut(f));
+        x = p.x; y = p.y;
+        show = f < 1;
+      } else if (op.pushT === null && f > 0) {
+        // The overflowing digit lifts toward the result, then bounces back off the barrier
+        const reach = Math.sin(Math.PI * prog(t, op.popT + 0.1, op.stopT));
+        x = lerp(x, cx(9) - 0.3, 0.6 * reach);
+        y = lerp(YX, YR + 0.6, reach);
+        glow += 0.3 * reach;
+      }
+    }
+    b.g.position.set(x, y, 0);
+    b.g.scale.setScalar(Math.max(1 - gone, 1e-4));
+    b.set({ glow, opacity: show && gone < 1 ? 1 : 0 });
+  });
+  rb.forEach((b, j) => {
+    const op = ops[j];
+    const on = op.pushT !== null && t >= op.pushT;
+    const glow = 0.45 * Math.sin(Math.PI * prog(t, op.pushT, op.pushT + 0.5));
+    b.g.position.set(cx(j), YR + terrain.groundAt(cx(j), 0), 0);
+    b.g.scale.setScalar(Math.max(1 - gone, 1e-4));
+    b.set({ glow, opacity: on && gone < 1 ? 1 : 0 });
+  });
+}
+
+function renderAt(t) {
+  // Walk camera: front view of both rows with a slow drift; roam camera: one slow loop over the meadow
+  const sway = 0.5 * Math.sin(t * 0.35);
+  const walkPose = pose(V(sway * 0.3, 4.8, 15.9), V(sway * 0.1, 3.4, 0.0));
+  const a = 2 * Math.PI * t / TOTAL;
+  const roamPose = pose(V(6 * Math.sin(a), 3.4 + 0.8 * Math.sin(2 * a), 13 + 2.5 * Math.cos(a)), V(3 * Math.sin(a), 4.2, -30));
+  const k = easeInOut(prog(t, W0 - 1.6, W0 - 0.1)) * (1 - easeInOut(prog(t, W1 + 0.1, W1 + 1.6)));
+  const cam = mixPose(roamPose, walkPose, k);
+  world.look(cam.pos, cam.look);
+  // The walk keeps its content high in the frame (the overlay uses the bottom); the roam shows more sky
+  world.camera.setViewOffset(world.W, world.H, 0, world.H * lerp(0.12, 0.34, k), world.W, world.H);
+  clouds.position.x = 4 * Math.sin(a);
+  life.update(t);
+  stage.visible = t < W1;
+
+  playRun(t, x1, r1, run1, xs1, 6, T.row1, T.reset, 0.12);
+  playRun(t, x2, r2, run2, xs2, 0, T.row2, W1 + 5, 0.3);
+
+  // Barrier and limit label: shown from the second run on; the barrier pulses when it blocks the tenth digit
+  const bIn = easeOutBack(prog(t, T.row2 + 3.2, T.row2 + 3.6));
+  const hitP = Math.sin(Math.PI * prog(t, over.checkT, over.checkT + 0.8));
+  barrier.visible = bIn > 0.01;
+  barrier.position.set(cx(9), YR, 0.1);
+  barrier.scale.setScalar(Math.max(0.75 * bIn * (1 + 0.4 * hitP), 1e-4));
+  limitLab.visible = bIn > 0.01;
+  limitLab.position.set(cx(6.4), YR + 0.95, 0.2);
+  limitLab.setSize(bIn * (1 + 0.15 * hitP));
+
+  // Orbs at the barrier when the overflow is caught
+  for (const o of orbs) {
+    const { vx, vy, vz, delay } = o.userData;
+    const u = t - (T.toast + delay);
+    o.visible = u > 0 && u < 1.6;
+    if (!o.visible) continue;
+    o.position.set(cx(9) + vx * u * 0.7, Math.max(YR + 0.6 + vy * u - 4.5 * u * u, 0.1), vz * u);
+    o.tint(t + delay);
+    o.material.opacity = 1 - prog(u, 1.2, 1.6);
+  }
+
+  world.draw(t, TOTAL, 0, 0);
+}
+
+window.renderAt = renderAt;
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

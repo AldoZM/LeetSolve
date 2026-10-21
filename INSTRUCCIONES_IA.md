@@ -11,7 +11,7 @@ Este documento es para cualquier modelo de IA (Claude, GPT, Gemini u otro) que v
 Un video vertical que explica un problema de LeetCode, ambientado en Minecraft:
 
 - **La plantilla aprobada es `pruebas/0001-two-sum-minecraft-original`.** Antes de escribir nada, lee completos sus archivos `narration.txt`, `video.json`, `make_walk.py`, `scenes.py` y `three/mundo.html`. Tu video debe parecer un episodio más de esa serie.
-- **Formato:** 1080×1440 (3:4), 30 fps. Manim usa un frame de 9 × 12 unidades: x va de -4.5 a 4.5 y y de -6 a 6.
+- **Formato:** 1080×1920 (9:16), 30 fps, con `"formato": "9:16"` en `video.json`. Las escenas de Manim se hacen en 1080×1440 con un frame de 9 × 12 unidades (x de -4.5 a 4.5, y de -6 a 6) y van centradas sobre el mundo 3D, que llena el resto (ver "Formato fijo" en `GUIA.md`).
 - **Duración:** de 85 a 105 segundos. La plantilla dura 97.2 s.
 - **Narración:**
   - En inglés, con la voz Kokoro `af_heart` (local).
@@ -196,10 +196,14 @@ Medidas aprobadas:
 
 Cambia **solo** el contenido del recorrido: los objetos dentro del grupo `stage` y sus animaciones en `renderAt(t)`.
 
+**Elige para tu video (ver "Lugares del mundo" y "Vida en el fondo" en `GUIA.md`):**
+- Un lugar de `mundos/lugares.json` que ningún otro video use: `makeTerrain('/vendor/tema/mundos/<lugar>.json', { turn, plot: [-5, 5, -2, 7], clear: [-10, 10, 7, 24] })`. Anota tu video en `lugares.json`. No repitas lugares: Aldo pidió que cada video tenga el suyo.
+- Una hora (`setTime`) y los mobs de esa zona (`loadMobs`, `planLife`, `makeLife` y `life.update(t)` en `renderAt`). Copia el bloque de un video del 2026-10-21, por ejemplo `trees/0102-level-order/three/mundo.html`.
+- `walkPose`, para que tu contenido 3D quepa entre los píxeles 130 y 735 de alto y no se corte por los lados. Pruébalo con `--stills`.
+
 **No cambies:**
-- El terreno: `makeTerrain('/vendor/tema/mundos/claude.json', { turn: Math.PI / 2, plot: [-5, 5, -2, 7] })`.
 - El mundo: `makeWorld({ fov: 40, offset: 0.34, fog: [55, 120] })` y las nubes.
-- La cámara de paseo y su mezcla con la del recorrido: `roamPose`, `walkPose` y `k`, con entrada en `W0 - 1.6 → W0 - 0.1` y salida en `W1 + 0.1 → W1 + 1.6`.
+- La cámara de paseo (`roamPose`) y su mezcla con la del recorrido (`k`), con entrada en `W0 - 1.6 → W0 - 0.1` y salida en `W1 + 0.1 → W1 + 1.6`.
 - El desplazamiento vertical, que va de 0.12 a 0.34.
 
 Medidas y reglas:

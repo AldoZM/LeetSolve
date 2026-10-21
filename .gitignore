@@ -4,6 +4,7 @@ media/
 __pycache__/
 video.mp4
 video_silent.mp4
+video_neon.mp4
 *_Short.mp4
 voiceover.mp3
 frame_*.png

@@ -107,7 +107,7 @@ stage.traverse((o) => { if (o.isSprite) o.renderOrder = 10; });
 // Inventory slot k of the 2D overlay (Inventory(9) at y = -1.15 in Manim's 9 x 12 frame), as a point in front of the camera
 function slotPoint(k) {
   const xm = -3.52 + 0.88 * k, ym = -1.39;
-  const ndc = V(xm / 4.5, ym / 6, 0.5);
+  const ndc = V(xm / 4.5, ym / 6 * world.ndcY, 0.5);
   ndc.unproject(camera);
   const dir = ndc.sub(camera.position).normalize();
   return camera.position.clone().add(dir.multiplyScalar(7));

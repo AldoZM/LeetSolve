@@ -1,0 +1,21 @@
+subtitles:
+- Permutation Sequence, Minecraft edition. LeetCode problem number sixty, and a brilliant math puzzle.
+- We have four ore blocks from one to four. In total, they form twenty four unique permutations in order.
+- Our target sign asks for permutation number nine. Which sequence of blocks is it?
+- The direct idea is backtracking. Recursively generate every single permutation from scratch.
+- Mine each combination branch by branch until reaching number nine.
+- For four blocks, it is twenty four. But with nine blocks, that is three hundred sixty two thousand permutations!
+- Our pickaxe shatters trying to dig through so many dead ends. Factorial growth is brutal.
+- Here is the trick. Notice the pattern: with four blocks, fixing the first block leaves six choices for each.
+- Six start with one, six with two, and so on. We can jump directly to the right group with division!
+- We switch to zero-based indexing, so target nine becomes index eight. Our chest will store the final sequence.
+- Divide eight by three factorial, which is six. Quotient is one, remainder is two.
+- Quotient one picks index one from our remaining blocks: that is the iron block, two!
+- Now with blocks one, three, and four, divide remainder two by two factorial. Quotient one picks three!
+- Remainder is zero. Divide by one factorial: zero over one is zero, picking block one.
+- Only block four remains, so it drops into the final slot without any guessing.
+- Advancement made! The ninth permutation is two, three, one, four.
+- Instead of factorial time, we compute each digit in just one math step.
+- The total time is n squared, taking mere microseconds, and memory is strictly linear.
+- Precompute the factorials, pick each element with division and modulo, and remove it from the list.
+- Don't generate what you can calculate. That is the power of the factorial number system.

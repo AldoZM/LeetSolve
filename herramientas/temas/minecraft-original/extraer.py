@@ -37,6 +37,14 @@ SOUNDS = {
     **{f'book_flip{k}': f'item/book/open_flip{k}' for k in range(1, 4)}, 'book_put': 'item/book/close_put1',
     **{f'villager_no{k}': f'mob/villager/no{k}' for k in range(1, 4)},
 }
+# Mobs walking around the 3D background (vida.js), plus the moon for night scenes
+MOBS = {
+    'cow': 'entity/cow/cow_temperate', 'pig': 'entity/pig/pig_temperate', 'sheep': 'entity/sheep/sheep',
+    'sheep_wool': 'entity/sheep/sheep_wool', 'chicken': 'entity/chicken/chicken_temperate', 'wolf': 'entity/wolf/wolf',
+    'squid': 'entity/squid/squid', 'zombie': 'entity/zombie/zombie', 'skeleton': 'entity/skeleton/skeleton',
+    'creeper': 'entity/creeper/creeper', 'spider': 'entity/spider/spider', 'spider_eyes': 'entity/spider/spider_eyes',
+    'moon': 'environment/celestial/moon/full_moon',
+}
 # Background music (video.json "musica"); C418's tracks get copyright claims on YouTube, see GUIA.md
 MUSIC = {'subwoofer_lullaby': 'music/game/subwoofer_lullaby'}
 
@@ -63,7 +71,7 @@ def main():
     version = sys.argv[1] if len(sys.argv) > 1 else newest_version()
     jar = zipfile.ZipFile(os.path.join(MC, 'versions', version, version + '.jar'))
     tex = lambda p: Image.open(jar.open(f'{A}textures/{p}.png')).convert('RGBA')
-    for d in ('tex', 'gui', 'font', 'sounds', 'music'):
+    for d in ('tex', 'gui', 'font', 'sounds', 'music', 'mobs'):
         os.makedirs(os.path.join(HERE, d), exist_ok=True)
 
     for name, p in BLOCKS.items():
@@ -75,6 +83,8 @@ def main():
     tint(tex('block/oak_leaves'), FOLIAGE_TINT).save(os.path.join(HERE, 'tex', 'leaves.png'))
     for name, p in GUI.items():
         tex(p).save(os.path.join(HERE, 'gui', f'{name}.png'))
+    for name, p in MOBS.items():
+        tex(p).save(os.path.join(HERE, 'mobs', f'{name}.png'))
 
     # Chest front for 2D icons: lid front + body front + latch, from the entity atlas (box UV layout)
     atlas = tex('entity/chest/normal')
@@ -107,7 +117,7 @@ def main():
             h = entry['hash']
             with open(os.path.join(MC, 'assets', 'objects', h[:2], h), 'rb') as src:
                 open(os.path.join(HERE, folder, f'{name}.ogg'), 'wb').write(src.read())
-    print(f'version {version}: {len(BLOCKS) + 3} block textures, {len(GUI)} gui images, font, '
+    print(f'version {version}: {len(BLOCKS) + 3} block textures, {len(GUI)} gui images, {len(MOBS)} mob textures, font, '
           f'{len(SOUNDS) + len(MUSIC) - len(missing)} sounds and music' + (f' (missing: {missing})' if missing else ''))
 
 

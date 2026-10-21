@@ -1,11 +1,24 @@
-# Writes walk.json: per center, the time of each comparison (shared by script.py and three/walk.html)
+# Writes walk.json: every center, its comparisons and their times (shared by scenes.py and three/mundo.html)
+# Event times are anchored to phrases of the narration, assuming a roughly even speaking rate inside a line.
 import json
 
 S = "abaracecar"
+ORE = {"a": "gold", "b": "diamond", "c": "redstone", "e": "emerald", "r": "lapis"}
+SUBS = json.load(open('timestamps.json', encoding='utf-8'))['subtitles']
+
+
+def at(i, phrase, shift=0.0, nth=0):
+    # [line, seconds] where the nth `phrase` starts being spoken in line i
+    text, dur = SUBS[i]['text'], SUBS[i]['duration_s']
+    k = -1
+    for _ in range(nth + 1):
+        k = text.find(phrase, k + 1)
+        assert k >= 0, (i, phrase, nth)
+    return [i, round(min(dur - 0.1, max(0.0, dur * k / len(text) + shift)), 3)]
 
 
 def compare_list(c):
-    # Each comparison (l, r, kind): kind is "match", "miss" or "edge" (ran off the string)
+    # Each comparison (l, r, kind): kind is "match", "miss" or "edge" (ran off the row)
     l, r = c // 2, (c + 1) // 2
     out = []
     while True:
@@ -20,36 +33,43 @@ def compare_list(c):
     return out
 
 
-# Slow centers get hand-placed times that follow the narration; the rest are spread evenly
-slow = {
-    2: {"times": [[8, 0.9], [8, 1.7], [8, 3.0]], "best": [8, 3.8]},
-    12: {"times": [[10, 0.5], [10, 1.3], [10, 2.25], [10, 3.2], [11, 0.5]], "best": [11, 3.0]},
+# Two slow centers follow the narration; the rest are quick and evenly spread
+SLOW = {
+    2: {"start": at(9, "Center on"), "times": [at(9, "Center on", 0.5), at(9, "a matches"), at(9, "so a b a")],
+        "best": at(9, "Our best")},
+    12: {"start": at(11, "Now center"), "times": [at(11, "on e"), at(11, "c matches"), at(11, "a matches"), at(11, "r matches"),
+                                                  at(12, "hit the end")], "best": at(13, "Racecar")},
 }
-plan = {0: [7, 3.4], 1: [7, 4.4], 2: [8, 0.2]}
+START = {0: [8, 3.6], 1: [8, 4.5]}
 for k, c in enumerate(range(3, 12)):
-    plan[c] = [9, 0.2 + k * 0.5]
-plan[12] = [10, 0.05]
+    START[c] = [10, round(0.2 + k * 0.5, 3)]
 for k, c in enumerate(range(13, 19)):
-    plan[c] = [12, 0.15 + k * 0.42]
+    START[c] = [14, round(0.15 + k * 0.5, 3)]
 
-best = 0
-centers = []
+best, centers = 0, []
 for c in range(2 * len(S) - 1):
     cmps = compare_list(c)
     length = cmps[-1][1] - cmps[-1][0] - 1
-    entry = {"c": c, "start": plan[c], "cmps": [list(x) for x in cmps], "len": length}
-    if c in slow:
-        entry["times"] = slow[c]["times"]
-        entry["best"] = slow[c]["best"]
+    e = {"c": c, "cmps": [list(x) for x in cmps], "len": length, "fast": c not in SLOW}
+    if c in SLOW:
+        e.update(SLOW[c])
     else:
-        seg, u = plan[c]
-        entry["times"] = [[seg, u + 0.12 + 0.12 * k] for k in range(len(cmps))]
+        line, u = START[c]
+        e["start"] = [line, u]
+        e["times"] = [[line, round(u + 0.1 + 0.08 * k, 3)] for k in range(len(cmps))]
         if length > best:
-            entry["best"] = [seg, u + 0.12 + 0.12 * len(cmps)]
+            e["best"] = [line, round(u + 0.15 + 0.08 * len(cmps), 3)]
     if length > best:
         best = length
-    entry["fast"] = c not in slow
-    centers.append(entry)
+        e["new_best"] = True
+    centers.append(e)
+assert best == 7 and [e["c"] for e in centers if e.get("new_best")] == [0, 2, 12]
 
-json.dump({"first": 7, "last": 12, "s": S, "centers": centers, "final": [12, 2.85]}, open("walk.json", "w"), indent=1)
-print([(e["c"], e["len"], "best" in e) for e in centers])
+walk = {
+    "first": 8, "last": 14, "s": S, "ores": [ORE[ch] for ch in S], "ore_of": ORE, "letters": sorted(ORE),
+    "row_in": at(8, "run it"), "toast": at(13, "Advancement", 0.05), "beats": at(14, "nothing beats"),
+    "centers": centers,
+}
+json.dump(walk, open('walk.json', 'w'), indent=1)
+for e in centers:
+    print(e["c"], e["len"], e["start"], e.get("best"), [x[2] for x in e["cmps"]])

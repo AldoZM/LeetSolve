@@ -1,18 +1,20 @@
 subtitles:
-- Longest Substring Without Repeating Characters. LeetCode number three, the classic sliding window problem.
-- Given a string, find the length of the longest run of characters where no letter repeats.
+- Longest Substring Without Repeating Characters, Minecraft edition. LeetCode number three, the classic sliding window.
+- Our string is a row of blocks, one letter per block. The same letter is always the same ore.
+- Find the longest run of blocks where no ore repeats.
 - For a b c b d e a, the answer is five. The run c, b, d, e, a has no repeats.
-- The brute force way checks every substring, one by one.
-- With n letters there are about n squared substrings, and each check costs up to n more. That's cubic time.
+- The brute force way checks every run, one by one.
+- With n blocks there are about n squared runs, and each check costs up to n more.
+- That's cubic time. Our pickaxe would never survive a long string.
 - Instead, slide a window. The right edge always moves forward, and the left edge only jumps on a repeat.
-- A hash map remembers the last index of each letter, so every jump takes a single step.
-- Let's run it. The window starts empty, and the map has nothing in it.
-- a, b, and c are all new. Each goes into the map, and the window grows to three.
-- Now b shows up again. The map says index one, inside the window. So the left edge jumps to two.
+- A chest remembers the last index of each letter, so every jump takes a single step.
+- Let's run it. The window starts empty, and the chest has nothing in it.
+- a, b, and c are all new. Each goes into the chest, and the window grows to three.
+- Now b shows up again. The chest says index one, inside the window. So the left edge jumps to two.
 - d and e are new. The window is c, b, d, e. Length four.
-- Then comes a. The map says index zero, but that's already behind the left edge. So we ignore it.
-- The window grows to five, c, b, d, e, a. That's the answer.
-- Each letter enters the window once, and the left edge never moves backward. So the time is linear.
-- The map holds one entry per distinct letter, so the extra space is bounded by the alphabet.
-- One pass, one map, and a left edge that only jumps forward.
+- Then comes a. The chest says index zero, but that's already behind the left edge. So we ignore it.
+- Advancement made. The window grows to five, c, b, d, e, a. That's the answer.
+- Each block enters the window once, and the left edge never moves backward. So the time is linear.
+- The chest holds one entry per distinct letter, so the extra space is bounded by the alphabet.
+- One pass, one chest, and a left edge that only jumps forward.
 - That's the sliding window, the pattern behind dozens of string problems.

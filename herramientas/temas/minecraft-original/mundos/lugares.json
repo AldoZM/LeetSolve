@@ -1,0 +1,12 @@
+{
+ "claude": {"center": [-11, 71, -9], "turn": 1.5708, "desc": "Pradera del spawn con la montana detras", "video": "trees/0297-serialize-tree"},
+ "lake-beach": {"center": [-152, 67, -136], "turn": -1.1781, "desc": "Lago del noroeste con playa y robles", "video": "arrays-hashing/0001-two-sum"},
+ "wide-river": {"center": [-104, 64, 140], "turn": 1.1781, "desc": "Rio ancho del sur con orillas de arena", "video": "linked-list/0002-add-two-numbers"},
+ "river-hills": {"center": [-132, 65, 92], "turn": 0.7854, "desc": "Meandro del rio entre colinas", "video": "sliding-window/0003-longest-substring"},
+ "terraced-hill": {"center": [84, 72, -32], "turn": 1.9635, "desc": "Colina en terrazas con robles arriba", "video": "binary-search/0004-median-two-arrays", "also": "math/0060-permutation-sequence (lo eligio otro agente; repite lugar)"},
+ "birch-forest": {"center": [64, 71, -84], "turn": 1.5708, "desc": "Orilla de un bosque de abedules y robles", "video": "strings/0005-longest-palindrome"},
+ "sand-hills": {"center": [-76, 66, -36], "turn": -1.1781, "desc": "Lomas con arena junto al rio", "video": "strings/0006-zigzag-conversion"},
+ "south-hill": {"center": [-36, 66, 132], "turn": 2.3562, "desc": "Loma del sur con arboles", "video": "math/0007-reverse-integer"},
+ "oak-forest": {"center": [-12, 72, -116], "turn": 0.0, "desc": "Bosque cerrado de robles del norte", "video": "trees/0102-level-order"},
+ "stone-forest": {"center": [-60, 65, -144], "turn": -0.3927, "desc": "Bosque del norte con piedra", "video": "trees/0124-max-path-sum"}
+}

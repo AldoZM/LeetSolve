@@ -1,6 +1,17 @@
 WALK = json.load(open('walk.json', encoding='utf-8'))
 S = WALK["s"]
 CENTERS = WALK["centers"]
+ORE_OF.update(WALK["ore_of"])
+MIRROR = "#BFE8FF"
+
+BRUTE_CODE = """def longestPalindrome(s):
+    best = ""
+    for i in range(len(s)):
+        for j in range(i, len(s)):
+            sub = s[i:j + 1]
+            if sub == sub[::-1] and len(sub) > len(best):
+                best = sub
+    return best"""
 
 CODE = """def longestPalindrome(s):
     best = ""
@@ -13,277 +24,378 @@ CODE = """def longestPalindrome(s):
     return best"""
 
 
-def letters(y, size=0.72, gap=0.1, text=S, color=CYAN):
-    return tile_row(list(text), color, y, size, gap)
+def at(i, phrase, nth=0):
+    # Seconds into line i where the nth `phrase` starts (even speaking rate inside a line)
+    text, dur = SUBS[i]['text'], SUBS[i]['duration_s']
+    k = -1
+    for _ in range(nth + 1):
+        k = text.find(phrase, k + 1)
+    return min(dur - 0.1, dur * k / len(text))
 
 
-def arch(row, l, r, color=GREEN, width=4):
-    # Arc over the row joining two mirrored letters
-    a, b = row[l].get_top() + UP * 0.08, row[r].get_top() + UP * 0.08
-    return ArcBetweenPoints(a, b, angle=-PI * 0.75, color=color, stroke_width=width)
+def hdr(text, color):
+    return chat(text, color, 42).move_to([0, TOP_Y, 0]).to_edge(LEFT, buff=0.4)
 
 
-def ticks(x, top, bottom, color, length=0.3):
-    # Center marks above and below a row, so they never cover the letter
-    return VGroup(Line([x, top + 0.06, 0], [x, top + 0.06 + length, 0], color=color, stroke_width=6),
-                  Line([x, bottom - 0.06, 0], [x, bottom - 0.06 - length, 0], color=color, stroke_width=6))
+def eq_line(parts, size=34, font=PIXEL, buff=0.3):
+    return VGroup(*[MT(s, size, c, font) for s, c in parts]).arrange(RIGHT, buff=buff)
+
+
+def index_row(row, size=30, color=MC_GRAY, buff=0.12):
+    return VGroup(*[MT(str(k), size, color).next_to(b, DOWN, buff=buff) for k, b in enumerate(row)])
+
+
+def pulse(m, k=1.15):
+    # Emphasis that keeps the pixel art's colors (Indicate would paint it one flat color)
+    return m.animate(rate_func=there_and_back).scale(k)
+
+
+def box(row, i, j, color=MC_GOLD, width=8):
+    # Outline around blocks i..j of a row
+    a, b = row[i], row[j]
+    return Rectangle(width=b.get_right()[0] - a.get_left()[0] + 0.2, height=a.height + 0.2, stroke_color=color, stroke_width=width,
+                     fill_opacity=0).move_to([(a.get_left()[0] + b.get_right()[0]) / 2, a.get_y(), 0])
+
+
+def mirror_at(row, c, h=None):
+    # Pale glass line on a center: block c/2 when c is even, the gap after block c//2 when odd
+    x = row[c // 2].get_x() if c % 2 == 0 else (row[c // 2].get_right()[0] + row[c // 2 + 1].get_left()[0]) / 2
+    h = h or row[0].height * 1.6
+    return Rectangle(width=0.09, height=h, fill_color=MIRROR, fill_opacity=0.9, stroke_width=0).move_to([x, row[0].get_y(), 0])
 
 
 def cover():
-    # Opening frame and closing frame are the same, so the video loops seamlessly
-    title, tglow = gradient_title(["Longest", "Palindromic", "Substring"], size=80, y=3.4)
-    row = letters(-1.2)
-    arcs = VGroup(*[arch(row, 6 - d, 6 + d, YELLOW if d == 0 else GREEN) for d in (1, 2, 3)])
-    center = ticks(row[6].get_x(), row[6].get_top()[1], row[6].get_bottom()[1], YELLOW)
-    return title, tglow, VGroup(row, arcs, center)
+    # The first and the last frame of the video: both ends draw exactly this
+    t1 = stone_title("LONGEST", width=5.6).move_to([0, 4.85, 0])
+    t2 = stone_title("PALINDROME", width=7.4).move_to([0, 3.75, 0])
+    spl = splash("Minecraft edition!", 21).move_to([2.55, 2.75, 0])
+    row = block_row(list(S), 1.0, size=0.75, gap=0.1)
+    idx = index_row(row, 26)
+    win = box(row, 3, 9)
+    mir = mirror_at(row, 12)
+    sub = chat("racecar", MC_GREEN, 52).move_to([1.6, -0.95, 0])
+    tags = VGroup(chat("LeetCode #5", MC_AQUA, 46), chat("Medium", MC_GOLD, 46), chat("Strings", MC_GREEN, 46))
+    tags.arrange(RIGHT, buff=0.25).move_to([0, -3.05, 0])
+    # Over a 3D world the dirt strip is not needed; an empty group keeps the unpacking in Scene1_Hook
+    ground = VGroup() if globals().get("FONDO") else ground_strip(-5.15)
+    return VGroup(ground, t1, t2, spl, row, idx, win, mir, sub, tags)
 
 
 class Scene1_Hook(Base):
     def construct(self):
-        title, tglow, art = cover()
-        self.add(tglow, title, art)
-        row, arcs, center = art
-        rng = random.Random(5)
-        bg = VGroup(*[
-            M(rng.choice("abcdefghijklmnopqrstuvwxyz"), rng.randint(18, 34), rng.choice([CYAN, MAGENTA, VIOLET]))
-            .set_opacity(rng.uniform(0.12, 0.28))
-            .move_to([rng.uniform(-4.1, 4.1), rng.choice([rng.uniform(-5.6, -3.9), rng.uniform(5.0, 5.7)]), 0])
-            for _ in range(22)
-        ])
-        tags = tags_block([("LeetCode #5", CYAN), ("Medium", YELLOW), ("Expand around center", VIOLET)], y=-3.6)
+        art = cover()
+        ground, t1, t2, spl, row, idx, win, mir, sub, tags = art
+        self.add(art)
 
         self.seg(0)
-        self.beat(LaggedStart(*[FadeIn(d, scale=0.4) for d in bg], lag_ratio=0.04),
-                  LaggedStart(*[FadeIn(t, shift=UP * 0.3) for t in [*tags[0], *tags[1]]], lag_ratio=0.3), rt=1.0)
-        self.beat(LaggedStart(*[ShowPassingFlash(a.copy().set_stroke(WHITE, width=8), time_width=0.6) for a in arcs], lag_ratio=0.25), rt=1.0)
-        self.until(DUR[0] - 1.05)
-        self.beat(FadeOut(VGroup(title, tglow, tags, bg, arcs, center)), rt=0.45)
-        self.beat(row.animate.move_to([0, 3.0, 0]), rt=0.55)
+        self.beat(spl.animate(rate_func=there_and_back).scale(1.15), rt=0.7)
+        # Blocks hop in mirrored pairs, outward from the e in the middle of racecar
+        self.sfx("stone_dig1", 0.35, delay=0.3)
+        pairs = [[row[6]], [row[5], row[7]], [row[4], row[8]], [row[3], row[9]]]
+        self.beat(LaggedStart(*[AnimationGroup(*[b.animate(rate_func=there_and_back).shift(UP * 0.35) for b in p]) for p in pairs],
+                              lag_ratio=0.3), rt=1.6)
+        self.sfx("orb", 0.3)
+        self.beat(ShowPassingFlash(win.copy().set_stroke(MC_YELLOW, 14), time_width=0.6), pulse(mir, 1.3), rt=0.9)
+        self.beat(spl.animate(rate_func=there_and_back).scale(1.15), rt=0.7)
+        self.clear_all(rt=0.5)
         self.close_seg()
 
 
 class Scene2_Problem(Base):
     def construct(self):
-        row = letters(3.0)
-        self.add(row)
-        hdr = header("THE PROBLEM", CYAN)
-        idx = index_labels(row)
-
-        def mirror_check(text, y, ok):
-            fwd = M(text, 44, CYAN)
-            back = M(text[::-1], 44, CYAN)
-            mark = T("✓" if ok else "✗", 40, GREEN if ok else RED)
-            arrow = M("→", 40, MUTED)
-            return VGroup(fwd, arrow, back, mark).arrange(RIGHT, buff=0.35).move_to([0, y, 0])
-
-        good = mirror_check("aba", 1.2, True)
-        bad = mirror_check("bar", 0.1, False)
+        h = hdr("THE PROBLEM", MC_AQUA)
+        row = block_row(list(S), 2.6, size=0.75, gap=0.1)
+        idx = index_row(row)
+        fwd = VGroup(MT("forwards", 40, MC_GRAY), chat("r a c e c a r", MC_AQUA, 46)).arrange(RIGHT, buff=0.35).move_to([0, 0.75, 0])
+        bwd = VGroup(MT("backwards", 40, MC_GRAY), chat("r a c e c a r", MC_GOLD, 46)).arrange(RIGHT, buff=0.35).move_to([0, -0.3, 0])
+        bwd[1].align_to(fwd[1], LEFT)
 
         self.seg(1)
-        self.beat(FadeIn(hdr, shift=RIGHT * 0.3), FadeIn(idx), rt=0.5)
-        self.beat(*[restyle(t, lambda x: x.box.set_stroke(GREEN, width=4)) for t in row[0:3]], FadeIn(good, shift=UP * 0.2), rt=0.7)
-        self.until(DUR[1] * 0.5)
-        self.beat(*[restyle(t, lambda x: x.box.set_stroke(CYAN, width=3)) for t in row[0:3]],
-                  *[restyle(t, lambda x: x.box.set_stroke(RED, width=4)) for t in row[1:4]], FadeIn(bad, shift=UP * 0.2), rt=0.7)
+        self.beat(FadeIn(h, shift=RIGHT * 0.3), rt=0.4)
+        # Blocks fall from the sky and bounce into place
+        for b in row:
+            b.shift(UP * 8)
+        self.add(row)
+        for k in range(len(row)):
+            self.sfx(f"stone_dig{k % 4 + 1}", 0.28, delay=k * 0.1 + 0.36)
+        self.beat(LaggedStart(*[b.animate(rate_func=rate_functions.ease_out_bounce).shift(DOWN * 8) for b in row],
+                              lag_ratio=0.1), rt=1.8)
+        self.beat(FadeIn(idx, shift=UP * 0.1), rt=0.3)
+        self.until(at(1, "forwards"))
+        self.beat(FadeIn(fwd, shift=RIGHT * 0.2), rt=0.4)
+        self.until(at(1, "backwards"))
+        self.beat(FadeIn(bwd, shift=LEFT * 0.2), rt=0.4)
         self.close_seg()
 
-        arcs = VGroup(*[arch(row, 6 - d, 6 + d) for d in (1, 2, 3)])
-        ans = VGroup(T("answer", 30, MUTED), M('"racecar"', 64, YELLOW)).arrange(DOWN, buff=0.15).move_to([0, -1.5, 0])
-        aglow = glow(ans[1], YELLOW, layers=6, max_w=14, max_op=0.28)
+        win = box(row, 3, 9)
+        ans = VGroup(chat("racecar", MC_GREEN, 60), MT("length 7", 44, MC_GOLD)).arrange(RIGHT, buff=0.5).move_to([0, -2.0, 0])
 
         self.seg(2)
-        self.beat(FadeOut(VGroup(good, bad)), *[restyle(t, lambda x: x.box.set_stroke(CYAN, width=3)) for t in row[1:4]], rt=0.4)
-        self.beat(*[restyle(t, lambda x: x.box.set_stroke(YELLOW, width=4).set_fill(YELLOW, opacity=0.15)) for t in row[3:]],
-                  LaggedStart(*[Create(a) for a in arcs], lag_ratio=0.3), rt=1.0)
-        self.beat(FadeIn(ans, shift=UP * 0.2), FadeIn(aglow), rt=0.6)
+        self.until(at(2, "the answer") - 0.2)
+        self.sfx("pop", 0.4)
+        self.beat(Create(win), *[pulse(row[k], 1.12) for k in range(3, 10)], rt=0.6)
+        self.beat(FadeIn(ans, shift=UP * 0.2), rt=0.4)
         self.clear_all()
         self.close_seg()
 
 
 class Scene3_Brute(Base):
     def construct(self):
-        hdr = header("BRUTE FORCE", RED)
-        row = letters(3.4)
-        n = len(S)
-        frame = SurroundingRectangle(VGroup(*row[0:2]), color=MUTED, buff=0.06, corner_radius=0.1)
-        lab = MathTex(r"\tfrac{n^2}{2}\ \text{substrings}", font_size=50, color=INK).move_to([0, 1.2, 0])
-        lab2 = MathTex(r"\times\ n\ \text{to check each}", font_size=50, color=MUTED).move_to([0, 0.2, 0])
-        o, o_lab, o_glow = big_o(r"O(n^3)", RED, -2.0, "time")
-        pairs = [(0, 4), (1, 5), (2, 8), (3, 6), (4, 9), (0, 9)]
+        h = hdr("BRUTE FORCE", MC_RED)
+        row = block_row(list(S), 3.0, size=0.75, gap=0.1)
+        idx = index_row(row, 26)
+        code = code_panel(BRUTE_CODE, -3.7, max_h=2.9)
+        pick = pickaxe(1.05).move_to([-2.4, 1.0, 0])
+        runs = [(i, j) for i in range(len(S)) for j in range(i, len(S))]
+        shown = runs[::2]
+
+        def counter(k):
+            return MT(f"runs {k}", 30, MC_WHITE, PIXEL).move_to([1.0, 1.0, 0])
+
+        cnt = counter(0)
+        sel = box(row, 0, 0, MC_WHITE, 6)
+
+        def check(n, rt):
+            i, j = shown[n]
+            ok = S[i:j + 1] == S[i:j + 1][::-1]
+            self.sfx(f"stone_dig{n % 4 + 1}", 0.18, delay=rt * 0.5)
+            self.beat(Transform(sel, box(row, i, j, MC_GREEN if ok else MC_RED, 6)), Transform(cnt, counter(runs.index((i, j)) + 1)),
+                      Rotate(pick, angle=-25 * DEGREES, rate_func=there_and_back), rt=rt)
 
         self.seg(3)
-        self.beat(FadeIn(hdr, shift=RIGHT * 0.3), FadeIn(row), FadeIn(frame), rt=0.5)
-        for a, b in pairs:
-            ok = S[a:b + 1] == S[a:b + 1][::-1]
-            self.beat(Transform(frame, SurroundingRectangle(VGroup(*row[a:b + 1]), color=GREEN if ok else RED, buff=0.06,
-                                                            corner_radius=0.1)), rt=0.35)
-        self.beat(Write(lab), rt=0.6)
-        self.beat(FadeIn(lab2, shift=UP * 0.2), rt=0.5)
-        self.beat(Write(o), FadeIn(o_glow), FadeIn(o_lab), rt=0.8)
+        self.beat(FadeIn(h, shift=RIGHT * 0.3), LaggedStart(*[FadeIn(b, shift=DOWN * 0.3) for b in row], lag_ratio=0.08), rt=0.7)
+        self.beat(FadeIn(idx), FadeIn(code, shift=UP * 0.3), rt=0.5)
+        self.beat(FadeIn(pick, scale=0.6), FadeIn(cnt), Create(sel), rt=0.4)
+        for n in range(10):
+            check(n, 0.13)
+        self.close_seg()
+
+        o = big_o_pow("n", 3, 80, MC_RED)
+        o.move_to([0.9, 1.0, 0])
+
+        self.seg(4)
+        for n in range(10, len(shown)):
+            check(n, 0.1)
+        self.until(at(4, "Cubic") - 0.6)
+        self.sfx("break", 0.4)
+        self.beat(FadeOut(cnt), FadeIn(o, scale=0.5), Wiggle(pick), rt=0.5)
         self.clear_all()
         self.close_seg()
 
 
 class Scene4_Idea(Base):
     def construct(self):
-        hdr = header("THE IDEA", YELLOW)
-        word = letters(2.2, size=0.95, gap=0.14, text="racecar")
-        mirror = DashedLine(word[3].get_top() + UP * 0.9, word[3].get_bottom() + DOWN * 0.9, color=YELLOW, stroke_width=4)
-        mlab = T("center", 26, YELLOW).next_to(mirror, UP, buff=0.1)
-
-        self.seg(4)
-        self.beat(FadeIn(hdr, shift=RIGHT * 0.3), LaggedStart(*[FadeIn(t, shift=DOWN * 0.2) for t in word], lag_ratio=0.08), rt=0.8)
-        self.until(DUR[4] * 0.45)
-        self.beat(Create(mirror), FadeIn(mlab), rt=0.6)
-        self.beat(*[ring(word[3 - d].box, YELLOW) for d in (1, 2, 3)], *[ring(word[3 + d].box, YELLOW) for d in (1, 2, 3)], rt=0.8)
-        self.close_seg()
-
-        arcs = [arch(word, 3 - d, 3 + d, GREEN, 5) for d in (1, 2, 3)]
-        l_ptr = Arrow(DOWN * 0.3, UP * 0.3, buff=0, color=MAGENTA, stroke_width=6, tip_length=0.18).next_to(word[3], DOWN, buff=0.15)
-        r_ptr = Arrow(DOWN * 0.3, UP * 0.3, buff=0, color=CYAN, stroke_width=6, tip_length=0.18).next_to(word[3], DOWN, buff=0.15)
+        h = hdr("THE TRICK", MC_GOLD)
+        word = "racecar"
+        row = block_row(list(word), 2.6, size=0.95, gap=0.15)
+        mir = mirror_at(row, 6)
 
         self.seg(5)
-        self.beat(FadeIn(l_ptr), FadeIn(r_ptr), rt=0.3)
-        for d in (1, 2, 3):
-            self.beat(l_ptr.animate.next_to(word[3 - d], DOWN, buff=0.15), r_ptr.animate.next_to(word[3 + d], DOWN, buff=0.15),
-                      Create(arcs[d - 1]), rt=0.7)
+        self.beat(FadeIn(h, shift=RIGHT * 0.3), FadeIn(row), rt=0.5)
+        self.until(at(5, "mirror") - 0.1)
+        self.sfx("click", 0.3)
+        self.beat(GrowFromCenter(mir), rt=0.4)
+        self.until(at(5, "center") - 0.1)
+        self.beat(pulse(row[3], 1.25), pulse(mir, 1.2), rt=0.5)
         self.close_seg()
 
-        odd = letters(-1.0, size=0.8, text="aba")
-        even = letters(-3.4, size=0.8, text="abba")
-        odd_c = ticks(odd[1].get_x(), odd.get_top()[1], odd.get_bottom()[1], YELLOW)
-        gap_x = (even[1].get_right()[0] + even[2].get_left()[0]) / 2
-        even_c = ticks(gap_x, even.get_top()[1], even.get_bottom()[1], MAGENTA)
-        odd_l = T("letter center: odd length", 26, YELLOW).next_to(odd, DOWN, buff=0.4)
-        even_l = T("gap center: even length", 26, MAGENTA).next_to(even, DOWN, buff=0.4)
+        frames = VGroup(outline(row[3], MC_GREEN, 8), outline(row[3], MC_GREEN, 8))
+        arrows = VGroup(MT("<", 60, MC_YELLOW, PIXEL).next_to(row, DOWN, buff=0.3).shift(LEFT * 1.0),
+                        MT(">", 60, MC_YELLOW, PIXEL).next_to(row, DOWN, buff=0.3).shift(RIGHT * 1.0))
 
         self.seg(6)
-        self.beat(VGroup(word, mirror, mlab, l_ptr, r_ptr, *arcs).animate.scale(0.8).shift(UP * 0.9), rt=0.5)
-        self.beat(FadeIn(odd), Create(odd_c), FadeIn(odd_l), rt=0.7)
-        self.until(DUR[6] * 0.5)
-        self.beat(FadeIn(even), Create(even_c), FadeIn(even_l), rt=0.7)
+        self.until(at(6, "expand") - 0.2)
+        self.beat(Create(frames), FadeIn(arrows), rt=0.35)
+        for d in (1, 2, 3):
+            self.sfx(f"stone_step{d}", 0.35)
+            self.beat(frames[0].animate.move_to(row[3 - d]), frames[1].animate.move_to(row[3 + d]),
+                      arrows[0].animate.shift(LEFT * 0.6), arrows[1].animate.shift(RIGHT * 0.6), rt=0.5)
+            self.beat(pulse(row[3 - d], 1.12), pulse(row[3 + d], 1.12), rt=0.25)
+        self.close_seg()
+
+        odd = block_row(list("aba"), -0.9, size=0.8, gap=0.12, x=-2.1)
+        even = block_row(list("abba"), -0.9, size=0.8, gap=0.12, x=2.0)
+        mo, me = mirror_at(odd, 2), mirror_at(even, 3)
+        lo = MT("odd: on a block", 36, MC_AQUA).next_to(odd, DOWN, buff=0.35)
+        le = MT("even: in a gap", 36, MC_GOLD).next_to(even, DOWN, buff=0.35)
+
+        self.seg(7)
+        self.beat(FadeOut(frames), FadeOut(arrows), rt=0.3)
+        self.until(at(7, "a block") - 0.3)
+        self.beat(FadeIn(odd, shift=UP * 0.2), rt=0.4)
+        self.beat(GrowFromCenter(mo), FadeIn(lo), rt=0.4)
+        self.until(at(7, "the gap") - 0.3)
+        self.beat(FadeIn(even, shift=UP * 0.2), rt=0.4)
+        self.sfx("click", 0.3)
+        self.beat(GrowFromCenter(me), FadeIn(le), rt=0.4)
         self.clear_all()
         self.close_seg()
 
 
 class Scene5_Walk(Overlay):
     def construct(self):
-        hdr = header("EXPAND AROUND CENTER", YELLOW)
-        code = code_panel(CODE, -3.85)
+        W = WALK
+        h = hdr("CENTERS", MC_GREEN)
+        code = code_panel(CODE, -4.3, max_h=3.25)
+        bar = line_bar(code, 3, 3, MC_YELLOW)
+        st = {"best": None, "bt": None, "cmp": None, "barin": False}
 
-        def readout(c, best):
-            where = S[c // 2] if c % 2 == 0 else f"{S[c // 2]}|{S[c // 2 + 1]}"
-            parts = VGroup(pill(f"center {where}", YELLOW if c % 2 == 0 else MAGENTA, 28), pill(f"best {best}", GREEN, 28))
-            return parts.arrange(RIGHT, buff=0.35).move_to([0, -1.35, 0])
+        def best_badge(v):
+            return chat(f"best {v}", MC_GOLD if v > 1 else MC_GRAY, 42).move_to([0, TOP_Y, 0]).to_edge(RIGHT, buff=0.4)
 
-        st = {"c": 0, "best": '""'}
-        ro = readout(0, '""')
-        bar = line_bar(code, 1)
+        def best_text(lo, hi, color=MC_GOLD):
+            return chat(" ".join(S[lo:hi + 1]) + f"   len {hi - lo + 1}", color, 46).move_to([0, 4.35, 0])
 
-        # Events: every center start, the comparisons of the two slow centers, and each new best
-        events = []
+        def cmp_text(l, r, kind):
+            if kind == "edge":
+                return MT("end of the row: stop", 46, MC_GRAY).move_to([0, -0.9, 0])
+            ok = kind == "match"
+            return eq_line([(f"s[{l}] {S[l]}", MC_WHITE), ("=" if ok else "!=", MC_GREEN if ok else MC_RED), (f"{S[r]} s[{r}]", MC_WHITE)],
+                           46, buff=0.35).move_to([0, -0.9, 0])
+
+        ev = [(seg_time(W["first"], W[key]), key, None) for key in ("row_in", "toast", "beats")]
         for k, e in enumerate(CENTERS):
-            events.append((seg_time(WALK["first"], e["start"]), "center", (k, 0)))
+            ev.append((seg_time(W["first"], e["start"]), "center", k))
             if not e["fast"]:
-                for j, tm in enumerate(e["times"]):
-                    events.append((seg_time(WALK["first"], tm), "cmp", (k, j)))
+                for q, spec in enumerate(e["times"]):
+                    ev.append((seg_time(W["first"], spec), f"cmp{q}", k))
             if "best" in e:
-                events.append((seg_time(WALK["first"], e["best"]), "best", (k, 0)))
-        events.sort(key=lambda x: x[0])
+                ev.append((seg_time(W["first"], e["best"]), "best", k))
+        ev.sort(key=lambda x: x[0])
 
-        def intro():
-            self.until(0.3)
-            self.beat(FadeIn(hdr, shift=RIGHT * 0.3), rt=0.5)
-            self.until(1.0)
-            self.beat(FadeIn(code, shift=UP * 0.3), rt=0.8)
-            self.until(2.2)
-            self.beat(FadeIn(bar), FadeIn(ro), rt=0.4)
+        def move_bar(k0, k1=None, color=MC_YELLOW, rt=0.12):
+            self.beat(Transform(bar, line_bar(code, k0, k1, color)), rt=rt)
 
-        def on(kind, key):
-            k, j = key
-            e = CENTERS[k]
-            if kind == "center":
-                st["c"] = e["c"]
-                rt = 0.2 if e["fast"] else 0.3
-                self.beat(Transform(bar, line_bar(code, 2, 3)), Transform(ro, readout(st["c"], st["best"])), rt=rt)
-            elif kind == "cmp":
-                kind_ = e["cmps"][j][2]
-                if kind_ == "match":
-                    self.beat(Transform(bar, line_bar(code, 4, 5, GREEN)), rt=0.3)
+        def show_cmp(new, rt=0.15):
+            anims = [FadeIn(new)]
+            if st["cmp"] is not None:
+                anims.append(FadeOut(st["cmp"]))
+            st["cmp"] = new
+            self.beat(*anims, rt=rt)
+
+        def on_first():
+            st["best"] = best_badge(0)
+            self.beat(FadeIn(h, shift=RIGHT * 0.3), FadeIn(st["best"]), rt=0.35)
+
+        def on(kind, k):
+            e = CENTERS[k] if k is not None else None
+            if kind == "row_in":
+                for i in range(len(S)):
+                    self.sfx(f"stone_dig{i % 4 + 1}", 0.25, delay=0.08 * i + 0.35)
+                self.beat(FadeIn(code, shift=UP * 0.3), rt=0.6)
+            elif kind == "center":
+                self.sfx("click", 0.18)
+                if not st["barin"]:
+                    st["barin"] = True
+                    self.beat(FadeIn(bar), rt=0.12)
+                if e["fast"]:
+                    # Quick centers: show where the expansion ended in one step
+                    l, r, kk = e["cmps"][-1]
+                    self.beat(Transform(bar, line_bar(code, 4, 4, MC_GREEN if kk == "edge" else MC_RED)), rt=0.12)
+                    show_cmp(cmp_text(l, r, kk), rt=0.12)
                 else:
-                    self.beat(Transform(bar, line_bar(code, 4, 4, RED)), rt=0.3)
+                    move_bar(3, rt=0.15)
+            elif kind.startswith("cmp"):
+                l, r, kk = e["cmps"][int(kind[3:])]
+                self.sfx("stone_step%d" % (int(kind[3:]) % 6 + 1) if kk == "match" else "click", 0.32)
+                move_bar(4 if kk != "match" else 5, None, MC_GREEN if kk == "match" else MC_GRAY, rt=0.15)
+                show_cmp(cmp_text(l, r, kk), rt=0.2)
             elif kind == "best":
-                l, r, _ = e["cmps"][-1]
-                st["best"] = f'"{S[l + 1:r]}"'
-                self.beat(Transform(bar, line_bar(code, 6, 7, GREEN)), Transform(ro, readout(st["c"], st["best"])), rt=0.25)
+                l, r = e["cmps"][-1][:2]
+                self.sfx("orb", 0.3)
+                anims = [Transform(bar, line_bar(code, 6, 7, MC_GOLD))]
+                # After the toast the badge is gone; the best text above the row carries the length
+                if st["best"] is not None:
+                    anims.append(Transform(st["best"], best_badge(e["len"])))
+                new = best_text(l + 1, r - 1)
+                if st["bt"] is None:
+                    st["bt"] = new
+                    anims.append(FadeIn(new, shift=DOWN * 0.1))
+                else:
+                    anims.append(Transform(st["bt"], new))
+                self.beat(*anims, rt=0.2)
+            elif kind == "toast":
+                t = toast("Advancement Made!", "Racecar found", w=4.6)
+                t.move_to([0, TOP_Y, 0]).to_edge(RIGHT, buff=0.3)
+                t.shift(RIGHT * 7)
+                self.sfx("challenge", 0.32)
+                for d in (0.1, 0.3, 0.5, 0.7):
+                    self.sfx("orb", 0.26, delay=d)
+                self.beat(t.animate.shift(LEFT * 7), FadeOut(st["best"]), rt=0.5)
+                st["best"] = None
+            elif kind == "beats":
+                self.beat(pulse(st["bt"], 1.1), rt=0.4)
 
-        def outro():
-            d = DUR[WALK["last"]]
-            self.until(d - 0.9)
-            self.beat(Transform(bar, line_bar(code, 8, 8, GREEN)), rt=0.3)
-            self.finish(FadeOut(VGroup(hdr, ro, code, bar)), rt=0.5)
+        def on_last():
+            # The row leaves the 3D clip when the walk ends; the overlay leaves with it
+            self.finish(FadeOut(Group(*self.mobjects)), rt=0.5)
 
-        self.run_events(WALK, events, on, intro, outro)
+        self.run_events(W, ev, on, on_first=on_first, on_last=on_last)
 
 
 class Scene6_Complexity(Base):
     def construct(self):
-        hdr = header("COMPLEXITY", GREEN)
-        row = letters(3.6, size=0.62, gap=0.1)
-        marks = VGroup()
-        for c in range(2 * len(S) - 1):
-            if c % 2 == 0:
-                x = row[c // 2].get_x()
-                marks.add(Dot([x, 2.85, 0], radius=0.07, color=YELLOW))
-            else:
-                x = (row[c // 2].get_right()[0] + row[c // 2 + 1].get_left()[0]) / 2
-                marks.add(Dot([x, 2.85, 0], radius=0.07, color=MAGENTA))
-        cl = MathTex(r"2n - 1\ \text{centers}", font_size=46, color=INK).move_to([0, 2.05, 0])
-        o, o_lab, o_glow = big_o(r"O(n^2)", GREEN, 0.4, "time")
+        h = hdr("COMPLEXITY", MC_AQUA)
+        row = block_row(list(S), 3.6, size=0.75, gap=0.1)
+        ticks = VGroup(*[mirror_at(row, c, 0.5).move_to([mirror_at(row, c).get_x(), 2.85, 0]) for c in range(2 * len(S) - 1)])
+        cnt = MT("2n - 1 = 19 centers", 40, MC_WHITE).move_to([0, 2.15, 0])
+        tm = VGroup(MT("time", 56, MC_GRAY), level_text("O(n²)", 1.0)).arrange(RIGHT, buff=0.4).move_to([0, 0.7, 0])
+        each = MT("each one expands up to n", 36, MC_GRAY).move_to([0, -0.25, 0])
+        bg, fill = xp_bar(7.4)
+        bg.move_to([0, -1.0, 0])
+        xp = fill(1.0)
+        xp.save_state()
+        xp.stretch(0.01, 0, about_edge=LEFT)
 
-        self.seg(13)
-        self.beat(FadeIn(hdr, shift=RIGHT * 0.3), FadeIn(row), rt=0.5)
-        self.beat(LaggedStart(*[GrowFromCenter(m) for m in marks], lag_ratio=0.06), FadeIn(cl), rt=1.2)
-        self.until(DUR[13] * 0.55)
-        self.beat(Write(o), FadeIn(o_glow), FadeIn(o_lab), rt=0.8)
+        self.seg(15)
+        self.beat(FadeIn(h, shift=RIGHT * 0.3), FadeIn(row), rt=0.5)
+        self.until(at(15, "centers") - 0.6)
+        self.sfx("click", 0.25)
+        self.beat(LaggedStart(*[GrowFromCenter(x) for x in ticks], lag_ratio=0.06), FadeIn(cnt), rt=0.9)
+        self.until(at(15, "expand") - 0.2)
+        self.beat(FadeIn(each, shift=UP * 0.1), rt=0.4)
+        self.until(at(15, "So the time") - 0.2)
+        self.beat(FadeIn(tm, shift=UP * 0.2), FadeIn(bg), rt=0.4)
+        self.add(xp)
+        for d in (0.0, 0.3, 0.6):
+            self.sfx("orb", 0.25, delay=d)
+        self.sfx("levelup", 0.3, delay=0.9)
+        self.beat(Restore(xp), rt=1.0)
         self.close_seg()
 
-        ptrs = VGroup(*[pill(s, c, 28) for s, c in [("l", MAGENTA), ("r", CYAN), ("best range", GREEN)]]).arrange(RIGHT, buff=0.3)
-        ptrs.move_to([0, -1.7, 0])
-        so, so_lab, so_glow = big_o(r"O(1)", VIOLET, -3.5, "extra space", size=72)
+        ptrs = VGroup(*[chat(s, MC_WHITE, 46) for s in ("l", "r", "best")]).arrange(RIGHT, buff=0.3).move_to([0, -2.4, 0])
+        sp = VGroup(MT("space", 56, MC_GRAY), level_text("O(1)", 1.0)).arrange(RIGHT, buff=0.4).move_to([0, -3.7, 0])
 
-        self.seg(14)
-        self.beat(LaggedStart(*[FadeIn(p, shift=UP * 0.2) for p in ptrs], lag_ratio=0.15), rt=0.8)
-        self.beat(Write(so), FadeIn(so_glow), FadeIn(so_lab), rt=0.8)
+        self.seg(16)
+        self.until(at(16, "two pointers") - 0.2)
+        self.sfx("pop", 0.3)
+        self.beat(LaggedStart(*[FadeIn(p, scale=0.6) for p in ptrs], lag_ratio=0.2), rt=0.6)
+        self.until(at(16, "constant") - 0.4)
+        self.beat(FadeIn(sp, shift=UP * 0.2), rt=0.4)
         self.clear_all()
         self.close_seg()
 
 
 class Scene7_Outro(Base):
     def construct(self):
-        code = code_panel(CODE, 1.0)
-        cglow = glow(code.background, VIOLET, max_w=22, max_op=0.25)
-        bar = line_bar(code, 2, 3, YELLOW)
-        d = DUR[15]
+        code = code_panel(CODE, 1.6, width=8.4)
+        bar = line_bar(code, 3, 3, MC_YELLOW)
 
-        self.seg(15)
-        self.beat(FadeIn(code.background), FadeIn(cglow), rt=0.3)
-        self.beat(LaggedStart(*[FadeIn(l, shift=RIGHT * 0.2) for l in code.code_lines], lag_ratio=0.08),
-                  FadeIn(code.line_numbers), rt=0.8)
+        self.seg(17)
+        self.beat(FadeIn(code.background),
+                  LaggedStart(*[FadeIn(l, shift=RIGHT * 0.2) for l in code.code_lines], lag_ratio=0.08), FadeIn(code.line_numbers),
+                  rt=0.7)
         self.beat(FadeIn(bar), rt=0.25)
-        self.until(d * 0.55)
-        self.beat(Transform(bar, line_bar(code, 4, 5, GREEN)), rt=0.4)
+        self.until(at(17, "expand") - 0.2)
+        self.beat(Transform(bar, line_bar(code, 4, 5, MC_GOLD)), rt=0.35)
         self.close_seg()
 
-        tag = VGroup(T("Every palindrome", 60), T("has a middle.", 60)).arrange(DOWN, buff=0.15)
-        tag.set_color_by_gradient(CYAN, VIOLET, MAGENTA).move_to([0, 0.8, 0])
-        tag_glow = glow(tag, VIOLET, layers=6, max_w=18, max_op=0.22)
-        title, tglow, art = cover()
-
-        self.seg(16)
-        self.beat(FadeOut(VGroup(code, cglow, bar), shift=UP * 0.4), FadeIn(tag), FadeIn(tag_glow), rt=0.6)
-        self.hold(0.6)
-        # Morph into the opening frame so the loop closes seamlessly
-        self.finish(ReplacementTransform(tag, title), FadeOut(tag_glow), FadeIn(tglow), FadeIn(art, shift=UP * 0.3), rt=1.1)
-        self.add(tglow, title, art)
+        self.seg(18)
+        msg = chat("Start from the middle", MC_GOLD, 58)
+        msg.move_to([0, -2.3, 0])
+        self.beat(FadeIn(msg, shift=UP * 0.2), Transform(bar, line_bar(code, 0, 8, MC_GREEN)), rt=0.4)
+        self.until(1.2)
+        self.beat(FadeOut(Group(code, bar, msg)), rt=0.45)
+        # Ends on the cover, so the last frame matches the first one
+        self.finish(FadeIn(cover()), rt=0.9)
         self.close_seg()

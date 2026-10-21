@@ -1,0 +1,220 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import { THREE, prog, easeInOut, easeOut, easeOutBack, lerp, V, bezier, pose, mixPose } from '/vendor/lib/stage.js';
+import { MC, loadTheme, makeWorld, makeTerrain, makeBlock, makeChest, pixelSprite, makeOrb, makeClouds } from '/vendor/tema/mc.js';
+import { loadMobs, planLife, makeLife, setTime } from '/vendor/tema/vida.js';
+
+const walk = await (await fetch('/walk.json')).json();
+// One clip for the whole video: times are absolute. The walk happens in [W0, W1]; the rest is a slow roam that
+// ends where it starts, so the video still loops.
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const seg = (i) => subs[i].start_s;
+const TOTAL = subs[subs.length - 1].end_s;
+const W0 = seg(walk.first), W1 = subs[walk.last].end_s;
+const at = (spec) => seg(spec[0]) + spec[1];
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'planks', 'leaves', 'log_side', 'log_top',
+                              ...walk.letters.map((c) => `${walk.ore_of[c]}_ore`)]);
+
+const N = walk.s.length;
+const steps = walk.steps.map((s) => ({ ...s, visitT: at(s.visit), storeT: at(s.store),
+  checkT: s.check ? at(s.check) : null, jumpT: s.jump ? at(s.jump) : null, ignoreT: s.ignore ? at(s.ignore) : null }));
+const T = { row: at(walk.row_in), win: at(walk.window_in), chest: at(walk.chest_in), toast: at(walk.toast), five: at(walk.five) };
+
+const world = makeWorld({ fov: 40, offset: 0.34, fog: [55, 120] });
+const { scene } = world;
+// Terrain of the ClaudeEntorno world (river between hills, see mundos/lugares.json), turned so the camera looking
+// toward -z sees the river bend behind the row; trees and plants are cleared where the camera stands
+const terrain = await makeTerrain('/vendor/tema/mundos/river-hills.json', { turn: 0.7854, plot: [-5, 5, -2, 7], clear: [-10, 10, 7, 24] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+// Day among the river hills: sheep and pigs, a squid in the bend
+const LIFE = [{ kind: 'sheep', count: 2 }, { kind: 'pig', count: 2, graze: 1 }, { kind: 'squid', count: 1 }];
+await loadMobs(imgs, LIFE.map((g) => g.kind));
+const dim = await setTime(world, 'day', { terrain, clouds, imgs });
+const life = makeLife(imgs, terrain, planLife(terrain, LIFE, { seed: 9 }), TOTAL, dim);
+scene.add(life.g);
+// Everything of the walk lives in its own group, hidden outside the walk
+const stage = new THREE.Group();
+scene.add(stage);
+
+// The string: one block per letter, the same letter is always the same ore
+const SP = 1.15;
+const bx = (i) => (i - (N - 1) / 2) * SP;
+const blocks = walk.ores.map((o, i) => { const b = makeBlock(imgs, `${o}_ore`, { label: walk.s[i] }); stage.add(b.g); return b; });
+const idx = walk.ores.map((_, i) => { const s = pixelSprite(String(i), MC.gray, 0.45); s.position.set(bx(i), 0.3, 1.2); stage.add(s); return s; });
+
+const CHEST = V(0, 0, 3.6);
+const chest = makeChest(imgs, 0.95);
+CHEST.y = terrain.groundAt(CHEST.x, CHEST.z);
+chest.g.position.copy(CHEST);
+stage.add(chest.g);
+
+// The window: a gold box outline around the blocks from its left edge to its right edge
+function makeBox(color) {
+  const mat = new THREE.MeshBasicMaterial({ color, toneMapped: false, transparent: true });
+  const g = new THREE.Group();
+  const bars = Array.from({ length: 12 }, () => { const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), mat); g.add(m); return m; });
+  const set = (x0, x1, y0, y1, z0, z1, th) => {
+    const xs = [x0, x1], ys = [y0, y1], zs = [z0, z1];
+    let k = 0;
+    for (const y of ys) for (const z of zs) { bars[k].position.set((x0 + x1) / 2, y, z); bars[k++].scale.set(x1 - x0 + th, th, th); }
+    for (const x of xs) for (const z of zs) { bars[k].position.set(x, (y0 + y1) / 2, z); bars[k++].scale.set(th, y1 - y0 + th, th); }
+    for (const x of xs) for (const y of ys) { bars[k].position.set(x, y, (z0 + z1) / 2); bars[k++].scale.set(th, th, z1 - z0 + th); }
+  };
+  return { g, mat, set };
+}
+const win = makeBox(MC.gold);
+stage.add(win.g);
+
+// Beam from the chest to the block it remembers; red on a repeat inside the window, gray when it is behind it
+const beamMat = new THREE.MeshBasicMaterial({ color: MC.red, toneMapped: false, transparent: true, opacity: 0.85 });
+const beamGeo = new THREE.BoxGeometry(0.08, 0.08, 1);
+beamGeo.translate(0, 0, 0.5);
+const beam = new THREE.Mesh(beamGeo, beamMat);
+stage.add(beam);
+const nope = pixelSprite('behind', MC.white, 0.7);
+stage.add(nope);
+
+// Items that fly from a block into the chest when its index is stored
+const items = steps.map((s) => { const it = makeBlock(imgs, `${s.ore}_ore`, { size: 0.34 }); stage.add(it.g); return { s, it }; });
+
+// Experience orbs that burst from the final window
+let seed = 11;
+const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+const orbs = Array.from({ length: 26 }, (_, k) => {
+  const o = makeOrb(imgs, 0.34, [1, 2, 4, 5, 6][k % 5]);
+  o.userData = { from: 2 + (k % 5), vx: (rnd() - 0.5) * 2.4, vy: 2.4 + rnd() * 2.0, vz: (rnd() - 0.3) * 2.0, delay: rnd() * 0.35 };
+  stage.add(o);
+  return o;
+});
+
+// Terrain materials are transparent (alpha-tested) and sorted with the sprites; sprites go last so the ground can't paint over them
+stage.traverse((o) => { if (o.isSprite) o.renderOrder = 10; });
+
+// Window edges over time: the right edge reaches each block at its visit, the left edge jumps on a repeat
+function edges(t) {
+  let right = -1, left = 0;
+  for (const s of steps) right = lerp(right, s.r, easeInOut(prog(t, s.visitT - 0.1, s.visitT + 0.2)));
+  for (const s of steps) if (s.jumpT !== null) left = lerp(left, s.left, easeInOut(prog(t, s.jumpT, s.jumpT + 0.4)));
+  return [left, right];
+}
+
+function lidOpen(t) {
+  let a = 0;
+  for (const s of steps) {
+    if (s.checkT !== null) {
+      const close = (s.jumpT ?? s.ignoreT) + 0.2;
+      a = Math.max(a, easeOut(prog(t, s.checkT - 0.08, s.checkT + 0.15)) * (1 - easeInOut(prog(t, close, close + 0.2))));
+    }
+    a = Math.max(a, easeOut(prog(t, s.storeT - 0.08, s.storeT + 0.1)) * (1 - easeInOut(prog(t, s.storeT + 0.35, s.storeT + 0.5))));
+  }
+  return a;
+}
+
+function renderAt(t) {
+  // Walk camera: wide front view with a slow drift (pulled back so seven blocks fit); roam camera: one slow loop
+  const sway = 0.5 * Math.sin(t * 0.35);
+  const walkPose = pose(V(sway * 0.5, 6.4, 17.4), V(sway * 0.2, 1.5, 0.0));
+  const a = 2 * Math.PI * t / TOTAL;
+  const roamPose = pose(V(6 * Math.sin(a), 3.4 + 0.8 * Math.sin(2 * a), 13 + 2.5 * Math.cos(a)), V(3 * Math.sin(a), 4.2, -30));
+  const k = easeInOut(prog(t, W0 - 1.6, W0 - 0.1)) * (1 - easeInOut(prog(t, W1 + 0.1, W1 + 1.6)));
+  const cam = mixPose(roamPose, walkPose, k);
+  world.look(cam.pos, cam.look);
+  // The walk keeps its content high in the frame (the overlay uses the bottom); the roam shows more sky
+  world.camera.setViewOffset(world.W, world.H, 0, world.H * lerp(0.12, 0.34, k), world.W, world.H);
+  clouds.position.x = 4 * Math.sin(a);
+  life.update(t);
+  stage.visible = t < W1;
+
+  const [left, right] = edges(t);
+  const fin = prog(t, T.toast, T.toast + 0.4);
+
+  // Blocks drop in from above, one after another; inside the window they glow a little
+  blocks.forEach((b, i) => {
+    const d = prog(t, T.row + 0.12 * i, T.row + 0.12 * i + 0.55);
+    const fall = d < 1 ? (1 - d) * (1 - d) * 4.5 : 0;
+    let glow = 0;
+    const s = steps[i];
+    glow += 0.35 * Math.sin(Math.PI * prog(t, s.visitT - 0.1, s.visitT + 0.4));
+    if (t > T.win && i >= Math.round(left) && i <= right + 0.01) glow += 0.12;
+    // The block the chest points at flashes
+    for (const q of steps) {
+      if (q.checkT !== null && q.prev === i) glow += 0.4 * Math.sin(Math.PI * prog(t, q.checkT + 0.2, q.checkT + 0.9));
+    }
+    if (i >= 2 && i <= 6) glow += fin * (0.25 + 0.1 * Math.sin(t * 6));
+    b.g.position.set(bx(i), 0.5 + fall + terrain.groundAt(bx(i), 0), 0);
+    b.set({ glow, opacity: d > 0 ? 1 : 0 });
+    idx[i].material.opacity = prog(t, T.row + 0.4 + 0.12 * i, T.row + 0.8 + 0.12 * i);
+  });
+
+  // Window box: from the left edge of block `left` to the right edge of block `right`; empty at first
+  const wIn = prog(t, T.win, T.win + 0.3);
+  win.g.visible = wIn > 0.01;
+  const x0 = bx(left) - 0.6, x1 = Math.max(bx(right) + 0.6, x0 + 0.06);
+  win.set(x0, x1, 0.0, 1.12 + 0.06 * fin, -0.62, 0.62, 0.07 + 0.03 * fin);
+  win.mat.opacity = wIn;
+
+  // Chest pops in, its lid opens for every lookup and every store
+  const cIn = easeOutBack(prog(t, T.chest, T.chest + 0.5));
+  chest.g.scale.setScalar(Math.max(cIn, 1e-4));
+  chest.g.visible = cIn > 0.001;
+  chest.open(lidOpen(t));
+
+  // Beam from the chest to the remembered index
+  let bA = 0, bTo = 0, inside = true, ignoreA = 0;
+  for (const s of steps) {
+    if (s.checkT === null) continue;
+    const end = (s.jumpT ?? s.ignoreT) + 0.3;
+    const v = easeOut(prog(t, s.checkT + 0.1, s.checkT + 0.5)) * (1 - prog(t, end, end + 0.3));
+    if (v > bA) { bA = v; bTo = s.prev; inside = s.repeat; }
+    if (s.ignoreT !== null) ignoreA = Math.max(ignoreA, easeOutBack(prog(t, s.ignoreT - 0.6, s.ignoreT - 0.2)) * (1 - prog(t, end, end + 0.3)));
+  }
+  const from = CHEST.clone().add(V(0, 0.9, 0));
+  const to = V(bx(bTo), 1.0, 0);
+  beam.visible = bA > 0.01;
+  beamMat.color.set(inside ? MC.red : MC.gray);
+  beam.position.copy(from);
+  beam.lookAt(to);
+  beam.scale.set(1 + 0.3 * Math.sin(t * 12), 1 + 0.3 * Math.sin(t * 12), Math.max(from.distanceTo(to) * bA, 1e-4));
+  nope.visible = ignoreA > 0.01;
+  nope.setSize(ignoreA);
+  nope.position.set(bx(0), 1.5, 0.3);
+
+  // Items arc from the block into the open chest
+  for (const { s, it } of items) {
+    const f = prog(t, s.storeT, s.storeT + 0.32);
+    it.g.visible = f > 0 && f < 1;
+    const p = bezier(V(bx(s.r), 1.2, 0.1), V((bx(s.r) + CHEST.x) / 2, 2.4, 1.4), CHEST.clone().add(V(0, 0.75, 0)), easeInOut(f));
+    it.g.position.copy(p);
+    it.g.rotation.set(0.4, 6 * f, 0);
+  }
+
+  // Orbs: a short burst from the five blocks of the answer
+  for (const o of orbs) {
+    const { from: i, vx, vy, vz, delay } = o.userData;
+    const u = t - (T.toast + delay);
+    o.visible = u > 0 && u < 1.6;
+    if (!o.visible) continue;
+    o.position.set(bx(i) + vx * u, Math.max(1.3 + vy * u - 4.5 * u * u, 0.1), vz * u);
+    o.tint(t + delay);
+    o.material.opacity = 1 - prog(u, 1.2, 1.6);
+  }
+
+  world.draw(t, TOTAL, 0, 0);
+}
+
+window.renderAt = renderAt;
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

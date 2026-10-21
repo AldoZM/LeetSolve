@@ -1,0 +1,167 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import { THREE, prog, easeInOut, easeOut, easeOutBack, lerp, V, pose, mixPose } from '/vendor/lib/stage.js';
+import { MC, loadTheme, makeWorld, makeTerrain, makeBlock, makeFrame, pixelSprite, makeOrb, makeClouds, tex } from '/vendor/tema/mc.js';
+import { loadMobs, planLife, makeLife, setTime } from '/vendor/tema/vida.js';
+
+const walk = await (await fetch('/walk.json')).json();
+// One clip for the whole video: times are absolute. The walk happens in [W0, W1]; the rest is a slow roam that
+// ends where it starts, so the video still loops.
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const seg = (i) => subs[i].start_s;
+const TOTAL = subs[subs.length - 1].end_s;
+const W0 = seg(walk.first), W1 = subs[walk.last].end_s;
+const at = (spec) => seg(spec[0]) + spec[1];
+const ORES = ['gold_ore', 'diamond_ore', 'emerald_ore'];  // one ore per row
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'planks', 'leaves', 'log_side', 'log_top', ...ORES]);
+
+const letters = walk.letters.map((e) => ({ ...e, tT: at(e.t), turnT: e.turn ? at(e.turn) : null }));
+const T = { row: at(walk.row_in), rows: at(walk.rows_in), pointer: at(walk.pointer), holds: at(walk.holds),
+            toast: at(walk.toast), join: at(walk.join), read: at(walk.read) };
+
+const world = makeWorld({ fov: 40, offset: 0.34, fog: [55, 120] });
+const { scene } = world;
+// Terrain of the ClaudeEntorno world (sandy hills by the river, see mundos/lugares.json), turned so the camera looking
+// toward -z sees the hills behind the rows; trees and plants are cleared where the camera stands
+const terrain = await makeTerrain('/vendor/tema/mundos/sand-hills.json', { turn: -1.1781, plot: [-5, 5, -2, 7], clear: [-10, 10, 7, 24] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+// Dusk on the sandy hills: pigs, sheep and a chicken
+const LIFE = [{ kind: 'pig', count: 2 }, { kind: 'sheep', count: 2, graze: 1 }, { kind: 'chicken', count: 1 }];
+await loadMobs(imgs, LIFE.map((g) => g.kind));
+const dim = await setTime(world, 'dusk', { terrain, clouds, imgs });
+const life = makeLife(imgs, terrain, planLife(terrain, LIFE, { seed: 21 }), TOTAL, dim);
+scene.add(life.g);
+// Everything of the walk lives in its own group, hidden outside the walk
+const stage = new THREE.Group();
+scene.add(stage);
+
+// The zigzag in the plane z = 0: row 0 on top; a wooden shelf under each row
+const SP = 1.05;
+const cx = (col) => (col - 3) * SP;
+const ry = (row) => (walk.rows - 1 - row) * 1.2 + 0.5;
+const shelfMat = new THREE.MeshBasicMaterial({ map: tex(imgs, 'planks') });
+shelfMat.color.setScalar(0.85);
+const shelves = [0, 1, 2].map((q) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.1, 0.9), shelfMat);
+  m.position.set(0, ry(q) - 0.55, 0);
+  stage.add(m);
+  return m;
+});
+const rowLabels = [0, 1, 2].map((q) => { const s = pixelSprite(String(q), MC.gray, 0.5); s.position.set(-3.95, ry(q), 0.3); stage.add(s); return s; });
+const blocks = letters.map((e) => { const b = makeBlock(imgs, ORES[e.row], { label: e.ch }); stage.add(b.g); return b; });
+
+// The pointer: an arrow beside the current row that flips at the top and at the bottom
+const arrows = { down: pixelSprite('v', MC.yellow, 0.7), up: pixelSprite('^', MC.yellow, 0.7) };
+Object.values(arrows).forEach((s) => stage.add(s));
+const frame = makeFrame(1.04, 0.035, MC.yellow);
+stage.add(frame);
+
+// Experience orbs that burst from the joined rows
+let seed = 11;
+const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+const orbs = Array.from({ length: 24 }, (_, n) => {
+  const o = makeOrb(imgs, 0.34, [1, 2, 4, 5, 6][n % 5]);
+  o.userData = { from: n % letters.length, vx: (rnd() - 0.5) * 2.4, vy: 2.2 + rnd() * 2.0, vz: (rnd() - 0.3) * 2.0, delay: rnd() * 0.35 };
+  stage.add(o);
+  return o;
+});
+
+// Terrain materials are transparent (alpha-tested) and sorted with the sprites; sprites go last so the ground can't paint over them
+stage.traverse((o) => { if (o.isSprite) o.renderOrder = 10; });
+
+// Position in its row after the join: rows close their gaps toward the left
+const slot = letters.map((e) => letters.filter((q) => q.row === e.row && q.k < e.k).length);
+
+// Row of the pointer over time (fractional while moving) and its direction
+function pointer(t) {
+  let r = 0, dir = 'down';
+  for (const e of letters) {
+    if (t >= e.tT - 0.3) r = lerp(r, e.row, easeInOut(prog(t, e.tT - 0.3, e.tT)));
+    if (e.turnT !== null && t >= e.turnT) dir = e.row === 0 ? 'down' : 'up';
+  }
+  return { r, dir };
+}
+
+function renderAt(t) {
+  // Walk camera: front view of the three rows with a slow drift; roam camera: one slow loop over the meadow
+  const sway = 0.5 * Math.sin(t * 0.35);
+  const walkPose = pose(V(sway * 0.4, 5.6, 16.6), V(sway * 0.15, 2.9, 0.0));
+  const a = 2 * Math.PI * t / TOTAL;
+  const roamPose = pose(V(6 * Math.sin(a), 3.4 + 0.8 * Math.sin(2 * a), 13 + 2.5 * Math.cos(a)), V(3 * Math.sin(a), 4.2, -30));
+  const k = easeInOut(prog(t, W0 - 1.6, W0 - 0.1)) * (1 - easeInOut(prog(t, W1 + 0.1, W1 + 1.6)));
+  const cam = mixPose(roamPose, walkPose, k);
+  world.look(cam.pos, cam.look);
+  // The walk keeps its content high in the frame (the overlay uses the bottom); the roam shows more sky
+  world.camera.setViewOffset(world.W, world.H, 0, world.H * lerp(0.12, 0.34, k), world.W, world.H);
+  clouds.position.x = 4 * Math.sin(a);
+  life.update(t);
+  stage.visible = t < W1;
+
+  // Shelves slide in, one per row
+  shelves.forEach((m, q) => {
+    const s = easeOutBack(prog(t, T.rows + 0.15 * q, T.rows + 0.15 * q + 0.45));
+    m.visible = s > 0.01;
+    m.scale.set(Math.max(s, 1e-4), 1, 1);
+    rowLabels[q].visible = s > 0.5;
+  });
+
+  // Blocks drop into their zigzag spot, then slide left to close the gaps after the join
+  const join = easeInOut(prog(t, T.join, T.join + 0.8));
+  const fin = prog(t, T.toast, T.toast + 0.4);
+  letters.forEach((e, i) => {
+    const d = prog(t, e.tT - 0.05, e.tT + 0.3);
+    const fall = d < 1 ? (1 - d) * (1 - d) * 3.5 : 0;
+    const x = lerp(cx(e.col), cx(slot[i]), join);
+    // Reading after the join: each block glows in turn
+    const ro = walk.read_order.indexOf(e.k);
+    const rt = T.read + 0.18 * ro;
+    let glow = 0.35 * Math.sin(Math.PI * prog(t, e.tT, e.tT + 0.5)) + 0.4 * Math.sin(Math.PI * prog(t, rt, rt + 0.45));
+    glow += 0.25 * Math.sin(Math.PI * prog(t, T.holds, T.holds + 1.0));
+    glow += fin * 0.1;
+    blocks[i].g.position.set(x, ry(e.row) + fall, 0);
+    blocks[i].set({ glow, opacity: d > 0 ? 1 : 0 });
+  });
+
+  // Pointer arrow beside the current row; the frame marks where the next letter lands
+  const p = pointer(t);
+  const pOn = t >= T.pointer && t < T.join;
+  for (const [dir, s] of Object.entries(arrows)) {
+    s.visible = pOn && p.dir === dir;
+    s.position.set(3.95, lerp(ry(0), ry(2), p.r / 2), 0.4);
+    s.setSize(1 + 0.12 * Math.sin(t * 6));
+  }
+  const next = letters.find((e) => e.tT > t);
+  frame.visible = pOn && !!next && t > T.pointer + 0.2;
+  if (next) frame.position.set(cx(next.col), ry(next.row), 0);
+
+  // Orbs burst from the joined rows
+  for (const o of orbs) {
+    const { from: i, vx, vy, vz, delay } = o.userData;
+    const u = t - (T.toast + delay);
+    o.visible = u > 0 && u < 1.6;
+    if (!o.visible) continue;
+    const b = blocks[i].g.position;
+    o.position.set(b.x + vx * u, Math.max(b.y + 0.6 + vy * u - 4.5 * u * u, 0.1), vz * u);
+    o.tint(t + delay);
+    o.material.opacity = 1 - prog(u, 1.2, 1.6);
+  }
+
+  world.draw(t, TOTAL, 0, 0);
+}
+
+window.renderAt = renderAt;
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

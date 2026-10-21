@@ -1,0 +1,145 @@
+{
+  "total_duration_s": 119.875,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Permutation Sequence, Minecraft edition. LeetCode problem number sixty, and a brilliant math puzzle.",
+      "start_s": 0.0,
+      "end_s": 7.125,
+      "duration_s": 7.125
+    },
+    {
+      "index": 1,
+      "text": "We have four ore blocks from one to four. In total, they form twenty four unique permutations in order.",
+      "start_s": 7.125,
+      "end_s": 14.0,
+      "duration_s": 6.875
+    },
+    {
+      "index": 2,
+      "text": "Our target sign asks for permutation number nine. Which sequence of blocks is it?",
+      "start_s": 14.0,
+      "end_s": 19.4,
+      "duration_s": 5.4
+    },
+    {
+      "index": 3,
+      "text": "The direct idea is backtracking. Recursively generate every single permutation from scratch.",
+      "start_s": 19.4,
+      "end_s": 25.6,
+      "duration_s": 6.2
+    },
+    {
+      "index": 4,
+      "text": "Mine each combination branch by branch until reaching number nine.",
+      "start_s": 25.6,
+      "end_s": 30.125,
+      "duration_s": 4.525
+    },
+    {
+      "index": 5,
+      "text": "For four blocks, it is twenty four. But with nine blocks, that is three hundred sixty two thousand permutations!",
+      "start_s": 30.125,
+      "end_s": 37.25,
+      "duration_s": 7.125
+    },
+    {
+      "index": 6,
+      "text": "Our pickaxe shatters trying to dig through so many dead ends. Factorial growth is brutal.",
+      "start_s": 37.25,
+      "end_s": 43.1,
+      "duration_s": 5.85
+    },
+    {
+      "index": 7,
+      "text": "Here is the trick. Notice the pattern: with four blocks, fixing the first block leaves six choices for each.",
+      "start_s": 43.1,
+      "end_s": 49.7,
+      "duration_s": 6.6
+    },
+    {
+      "index": 8,
+      "text": "Six start with one, six with two, and so on. We can jump directly to the right group with division!",
+      "start_s": 49.7,
+      "end_s": 56.25,
+      "duration_s": 6.55
+    },
+    {
+      "index": 9,
+      "text": "We switch to zero-based indexing, so target nine becomes index eight. Our chest will store the final sequence.",
+      "start_s": 56.25,
+      "end_s": 63.55,
+      "duration_s": 7.3
+    },
+    {
+      "index": 10,
+      "text": "Divide eight by three factorial, which is six. Quotient is one, remainder is two.",
+      "start_s": 63.55,
+      "end_s": 69.0,
+      "duration_s": 5.45
+    },
+    {
+      "index": 11,
+      "text": "Quotient one picks index one from our remaining blocks: that is the iron block, two!",
+      "start_s": 69.0,
+      "end_s": 74.375,
+      "duration_s": 5.375
+    },
+    {
+      "index": 12,
+      "text": "Now with blocks one, three, and four, divide remainder two by two factorial. Quotient one picks three!",
+      "start_s": 74.375,
+      "end_s": 81.1,
+      "duration_s": 6.725
+    },
+    {
+      "index": 13,
+      "text": "Remainder is zero. Divide by one factorial: zero over one is zero, picking block one.",
+      "start_s": 81.1,
+      "end_s": 87.425,
+      "duration_s": 6.325
+    },
+    {
+      "index": 14,
+      "text": "Only block four remains, so it drops into the final slot without any guessing.",
+      "start_s": 87.425,
+      "end_s": 92.5,
+      "duration_s": 5.075
+    },
+    {
+      "index": 15,
+      "text": "Advancement made! The ninth permutation is two, three, one, four.",
+      "start_s": 92.5,
+      "end_s": 97.15,
+      "duration_s": 4.65
+    },
+    {
+      "index": 16,
+      "text": "Instead of factorial time, we compute each digit in just one math step.",
+      "start_s": 97.15,
+      "end_s": 102.125,
+      "duration_s": 4.975
+    },
+    {
+      "index": 17,
+      "text": "The total time is n squared, taking mere microseconds, and memory is strictly linear.",
+      "start_s": 102.125,
+      "end_s": 108.0,
+      "duration_s": 5.875
+    },
+    {
+      "index": 18,
+      "text": "Precompute the factorials, pick each element with division and modulo, and remove it from the list.",
+      "start_s": 108.0,
+      "end_s": 114.275,
+      "duration_s": 6.275
+    },
+    {
+      "index": 19,
+      "text": "Don't generate what you can calculate. That is the power of the factorial number system.",
+      "start_s": 114.275,
+      "end_s": 119.875,
+      "duration_s": 5.6
+    }
+  ]
+}

@@ -1,0 +1,229 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import { THREE, prog, easeInOut, easeOut, easeOutBack, lerp, V, bezier, pose, mixPose } from '/vendor/lib/stage.js';
+import { MC, loadTheme, makeWorld, makeTerrain, makeBlock, makeChest, makeFrame, makeSign, pixelSprite,
+         makeOrb, makeClouds } from '/vendor/tema/mc.js';
+import { loadMobs, planLife, makeLife, setTime } from '/vendor/tema/vida.js';
+
+const walk = await (await fetch('/walk.json')).json();
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const seg = (i) => subs[i].start_s;
+const TOTAL = subs[subs.length - 1].end_s;
+const W0 = seg(walk.first), W1 = subs[walk.last].end_s;
+const at = (spec) => seg(spec[0]) + spec[1];
+
+const imgs = await loadTheme([
+  'grass_side', 'grass_top', 'dirt', 'planks', 'leaves', 'log_side', 'log_top',
+  ...walk.ores.map((o) => `${o}_ore`)
+]);
+
+const N = walk.nums.length;
+const world = makeWorld({ fov: 40, offset: 0.34, fog: [55, 120] });
+const { scene } = world;
+
+// Terrain of the ClaudeEntorno world (terraced hill in the east, see mundos/lugares.json)
+// Turned so the camera looking toward -z sees the stepped terraces and oaks behind the scene
+const terrain = await makeTerrain('/vendor/tema/mundos/terraced-hill.json', { turn: 1.9635, plot: [-5, 5, -2, 7], clear: [-10, 10, 7, 24] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+
+// Ambient life: morning dawn on the terraced hill
+// Cows, sheep, pigs and chickens roaming the slopes and terraces
+const LIFE = [
+  { kind: 'cow', count: 2, graze: 1 },
+  { kind: 'sheep', count: 2 },
+  { kind: 'pig', count: 1 },
+  { kind: 'chicken', count: 2 }
+];
+await loadMobs(imgs, LIFE.map((g) => g.kind));
+const dim = await setTime(world, 'dawn', { terrain, clouds, imgs });
+const life = makeLife(imgs, terrain, planLife(terrain, LIFE, { seed: 15 }), TOTAL, dim);
+scene.add(life.g);
+
+const stage = new THREE.Group();
+scene.add(stage);
+
+// Initial row of 4 blocks at z = -0.5
+const SP = 1.25;
+const bx = (i) => (i - (N - 1) / 2) * SP;
+const startZ = -0.5;
+
+const blocks = walk.nums.map((v, i) => {
+  const b = makeBlock(imgs, `${walk.ores[i]}_ore`, { label: v });
+  stage.add(b.g);
+  return b;
+});
+
+// Index sprites floating cleanly above each block
+const idxSprites = walk.nums.map((_, i) => {
+  const s = pixelSprite(String(i), MC.gray, 0.45);
+  stage.add(s);
+  return s;
+});
+
+// Chest placed in front at z = 3.2, centered
+const CHEST = V(0, 0, 3.2);
+const chest = makeChest(imgs, 0.95);
+CHEST.y = terrain.groundAt(CHEST.x, CHEST.z);
+chest.g.position.copy(CHEST);
+stage.add(chest.g);
+
+// Frame for currently selected block
+const frame = makeFrame();
+stage.add(frame);
+
+const stepTimes = walk.steps.map((s) => ({
+  step: s.step,
+  val: s.picked_val,
+  ore: s.ore,
+  origIdx: walk.nums.indexOf(s.picked_val),
+  pickT: s.pick_t ? at(s.pick_t) : at(s.calc_t),
+  storeT: at(s.store_t),
+}));
+
+// Small item blocks that pop out of the picked ore block and arc into the open chest
+const flyItems = stepTimes.map((st) => {
+  const it = makeBlock(imgs, `${st.ore}_ore`, { size: 0.36 });
+  stage.add(it.g);
+  return { st, it };
+});
+
+// Experience orbs that burst from the chest at answer
+let seed = 42;
+const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+const orbs = Array.from({ length: 32 }, (_, k) => {
+  const o = makeOrb(imgs, 0.34, [1, 2, 4, 5, 6][k % 5]);
+  o.userData = {
+    vx: (rnd() - 0.5) * 3.2,
+    vy: 2.8 + rnd() * 2.6,
+    vz: (rnd() - 0.4) * 2.2,
+    delay: rnd() * 0.4
+  };
+  stage.add(o);
+  return o;
+});
+
+// Event times parsed from walk.json
+const T_row = seg(9);
+const T_chest = at(walk.chest_in);
+const T_toast = at(walk.toast);
+const T_answer = at(walk.answer);
+
+function lidOpen(t) {
+  let a = 0;
+  for (const st of stepTimes) {
+    const openT = st.storeT - 0.22;
+    const closeT = st.storeT + 0.35;
+    a = Math.max(a, easeOut(prog(t, openT, openT + 0.18)) * (1 - easeInOut(prog(t, closeT, closeT + 0.18))));
+  }
+  return a;
+}
+
+function renderAt(t) {
+  life.update(t);
+  const push = easeInOut(prog(t, T_toast - 0.3, T_toast + 0.8));
+  const sway = 0.4 * Math.sin(t * 0.35);
+  const walkPose = pose(V(sway, lerp(6.6, 6.2, push), lerp(15.0, 14.0, push)), V(sway * 0.4, 1.6, 0.0));
+
+  // Roam camera: periodic slow loop over meadow
+  const a = 2 * Math.PI * t / TOTAL;
+  const roamPose = pose(
+    V(6 * Math.sin(a), 3.4 + 0.8 * Math.sin(2 * a), 13 + 2.5 * Math.cos(a)),
+    V(3 * Math.sin(a), 4.2, -30)
+  );
+
+  const k = easeInOut(prog(t, W0 - 1.6, W0 - 0.1)) * (1 - easeInOut(prog(t, W1 + 0.1, W1 + 1.6)));
+  const cam = mixPose(roamPose, walkPose, k);
+  world.look(cam.pos, cam.look);
+  world.camera.setViewOffset(world.W, world.H, 0, world.H * lerp(0.12, 0.34, k), world.W, world.H);
+
+  clouds.position.x = 4 * Math.sin(a);
+  stage.visible = t < W1;
+
+  // Ore blocks drop in at T_row
+  blocks.forEach((b, i) => {
+    const d = prog(t, T_row + 0.12 * i, T_row + 0.12 * i + 0.55);
+    const fall = d < 1 ? (1 - d) * (1 - d) * 4.5 : 0;
+    const bounce = 0.18 * Math.sin(Math.PI * prog(d, 0.75, 1));
+    const startY = 0.5 + fall + (d >= 0.75 ? bounce : 0) + terrain.groundAt(bx(i), startZ);
+
+    const st = stepTimes.find((q) => q.origIdx === i);
+    const isStored = st && t >= st.storeT + 0.35;
+    const isPicked = st && t >= st.pickT && t < st.storeT + 0.35;
+
+    b.g.position.set(bx(i), startY, startZ);
+    b.g.visible = d > 0;
+    b.set({
+      opacity: isStored ? 0.35 : (d > 0 ? 1 : 0),
+      glow: isPicked ? 0.35 + 0.15 * Math.sin(t * 8) : 0
+    });
+
+    idxSprites[i].position.set(bx(i), startY + 0.95, startZ + 0.1);
+    idxSprites[i].material.opacity = isStored ? 0.2 : prog(t, T_row + 0.4 + 0.12 * i, T_row + 0.8 + 0.12 * i);
+  });
+
+  // Chest appearance
+  const cIn = easeOutBack(prog(t, T_chest, T_chest + 0.5));
+  chest.g.scale.setScalar(Math.max(cIn, 1e-4));
+  chest.g.visible = cIn > 0.001;
+  chest.open(lidOpen(t));
+
+  // Selection frame on currently selected block
+  let fActive = false;
+  for (const st of stepTimes) {
+    if (t >= st.pickT && t < st.storeT + 0.2) {
+      frame.position.set(bx(st.origIdx), 0.5 + terrain.groundAt(bx(st.origIdx), startZ), startZ);
+      fActive = true;
+      break;
+    }
+  }
+  frame.visible = fActive;
+
+  // Items arc/jump from the ore block into the open chest
+  for (const { st, it } of flyItems) {
+    const f = prog(t, st.storeT, st.storeT + 0.38);
+    it.g.visible = f > 0 && f < 1;
+    if (it.g.visible) {
+      const startP = V(bx(st.origIdx), 1.2, startZ);
+      const endP = CHEST.clone().add(V(0, 0.75, 0));
+      const midP = V((startP.x + endP.x) / 2, 2.6, (startP.z + endP.z) / 2);
+      const p = bezier(startP, midP, endP, easeInOut(f));
+      it.g.position.copy(p);
+      it.g.rotation.y = f * Math.PI * 2;
+    }
+  }
+
+  // Experience orbs burst from chest on answer
+  for (const o of orbs) {
+    const { vx, vy, vz, delay } = o.userData;
+    const t0 = T_answer + 0.2 + delay;
+    const u = t - t0;
+    o.visible = u > 0 && u < 1.6;
+    if (!o.visible) continue;
+    const y = CHEST.y + 0.8 + vy * u - 4.5 * u * u;
+    o.position.set(CHEST.x + vx * u, Math.max(y, 0.1), CHEST.z + vz * u);
+    o.tint(t + delay);
+    o.material.opacity = 1 - prog(u, 1.2, 1.6);
+  }
+
+  world.draw(t, TOTAL, 0, 0);
+}
+
+// Ensure transparent sprites are ordered above terrain
+stage.traverse((o) => { if (o.isSprite) o.renderOrder = 10; });
+
+window.renderAt = renderAt;
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

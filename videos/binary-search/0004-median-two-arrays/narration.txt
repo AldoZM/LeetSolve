@@ -1,20 +1,20 @@
 subtitles:
-- Median of Two Sorted Arrays. LeetCode number four, and one of the most famous hard problems.
-- You get two sorted arrays, and you need the median of all their numbers combined.
-- Here there are eleven numbers in total, so the median is the sixth smallest. That's eleven.
-- The easy way merges both arrays, then picks the middle. But that takes linear time.
-- The problem asks for log time. So we can't even look at every number.
-- Here's the key idea. The median splits all the numbers into a left half and a right half.
-- If we cut A at some point i, the cut in B is forced, because the left side must hold exactly six numbers.
-- So we only binary search the cut in the shorter array.
-- The cut is valid when everything on the left is at most everything on the right. Since both arrays are sorted, we only check across the cut.
+- Median of Two Sorted Arrays, Minecraft edition. LeetCode number four, one of the most famous hard problems.
+- We get two sorted rows of blocks, and we need the median of all their numbers combined.
+- There are eleven blocks in total, so the median is the sixth smallest. That's eleven.
+- The easy way merges both rows, then picks the middle. But that takes linear time.
+- The problem asks for log time. So we can't even look at every block.
+- Here's the trick. The median splits all the blocks into a left half and a right half.
+- If we cut row A at some point i, the cut in B is forced, because the left side must hold exactly six blocks.
+- So we only binary search the cut in the shorter row.
+- The cut is valid when everything on the left is at most everything on the right. Since the rows are sorted, we only check across the cut.
 - Let's search. The cut in A can go anywhere from zero to five.
-- Try the middle, i equals two. That forces j to four. The left side gets two numbers from A, and four from B.
+- Try the middle, i equals two. That forces j to four. The left side gets two blocks from A, and four from B.
 - Check across the cut. Nineteen on the left is bigger than eight on the right. So the cut in A is too far left.
 - Move right. Now i is four, and j is two.
 - Nine is at most eighteen, and eleven is at most fifteen. Both checks pass, so the cut is valid.
-- The total is odd, so the median is the largest value on the left. The max of nine and eleven is eleven.
-- We binary search only the shorter array, so the time is log of the smaller length.
+- Advancement made. The total is odd, so the median is the largest block on the left. That's eleven.
+- We binary search only the shorter row, so the time is log of the smaller length.
 - And we only keep a few pointers, so the space is constant.
-- No merging. Just one cut, checked across both arrays.
+- No merging. Just one cut, checked across both rows.
 - Find the right cut, and the median falls out.
