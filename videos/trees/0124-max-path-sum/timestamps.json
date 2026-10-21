@@ -1,0 +1,124 @@
+{
+  "total_duration_s": 93.204,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Binary Tree Maximum Path Sum. LeetCode one twenty four, a classic hard.",
+      "start_s": 0.0,
+      "end_s": 5.426,
+      "duration_s": 5.426
+    },
+    {
+      "index": 1,
+      "text": "A path is any chain of connected nodes, each used at most once. Find the path with the largest sum.",
+      "start_s": 5.426,
+      "end_s": 12.151,
+      "duration_s": 6.725
+    },
+    {
+      "index": 2,
+      "text": "The path doesn't have to pass through the root. Here, the best one is fifteen, twenty, seven. That's forty two.",
+      "start_s": 12.151,
+      "end_s": 19.001,
+      "duration_s": 6.85
+    },
+    {
+      "index": 3,
+      "text": "Trying every pair of start and end nodes would be far too slow.",
+      "start_s": 19.001,
+      "end_s": 23.426,
+      "duration_s": 4.425
+    },
+    {
+      "index": 4,
+      "text": "Instead, look at the top of a path, its highest node. The path takes that node, plus its best branch on the left, plus its best branch on the right.",
+      "start_s": 23.426,
+      "end_s": 32.526,
+      "duration_s": 9.1
+    },
+    {
+      "index": 5,
+      "text": "But a path can only bend once. So when a node reports up to its parent, it can only offer one branch.",
+      "start_s": 32.526,
+      "end_s": 39.226,
+      "duration_s": 6.7
+    },
+    {
+      "index": 6,
+      "text": "And if a branch is negative, we simply drop it, and use zero instead.",
+      "start_s": 39.226,
+      "end_s": 43.926,
+      "duration_s": 4.7
+    },
+    {
+      "index": 7,
+      "text": "Let's run it bottom up. We start with the leaves on the left.",
+      "start_s": 43.926,
+      "end_s": 47.701,
+      "duration_s": 3.775
+    },
+    {
+      "index": 8,
+      "text": "Minus four is negative, so its parent will drop it. Two offers a gain of two.",
+      "start_s": 47.701,
+      "end_s": 52.926,
+      "duration_s": 5.225
+    },
+    {
+      "index": 9,
+      "text": "At nine, the best path through it is nine plus two, eleven. It offers eleven to its parent.",
+      "start_s": 52.926,
+      "end_s": 58.952,
+      "duration_s": 6.026
+    },
+    {
+      "index": 10,
+      "text": "On the right, fifteen and seven offer themselves.",
+      "start_s": 58.952,
+      "end_s": 62.152,
+      "duration_s": 3.2
+    },
+    {
+      "index": 11,
+      "text": "At twenty, the path fifteen, twenty, seven sums to forty two. That's the new best. It offers twenty plus fifteen, thirty five.",
+      "start_s": 62.152,
+      "end_s": 71.027,
+      "duration_s": 8.875
+    },
+    {
+      "index": 12,
+      "text": "At the root, minus ten plus eleven plus thirty five is only thirty six. So the answer stays forty two.",
+      "start_s": 71.027,
+      "end_s": 78.253,
+      "duration_s": 7.226
+    },
+    {
+      "index": 13,
+      "text": "Each node is visited once, so the time is linear.",
+      "start_s": 78.253,
+      "end_s": 81.879,
+      "duration_s": 3.626
+    },
+    {
+      "index": 14,
+      "text": "The recursion goes as deep as the tree, so the space is the height.",
+      "start_s": 81.879,
+      "end_s": 86.079,
+      "duration_s": 4.2
+    },
+    {
+      "index": 15,
+      "text": "Return one branch up, but score both branches at every node.",
+      "start_s": 86.079,
+      "end_s": 90.354,
+      "duration_s": 4.275
+    },
+    {
+      "index": 16,
+      "text": "Bend once at the top, and keep the best.",
+      "start_s": 90.354,
+      "end_s": 93.204,
+      "duration_s": 2.85
+    }
+  ]
+}

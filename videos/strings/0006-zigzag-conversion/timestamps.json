@@ -1,0 +1,124 @@
+{
+  "total_duration_s": 84.0,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Zigzag Conversion. LeetCode number six.",
+      "start_s": 0.0,
+      "end_s": 3.4,
+      "duration_s": 3.4
+    },
+    {
+      "index": 1,
+      "text": "Write a string in a zigzag pattern across a number of rows, then read it off row by row.",
+      "start_s": 3.4,
+      "end_s": 9.075,
+      "duration_s": 5.675
+    },
+    {
+      "index": 2,
+      "text": "With PAYPALISHIRING and three rows, the letters go down, then diagonally up, then down again.",
+      "start_s": 9.075,
+      "end_s": 16.35,
+      "duration_s": 7.275
+    },
+    {
+      "index": 3,
+      "text": "Reading each row from left to right gives P A H N, then A P L S I I G, then Y I R.",
+      "start_s": 16.35,
+      "end_s": 22.6,
+      "duration_s": 6.25
+    },
+    {
+      "index": 4,
+      "text": "You could build a full grid and place each letter in its cell. But a lot of that grid stays empty.",
+      "start_s": 22.6,
+      "end_s": 28.8,
+      "duration_s": 6.2
+    },
+    {
+      "index": 5,
+      "text": "The trick is that columns don't matter. Only the row of each letter does.",
+      "start_s": 28.8,
+      "end_s": 33.475,
+      "duration_s": 4.675
+    },
+    {
+      "index": 6,
+      "text": "So keep one string per row, and a pointer that bounces between the top and the bottom.",
+      "start_s": 33.475,
+      "end_s": 38.75,
+      "duration_s": 5.275
+    },
+    {
+      "index": 7,
+      "text": "Let's run it. Three empty rows, and the pointer starts at the top.",
+      "start_s": 38.75,
+      "end_s": 43.125,
+      "duration_s": 4.375
+    },
+    {
+      "index": 8,
+      "text": "P goes in row zero, A in row one, Y in row two. We hit the bottom, so the pointer turns around.",
+      "start_s": 43.125,
+      "end_s": 50.125,
+      "duration_s": 7.0
+    },
+    {
+      "index": 9,
+      "text": "P goes back up to row one, then A reaches the top, and the pointer turns down again.",
+      "start_s": 50.125,
+      "end_s": 55.65,
+      "duration_s": 5.525
+    },
+    {
+      "index": 10,
+      "text": "The pattern repeats for every letter. Down, up, down, up.",
+      "start_s": 55.65,
+      "end_s": 59.575,
+      "duration_s": 3.925
+    },
+    {
+      "index": 11,
+      "text": "When the last letter lands, each row holds its own piece of the answer.",
+      "start_s": 59.575,
+      "end_s": 64.025,
+      "duration_s": 4.45
+    },
+    {
+      "index": 12,
+      "text": "Join the rows, and we get P A H N A P L S I I G Y I R.",
+      "start_s": 64.025,
+      "end_s": 68.9,
+      "duration_s": 4.875
+    },
+    {
+      "index": 13,
+      "text": "Every letter is placed exactly once, so the time is linear.",
+      "start_s": 68.9,
+      "end_s": 73.225,
+      "duration_s": 4.325
+    },
+    {
+      "index": 14,
+      "text": "And the rows hold the same n letters, so the space is linear too.",
+      "start_s": 73.225,
+      "end_s": 77.5,
+      "duration_s": 4.275
+    },
+    {
+      "index": 15,
+      "text": "No grid. Just rows and a bouncing pointer.",
+      "start_s": 77.5,
+      "end_s": 80.8,
+      "duration_s": 3.3
+    },
+    {
+      "index": 16,
+      "text": "Down and up, row by row. That's the zigzag.",
+      "start_s": 80.8,
+      "end_s": 84.0,
+      "duration_s": 3.2
+    }
+  ]
+}

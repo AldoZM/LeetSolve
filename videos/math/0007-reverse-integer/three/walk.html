@@ -1,0 +1,145 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #0B0E1A; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import { THREE, C, prog, easeInOut, easeOutBack, lerp, V, bezier, mixColor, loadTiming, textSprite,
+         makeTile, makeStage, pose, poseTrack, drift } from '/vendor/lib/stage.js';
+
+const walk = await (await fetch('/walk.json')).json();
+const { seg, total: TOTAL } = await loadTiming(walk.first, walk.last);
+const at = (spec) => seg(spec[0]) + spec[1];
+const timed = (ops) => ops.map((o) => ({ ...o, tp: at(o.pop), tc: at(o.check), tl: o.push ? at(o.push) : null, ts: o.stop ? at(o.stop) : null }));
+const run1 = timed(walk.run1), run2 = timed(walk.run2);
+const tZero = at(walk.zero), tDone1 = at(walk.done1), tReset = at(walk.reset), tLimit = at(walk.limit_in);
+
+// Rows are right-aligned so place values line up: x on top, rev in the middle, the limit below
+const COL = 1.0, XR = 4.5, YX = 2.4, YREV = 0.6, YLIM = -0.9;
+const slotX = (i, n) => XR - (n - 1 - i) * COL;   // i-th digit of an n-digit row
+const st = makeStage({ gridY: -1.9, gridX: 0, offset: 0.11, bloom: 0.6 });
+const { scene } = st;
+
+function digitTiles(n, color) {
+  return String(n).split('').map((d) => { const t = makeTile(d, color, { size: 0.85 }); scene.add(t.g); return t; });
+}
+const x1 = digitTiles(walk.x1, C.cyan);
+const x2 = digitTiles(walk.x2, C.cyan);
+const zeroTile = makeTile('0', C.muted, { size: 0.85 }); scene.add(zeroTile.g);
+const lim = digitTiles(walk.limit, C.red);
+const labels = [['x', C.cyan, YX], ['rev', C.green, YREV]].map(([s, c, y]) => { const m = textSprite(s, c, 0.5, 'Segoe UI'); m.position.set(XR + 1.1, y, 0); scene.add(m); return m; });
+const limLabel = textSprite('2³¹ − 1', C.red, 0.45, 'Segoe UI'); limLabel.position.set(XR + 1.3, YLIM, 0); scene.add(limLabel);
+const stopLabel = textSprite('return 0', C.red, 1.0, 'Segoe UI'); stopLabel.position.set(XR - 4.5 * COL, YREV + 2.6, 0.5); scene.add(stopLabel);
+
+// Pushed digits: one green tile per push in each run (the overflowing digit gets a red one)
+const pushed1 = run1.map((o) => { const t = makeTile(o.d, C.green, { size: 0.85 }); scene.add(t.g); return t; });
+const pushed2 = run2.map((o) => { const t = makeTile(o.d, o.overflow ? C.red : C.green, { size: 0.85 }); scene.add(t.g); return t; });
+
+// ---------- helpers ----------
+const popped = (run, t) => run.filter((o) => t >= o.tp).length;
+const pushedCount = (run, t) => run.filter((o) => o.tl !== null && t >= o.tl).length;
+// Smooth count for the rev row shift: each push slides the row left before the digit lands
+const shiftCount = (run, t) => run.reduce((s, o) => s + (o.tl === null ? 0 : easeInOut(prog(t, o.tl - 0.3, o.tl))), 0);
+
+function placeX(tiles, run, t, appear, gone) {
+  // Remaining digits of x stay put; popped ones are handled by the pushed tiles
+  const n = tiles.length;
+  tiles.forEach((tile, i) => {
+    const k = n - 1 - i;               // this digit is popped by op k
+    const op = run[k];
+    const a = easeOutBack(prog(t, appear + 0.08 * i, appear + 0.08 * i + 0.45));
+    const vis = op && t >= op.tp ? 0 : a * (1 - prog(t, gone, gone + 0.4));
+    tile.set({ scale: vis });
+    tile.g.position.set(slotX(i, n), YX, 0);
+  });
+}
+
+function placePushed(tiles, run, t, n, gone, xLen) {
+  // Each digit lifts out of x, arcs down, and lands in the last slot of rev; rev shifts left first
+  tiles.forEach((tile, k) => {
+    const op = run[k];
+    if (t < op.tp) { tile.set({ scale: 0 }); return; }
+    const from = V(slotX(xLen - 1 - k, xLen), YX, 0);
+    const hover = V(from.x + 0.3, YX + 1.0, 0.8);
+    const shifted = shiftCount(run, t);
+    let pos;
+    if (op.overflow) {
+      // Hover, then try the slot rev would need: one past the limit
+      const f = easeInOut(prog(t, op.tp, op.tp + 0.6));
+      const g = easeInOut(prog(t, op.tc, op.tc + 0.6));
+      pos = lerpPath(from, hover, f);
+      pos = pos.lerp(V(XR, YREV + 0.05, 0.4), g);
+    } else {
+      const f = easeInOut(prog(t, op.tp, op.tl));
+      const dest = V(XR - (pushedCount(run, t) > k ? (shifted - (k + 1)) : 0) * COL, YREV, 0);
+      pos = bezier(from, V((from.x + XR) / 2 + 0.6, YX + 1.4, 1.2), V(XR, YREV, 0), f);
+      if (t >= op.tl) pos = dest;
+    }
+    const pulse = op.overflow ? 0.15 * Math.sin(Math.PI * prog(t, op.tc, op.tc + 0.5)) : 0;
+    tile.set({ scale: (1 + pulse) * (1 - prog(t, gone, gone + 0.4)), ring: op.overflow ? C.red : C.green });
+    tile.g.position.copy(pos);
+  });
+}
+const lerpPath = (a, b, f) => new THREE.Vector3().lerpVectors(a, b, f);
+
+// ---------- camera ----------
+const near = pose(V(XR - 0.6, 3.6, 12.5), V(XR - 1.6, 1.0, 0));
+const far = pose(V(XR - 3.4, 4.6, 19.5), V(XR - 4.0, 0.7, 0));
+function cameraPose(t) {
+  const over = run2.at(-1);
+  return drift(poseTrack(t, [[0, near], [tReset, far, 1.4], [over.tc - 0.2, pose(V(XR - 4.2, 4.0, 19.0), V(XR - 4.6, 0.6, 0)), 1.2]]), t, 0.25, 0.15);
+}
+
+function renderAt(t) {
+  const p = cameraPose(t);
+  st.look(p.pos, p.look);
+  const over = run2.at(-1);
+
+  // Run 1: 1463 -> 3641
+  placeX(x1, run1, t, 0.3, tReset);
+  placePushed(pushed1, run1, t, 4, tReset, 4);
+  zeroTile.set({ scale: easeOutBack(prog(t, tZero, tZero + 0.4)) * (1 - prog(t, run1[0].tl - 0.3, run1[0].tl)) });
+  zeroTile.g.position.set(XR, YREV, 0);
+  if (t > tDone1 && t < tReset + 0.4) {
+    const w = (k) => Math.sin(Math.PI * prog(t, tDone1 + 0.12 * k, tDone1 + 0.4 + 0.12 * k));
+    pushed1.forEach((tile, k) => { tile.g.position.y += 0.3 * w(k); });
+  }
+
+  // Run 2: 1534236469 overflows on the last digit
+  placeX(x2, run2, t, tReset + 0.5, TOTAL + 1);
+  placePushed(pushed2, run2, t, 10, over.ts + 1.0, 10);
+
+  // Limit row fades in under rev
+  const limIn = prog(t, tLimit, tLimit + 0.6);
+  const alarm = t > over.tc ? 0.5 + 0.5 * Math.sin((t - over.tc) * 9) : 0;
+  lim.forEach((tile, i) => {
+    tile.set({ scale: easeOutBack(prog(t, tLimit + 0.05 * i, tLimit + 0.4 + 0.05 * i)), opacity: 0.55 + 0.45 * alarm * (i === 0 ? 1 : 0.4),
+               ring: i === 0 && alarm ? mixColor(C.red, 0xffffff, alarm).getHex() : C.red });
+    tile.g.position.set(slotX(i, 10), YLIM, 0);
+  });
+  limLabel.material.opacity = limIn;
+
+  // At the check, rev slides left one slot to show what pushing would need
+  if (t > over.tc) {
+    const g = easeInOut(prog(t, over.tc, over.tc + 0.6)) * (1 - prog(t, over.ts + 1.0, over.ts + 1.4));
+    pushed2.forEach((tile, k) => { if (!run2[k].overflow) { tile.g.position.x -= g * COL; tile.set({ ring: mixColor(C.green, C.red, g).getHex(), scale: 1 - prog(t, over.ts + 1.0, over.ts + 1.4) }); } });
+    pushed2[0].set({ ring: mixColor(C.green, 0xffffff, alarm).getHex(), scale: 1 - prog(t, over.ts + 1.0, over.ts + 1.4) });
+  }
+  const sIn = easeOutBack(prog(t, over.ts, over.ts + 0.5));
+  stopLabel.visible = sIn > 0.001;
+  stopLabel.setSize(sIn);
+
+  labels.forEach((m, i) => { m.material.opacity = prog(t, 0.3 + 0.4 * i, 0.8 + 0.4 * i); });
+  st.draw(t, TOTAL);
+}
+
+window.renderAt = renderAt;
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+subtitles:
+- Reverse Integer. LeetCode number seven, and it's trickier than it looks.
+- Given a signed thirty two bit integer, reverse its digits. One two three becomes three two one.
+- But if the reversed number doesn't fit in thirty two bits, return zero.
+- Turning it into a string is easy. The real challenge is catching overflow without a bigger integer type.
+- So we do it with math. Mod ten pops the last digit, and dividing by ten removes it.
+- Then times ten, plus the digit, pushes it onto the result.
+- Before each push, check that the result can still grow without passing the limit.
+- Let's reverse one four six three. The result starts at zero.
+- Pop three, and push it. The result is three.
+- Pop six. Three times ten plus six is thirty six.
+- Pop four, three hundred sixty four. Pop one, three thousand six hundred forty one.
+- Now a dangerous one. One five three four two three six four six nine. The reverse keeps growing toward the limit.
+- With nine digits pushed, one more digit would pass two point one billion. So we stop, and return zero.
+- Each step removes one digit, so the time is the number of digits. That's log of x.
+- And we only keep a few numbers, so the space is constant.
+- Pop with mod, push with times ten, and check the limit before every push.
+- Reverse the digits, but never trust the overflow.

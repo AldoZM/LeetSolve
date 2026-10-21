@@ -1,0 +1,21 @@
+subtitles:
+- Add Two Numbers. Problem number two on LeetCode, and the classic linked list warm up.
+- You get two linked lists, and each one stores a number, one digit per node.
+- The digits are stored in reverse order, so the ones digit comes first.
+- So this list is nine hundred forty two, and this one is nine thousand four hundred sixty five.
+- Return their sum as a linked list, in the same reversed order.
+- The tempting shortcut is to turn both lists into integers and just add them.
+- But a list can hold a hundred digits. That overflows any normal integer type.
+- Here's the good news. Reverse order is exactly how we add by hand, starting from the ones place.
+- Add each column, write down the last digit, and carry the rest to the next column.
+- So we walk both lists together, one node at a time, keeping a carry.
+- First column. Two plus five is seven, and there's no carry.
+- Next, four plus six is ten. We write a zero, and carry the one.
+- Then nine plus four, plus the carry, is fourteen. Write four, carry one.
+- The first list has run out, so it counts as zero. Nine plus one is ten. Write zero, carry one.
+- Both lists are finished, but the carry is still one. So we add one final node.
+- The result reads seven, zero, four, zero, one. That's ten thousand four hundred seven.
+- Each node is visited once, so the time is linear in the length of the longer list.
+- And the new list takes the same amount of extra space.
+- One loop, one carry, and a dummy head to keep the code clean.
+- Reverse order turns linked lists into grade school addition.

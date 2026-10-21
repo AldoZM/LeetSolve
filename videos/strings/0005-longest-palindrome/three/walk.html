@@ -1,0 +1,187 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #0B0E1A; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import { THREE, C, prog, easeInOut, easeOutBack, lerp, V, mixColor, loadTiming, textSprite, textPlane,
+         makeTile, makeStage, pose, poseTrack, drift } from '/vendor/lib/stage.js';
+
+const walk = await (await fetch('/walk.json')).json();
+const S = walk.s;
+const { seg, total: TOTAL } = await loadTiming(walk.first, walk.last);
+const at = (spec) => seg(spec[0]) + spec[1];
+const centers = walk.centers.map((e, k) => ({ ...e, t0: at(e.start), times: e.times.map(at), tb: e.best ? at(e.best) : null }));
+centers.forEach((e, k) => { e.t1 = k + 1 < centers.length ? centers[k + 1].t0 : TOTAL + 1; });
+const tFinal = at(walk.final);
+const answer = centers.find((e) => e.c === 12);
+
+const COL = 1.55;
+const colX = (k) => k * COL;
+const centerX = (c) => (c / 2) * COL;
+const MID = colX(S.length - 1) / 2;
+const YBEST = -1.85;
+
+const st = makeStage({ gridY: -2.4, gridX: MID, offset: 0.2, bloom: 0.6 });
+const { scene } = st;
+
+const tiles = [...S].map((ch, k) => { const t = makeTile(ch, C.cyan, { size: 1.25 }); t.g.position.set(colX(k), 0, 0); scene.add(t.g); return t; });
+const idx = [...S].map((_, k) => { const p = textPlane(k, C.muted, 0.4); p.position.set(colX(k), -1.1, 0); scene.add(p); return p; });
+
+// Center: a light pillar with a translucent mirror slice
+const pillarMat = new THREE.MeshBasicMaterial({ color: C.yellow, toneMapped: false, transparent: true });
+const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 3.6, 12), pillarMat);
+pillar.position.y = 0.6; pillar.position.z = 0.7;
+const mirrorMat = new THREE.MeshBasicMaterial({ color: C.yellow, transparent: true, opacity: 0.12, side: THREE.DoubleSide, toneMapped: false, depthWrite: false });
+const mirror = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 3.6), mirrorMat);
+mirror.rotation.y = Math.PI / 2; mirror.position.y = 0.6;
+const centerG = new THREE.Group(); centerG.add(pillar, mirror); scene.add(centerG);
+
+// Arcs: one per comparison of two different letters
+function makeArc(l, r, kind) {
+  const xa = colX(l), xb = colX(r);
+  const span = Math.abs(xb - xa);
+  const p0 = V(xa, 0.75, 0.2), p2 = V(xb, 0.75, 0.2), p1 = V((xa + xb) / 2, 0.75 + 0.55 * span + 0.6, 0.6);
+  const geo = new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(p0, p1, p2), 64, 0.065, 8, false);
+  const color = kind === 'match' ? C.green : C.red;
+  const mat = new THREE.MeshBasicMaterial({ color, toneMapped: false, transparent: true });
+  const m = new THREE.Mesh(geo, mat); scene.add(m);
+  return { m, mat, count: geo.index.count };
+}
+for (const e of centers) {
+  e.arcs = e.cmps.map(([l, r, kind]) => (l === r || kind === 'edge' ? null : makeArc(l, r, kind)));
+}
+// End-of-string markers for comparisons that run off either side
+const endMarks = centers.flatMap((e) => e.cmps.map(([l, r, kind], j) => {
+  if (kind !== 'edge') return null;
+  const x = l < 0 ? colX(0) - COL * 0.75 : colX(S.length - 1) + COL * 0.75;
+  const s = textSprite('end', C.red, 0.5, 'Segoe UI'); s.position.set(x, 0.2, 0.3); scene.add(s);
+  return { e, j, s };
+}).filter(Boolean));
+
+// Best range rail
+const bestMat = new THREE.MeshBasicMaterial({ color: C.green, transparent: true, toneMapped: false });
+const bestRail = new THREE.Mesh(new THREE.BoxGeometry(1, 0.12, 0.12), bestMat); bestRail.position.y = YBEST; scene.add(bestRail);
+const bestLabels = {};
+for (const e of centers) if (e.tb !== null) { const s = textSprite(`best ${e.len}`, C.green, 0.45, 'Segoe UI'); s.position.y = YBEST - 0.45; scene.add(s); bestLabels[e.c] = s; }
+
+function activeCenter(t) {
+  let cur = null;
+  for (const e of centers) if (t >= e.t0) cur = e;
+  return cur;
+}
+function centerPos(t) {
+  let x = centerX(0);
+  for (const e of centers) x = lerp(x, centerX(e.c), easeInOut(prog(t, e.t0 - 0.12, e.t0 + (e.fast ? 0.05 : 0.3))));
+  return x;
+}
+
+// ---------- camera ----------
+const overview = pose(V(MID + 5.0, 7.5, 25), V(MID + 0.3, 1.0, 0));
+const finalView = pose(V(centerX(12) + 4.0, 6.5, 19), V(centerX(12) - 0.6, 1.2, 0));
+function cameraPose(t, cx) {
+  const x = Math.min(Math.max(cx, colX(1.4)), colX(6.8));
+  const follow = pose(V(x + 5.6, 4.8, 13.5), V(x + 0.2, 1.0, 0));
+  const answerView = pose(V(centerX(12) + 4.5, 6.0, 16.5), V(centerX(12), 1.4, 0));
+  const p = poseTrack(t, [[0, overview], [2.6, follow, 1.5], [answer.t0 - 0.3, answerView, 1.0], [answer.times[4] + 1.0, answerView, 0.1],
+                          [centers[13].t0 - 0.2, follow, 0.8], [tFinal - 0.2, finalView, 1.3]]);
+  return drift(p, t, 0.3, 0.15);
+}
+
+function renderAt(t) {
+  const cx = centerPos(t);
+  const p = cameraPose(t, cx);
+  st.look(p.pos, p.look);
+  const cur = activeCenter(t);
+
+  // Best so far
+  let best = null;
+  for (const e of centers) if (e.tb !== null && t >= e.tb) best = e;
+
+  tiles.forEach((tile, k) => {
+    const pop = easeOutBack(prog(t, 0.3 + 0.1 * k, 0.8 + 0.1 * k));
+    let ring = C.cyan, lift = 0, fill = C.panel;
+    if (cur) {
+      cur.cmps.forEach(([l, r, kind], j) => {
+        const tc = cur.times[j];
+        if (t < tc || (k !== l && k !== r)) return;
+        if (kind === 'match') { ring = C.green; lift = 0.28 * easeOutBack(prog(t, tc, tc + 0.25)); }
+        else if (kind === 'miss') ring = mixColor(C.red, C.cyan, prog(t, tc + 0.35, tc + 0.6)).getHex();
+      });
+    }
+    // The answer stays lit after it is found
+    const [l0, r0] = [answer.cmps[4][0] + 1, answer.cmps[4][1] - 1];
+    if (t > answer.times[4] && k >= l0 && k <= r0 && cur !== answer) {
+      ring = C.yellow;
+      fill = mixColor(C.panel, C.yellow, 0.18).getHex();
+    }
+    if (t > tFinal && k >= l0 && k <= r0) {
+      const w = prog(t, tFinal + 0.1 + 0.12 * (k - l0), tFinal + 0.45 + 0.12 * (k - l0));
+      lift += Math.sin(Math.PI * w) * 0.3;
+      ring = C.yellow;
+      fill = mixColor(C.panel, C.yellow, 0.22).getHex();
+    }
+    tile.set({ scale: pop, ring, fill });
+    tile.g.position.y = lift - (1 - Math.min(pop, 1)) * 0.8;
+  });
+  idx.forEach((m) => { m.material.opacity = prog(t, 1.2, 1.7); });
+
+  // Center pillar
+  const cin = prog(t, centers[0].t0 - 0.4, centers[0].t0);
+  const gap = cur ? cur.c % 2 === 1 : false;
+  centerG.position.x = cx;
+  centerG.visible = cin > 0.001 && t < tFinal + 0.6;
+  const cc = gap ? C.magenta : C.yellow;
+  pillarMat.color.set(cc); mirrorMat.color.set(cc);
+  pillarMat.opacity = cin * (1 - prog(t, tFinal, tFinal + 0.6));
+  mirrorMat.opacity = 0.12 * pillarMat.opacity;
+
+  // Arcs live while their center is active; the answer's arcs stay
+  for (const e of centers) {
+    e.arcs.forEach((a, j) => {
+      if (!a) return;
+      const tc = e.times[j];
+      const grow = easeInOut(prog(t, tc - 0.05, tc + (e.fast ? 0.12 : 0.35)));
+      const keep = e === answer && e.cmps[j][2] === 'match';
+      const fade = keep ? 1 : 1 - prog(t, e.t1 - 0.05, e.t1 + 0.15);
+      a.m.geometry.setDrawRange(0, Math.floor(a.count * grow / 48) * 48);
+      a.m.visible = grow > 0.001 && fade > 0.001;
+      a.mat.opacity = fade;
+    });
+  }
+  for (const { e, j, s } of endMarks) {
+    const tc = e.times[j];
+    s.visible = t > tc && t < e.t1 + 0.1;
+    s.material.opacity = prog(t, tc, tc + 0.2) * (1 - prog(t, e.t1 - 0.1, e.t1 + 0.1));
+  }
+
+  // Best rail
+  if (best) {
+    const [l, r] = [best.cmps.at(-1)[0] + 1, best.cmps.at(-1)[1] - 1];
+    let prevL = l, prevR = r;
+    const k = centers.indexOf(best);
+    const prevBest = centers.slice(0, k).reverse().find((e) => e.tb !== null);
+    if (prevBest) { prevL = prevBest.cmps.at(-1)[0] + 1; prevR = prevBest.cmps.at(-1)[1] - 1; }
+    const f = easeInOut(prog(t, best.tb, best.tb + 0.4));
+    const x0 = lerp(colX(prevL), colX(l), f) - COL / 2 + 0.1, x1 = lerp(colX(prevR), colX(r), f) + COL / 2 - 0.1;
+    bestRail.visible = true;
+    bestRail.scale.x = x1 - x0; bestRail.position.x = (x0 + x1) / 2;
+    for (const [c, s] of Object.entries(bestLabels)) { s.visible = Number(c) === best.c; s.position.x = bestRail.position.x; }
+  } else {
+    bestRail.visible = false;
+    Object.values(bestLabels).forEach((s) => { s.visible = false; });
+  }
+
+  st.draw(t, TOTAL);
+}
+
+window.renderAt = renderAt;
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

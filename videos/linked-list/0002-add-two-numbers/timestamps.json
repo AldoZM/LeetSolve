@@ -1,0 +1,145 @@
+{
+  "total_duration_s": 99.325,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Add Two Numbers. Problem number two on LeetCode, and the classic linked list warm up.",
+      "start_s": 0.0,
+      "end_s": 5.85,
+      "duration_s": 5.85
+    },
+    {
+      "index": 1,
+      "text": "You get two linked lists, and each one stores a number, one digit per node.",
+      "start_s": 5.85,
+      "end_s": 10.6,
+      "duration_s": 4.75
+    },
+    {
+      "index": 2,
+      "text": "The digits are stored in reverse order, so the ones digit comes first.",
+      "start_s": 10.6,
+      "end_s": 15.1,
+      "duration_s": 4.5
+    },
+    {
+      "index": 3,
+      "text": "So this list is nine hundred forty two, and this one is nine thousand four hundred sixty five.",
+      "start_s": 15.1,
+      "end_s": 21.25,
+      "duration_s": 6.15
+    },
+    {
+      "index": 4,
+      "text": "Return their sum as a linked list, in the same reversed order.",
+      "start_s": 21.25,
+      "end_s": 25.325,
+      "duration_s": 4.075
+    },
+    {
+      "index": 5,
+      "text": "The tempting shortcut is to turn both lists into integers and just add them.",
+      "start_s": 25.325,
+      "end_s": 30.425,
+      "duration_s": 5.1
+    },
+    {
+      "index": 6,
+      "text": "But a list can hold a hundred digits. That overflows any normal integer type.",
+      "start_s": 30.425,
+      "end_s": 35.75,
+      "duration_s": 5.325
+    },
+    {
+      "index": 7,
+      "text": "Here's the good news. Reverse order is exactly how we add by hand, starting from the ones place.",
+      "start_s": 35.75,
+      "end_s": 42.3,
+      "duration_s": 6.55
+    },
+    {
+      "index": 8,
+      "text": "Add each column, write down the last digit, and carry the rest to the next column.",
+      "start_s": 42.3,
+      "end_s": 47.5,
+      "duration_s": 5.2
+    },
+    {
+      "index": 9,
+      "text": "So we walk both lists together, one node at a time, keeping a carry.",
+      "start_s": 47.5,
+      "end_s": 51.925,
+      "duration_s": 4.425
+    },
+    {
+      "index": 10,
+      "text": "First column. Two plus five is seven, and there's no carry.",
+      "start_s": 51.925,
+      "end_s": 55.925,
+      "duration_s": 4.0
+    },
+    {
+      "index": 11,
+      "text": "Next, four plus six is ten. We write a zero, and carry the one.",
+      "start_s": 55.925,
+      "end_s": 60.375,
+      "duration_s": 4.45
+    },
+    {
+      "index": 12,
+      "text": "Then nine plus four, plus the carry, is fourteen. Write four, carry one.",
+      "start_s": 60.375,
+      "end_s": 65.125,
+      "duration_s": 4.75
+    },
+    {
+      "index": 13,
+      "text": "The first list has run out, so it counts as zero. Nine plus one is ten. Write zero, carry one.",
+      "start_s": 65.125,
+      "end_s": 71.425,
+      "duration_s": 6.3
+    },
+    {
+      "index": 14,
+      "text": "Both lists are finished, but the carry is still one. So we add one final node.",
+      "start_s": 71.425,
+      "end_s": 76.55,
+      "duration_s": 5.125
+    },
+    {
+      "index": 15,
+      "text": "The result reads seven, zero, four, zero, one. That's ten thousand four hundred seven.",
+      "start_s": 76.55,
+      "end_s": 82.625,
+      "duration_s": 6.075
+    },
+    {
+      "index": 16,
+      "text": "Each node is visited once, so the time is linear in the length of the longer list.",
+      "start_s": 82.625,
+      "end_s": 87.8,
+      "duration_s": 5.175
+    },
+    {
+      "index": 17,
+      "text": "And the new list takes the same amount of extra space.",
+      "start_s": 87.8,
+      "end_s": 91.25,
+      "duration_s": 3.45
+    },
+    {
+      "index": 18,
+      "text": "One loop, one carry, and a dummy head to keep the code clean.",
+      "start_s": 91.25,
+      "end_s": 95.35,
+      "duration_s": 4.1
+    },
+    {
+      "index": 19,
+      "text": "Reverse order turns linked lists into grade school addition.",
+      "start_s": 95.35,
+      "end_s": 99.325,
+      "duration_s": 3.975
+    }
+  ]
+}

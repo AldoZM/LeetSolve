@@ -1,0 +1,21 @@
+subtitles:
+- Two Sum, Minecraft edition. LeetCode problem number one, and an interview classic.
+- Our world is a row of blocks, each one with a number. And we have a target.
+- Find the two blocks that add up exactly to the target, and return their positions.
+- The direct idea is to try every possible pair of blocks.
+- Pick one block, and test it against every block after it.
+- It works, but with just six blocks, that's already fifteen checks. Our pickaxe is almost broken.
+- And it grows quadratically. With a million blocks, that's half a trillion pairs.
+- Here's the trick. If the target is twenty three and I'm holding a fifteen, I know exactly what I need. An eight.
+- We call that the complement. The target, minus the current value.
+- So we walk the row just once, with a chest that remembers every block and where we found it. That chest is our hash map.
+- At each block, we first ask. Is my complement already in the chest?
+- Five needs eighteen. Not there. Store it.
+- Twelve needs eleven. One needs twenty two. Still nothing. Into the chest.
+- Fourteen needs nine. Eight needs fifteen. Keep storing.
+- Now we reach fifteen. It needs eight, and eight is already in the chest, at index four!
+- Advancement made. The answer is indices four and five.
+- Each chest lookup takes constant time, so the whole walk is linear.
+- We went from n squared down to n, in exchange for a little extra memory.
+- One loop, one chest, and just a few lines of code.
+- Trade memory for speed. That's the big lesson of Two Sum.

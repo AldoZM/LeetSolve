@@ -1,0 +1,222 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #0B0E1A; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import { THREE, C, prog, easeInOut, easeOutBack, lerp, V, bezier, mixColor, loadTiming, textSprite,
+         makeStage, pose, poseTrack, drift } from '/vendor/lib/stage.js';
+
+const A = [1, 3, 8, 9, 15];
+const B = [7, 11, 18, 19, 21, 25];
+
+const walk = await (await fetch('/walk.json')).json();
+const { seg, total: TOTAL } = await loadTiming(walk.first, walk.last);
+const at = (spec) => seg(spec[0]) + spec[1];
+const steps = walk.steps.map((s) => ({ ...s, t: Object.fromEntries(Object.entries(s).filter(([, v]) => Array.isArray(v)).map(([k, v]) => [k, at(v)])) }));
+const tRange = at(walk.range), tFinal = at(walk.final);
+
+// Layout: A in front, B behind, columns as tall as their values
+const COL = 1.45, ZA = 2.0, ZB = -2.0;
+const colX = (k) => k * COL;
+const cutX = (k) => (k - 0.5) * COL;
+const height = (v) => 0.35 + v * 0.15;
+const MID = colX(5) / 2;
+
+const st = makeStage({ gridY: -0.01, gridX: MID, offset: 0.16, fog: [24, 60], bloom: 0.5, fov: 48 });
+const { scene } = st;
+
+const colGeo = new THREE.BoxGeometry(1.0, 1, 1.0); colGeo.translate(0, 0.5, 0);
+const capGeo = new THREE.BoxGeometry(1.04, 0.08, 1.04);
+function makeColumn(v, color, x, z) {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.06, roughness: 0.4, metalness: 0.2, transparent: true, opacity: 0.8 });
+  const body = new THREE.Mesh(colGeo, mat);
+  const capMat = new THREE.MeshBasicMaterial({ color, toneMapped: false, transparent: true });
+  const cap = new THREE.Mesh(capGeo, capMat);
+  const label = textSprite(v, C.ink, 0.62);
+  g.add(body, cap, label);
+  g.position.set(x, 0, z);
+  scene.add(g);
+  const h = height(v);
+  const c = { g, mat, capMat, label, h, v, color };
+  c.set = ({ grow = 1, opacity = 1, tint = color, lift = 0, labelColor = null } = {}) => {
+    const hh = Math.max(h * grow, 1e-3);
+    body.scale.y = hh;
+    cap.position.y = hh;
+    label.position.y = hh + 0.5;
+    g.position.y = lift;
+    g.visible = grow > 0.001;
+    mat.color.set(tint).multiplyScalar(0.55); mat.emissive.set(tint);
+    mat.opacity = 0.8 * opacity;
+    capMat.color.set(tint); capMat.opacity = opacity;
+    label.material.opacity = Math.max(opacity, 0.35) * prog(grow, 0.6, 1);
+  };
+  return c;
+}
+const colsA = A.map((v, k) => makeColumn(v, C.cyan, colX(k), ZA));
+const colsB = B.map((v, k) => makeColumn(v, C.violet, colX(k), ZB));
+const labA = textSprite('A', C.cyan, 0.8, 'Segoe UI'); labA.position.set(-1.6, 0.6, ZA); scene.add(labA);
+const labB = textSprite('B', C.violet, 0.8, 'Segoe UI'); labB.position.set(-1.6, 0.6, ZB); scene.add(labB);
+
+// Blades: a glowing edge plus a translucent slice through each row
+function makeBlade(z) {
+  const g = new THREE.Group();
+  const edgeMat = new THREE.MeshBasicMaterial({ color: C.yellow, toneMapped: false, transparent: true });
+  const edge = new THREE.Mesh(new THREE.BoxGeometry(0.06, 4.6, 0.06), edgeMat);
+  edge.position.set(0, 2.3, 0.95);
+  const edge2 = edge.clone(); edge2.position.z = -0.95;
+  const sliceMat = new THREE.MeshBasicMaterial({ color: C.yellow, transparent: true, opacity: 0.13, side: THREE.DoubleSide, toneMapped: false, depthWrite: false });
+  const slice = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 4.6), sliceMat);
+  slice.rotation.y = Math.PI / 2; slice.position.y = 2.3;
+  g.add(edge, edge2, slice);
+  g.position.z = z;
+  scene.add(g);
+  return { g, edgeMat, sliceMat };
+}
+const bladeA = makeBlade(ZA), bladeB = makeBlade(ZB);
+
+// Search range strip in front of A, with cut indices
+const stripMat = new THREE.MeshBasicMaterial({ color: C.yellow, transparent: true, toneMapped: false });
+const strip = new THREE.Mesh(new THREE.BoxGeometry(1, 0.06, 0.3), stripMat);
+strip.position.set(0, 0.03, ZA + 1.25); scene.add(strip);
+const ticks = [0, 1, 2, 3, 4, 5].map((k) => { const s = textSprite(k, C.muted, 0.45); s.position.set(cutX(k), 0.35, ZA + 1.9); scene.add(s); return s; });
+
+// Cross checks: arcs between the two rows
+function makeArc(ka, kb, fromA, ok) {
+  // fromA: arc from A[ka] to B[kb], else from B[kb] to A[ka]
+  const pA = V(colX(ka), height(A[ka]) + 1.0, ZA), pB = V(colX(kb), height(B[kb]) + 1.0, ZB);
+  const [p0, p2] = fromA ? [pA, pB] : [pB, pA];
+  const p1 = V((p0.x + p2.x) / 2, Math.max(p0.y, p2.y) + 1.5, 0);
+  const geo = new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(p0, p1, p2), 64, 0.07, 8, false);
+  const mat = new THREE.MeshBasicMaterial({ color: ok ? C.green : C.red, toneMapped: false, transparent: true });
+  const m = new THREE.Mesh(geo, mat); scene.add(m);
+  const a = fromA ? A[ka] : B[kb], b = fromA ? B[kb] : A[ka];
+  const lab = textSprite(`${a} ${ok ? '≤' : '>'} ${b}`, ok ? C.green : C.red, 0.7);
+  // Labels float above the arc apex, arc 1 to the left and arc 2 to the right, always drawn on top
+  lab.position.copy(bezier(p0, p1, p2, 0.5)).add(V(fromA ? -1.4 : 1.4, 1.1, 0));
+  lab.material.depthTest = false; lab.renderOrder = 10;
+  scene.add(lab);
+  return { m, mat, lab, count: geo.index.count };
+}
+for (const s of steps) {
+  const ok1 = A[s.i - 1] <= B[s.j], ok2 = B[s.j - 1] <= A[s.i];
+  s.arc1 = makeArc(s.i - 1, s.j, true, ok1);
+  s.arc2 = makeArc(s.i, s.j - 1, false, ok2);
+}
+const medLabel = textSprite('median = 11', C.yellow, 1.1, 'Segoe UI'); scene.add(medLabel);
+
+// ---------- timeline ----------
+function bladeX(t, which) {
+  const [s0, s1] = steps;
+  const key = which === 'A' ? 'cutA' : 'cutB';
+  const k0 = which === 'A' ? s0.i : s0.j, k1 = which === 'A' ? s1.i : s1.j;
+  return lerp(cutX(k0), cutX(k1), easeInOut(prog(t, s1.t[key], s1.t[key] + 0.7)));
+}
+function cutsNow(t) {
+  const [s0, s1] = steps;
+  return t >= s1.t.cutB ? s1 : s0;
+}
+
+// ---------- camera ----------
+const overview = pose(V(MID + 2.0, 10.5, 16.5), V(MID, 1.4, -0.4));
+const close = (x) => pose(V(x + 1.6, 9.8, 14.6), V(x, 1.5, -0.4));
+const finalPose = pose(V(MID - 2.6, 9.8, 15.5), V(MID - 0.9, 2.0, -0.4));
+function cameraPose(t) {
+  const [s0, s1] = steps;
+  const p = poseTrack(t, [[0, overview], [s0.t.cutA - 0.5, close((cutX(s0.i) + cutX(s0.j)) / 2), 1.2],
+                          [s0.t.chk1 - 0.3, overview, 1.0], [s1.t.cutA, close((cutX(s1.i) + cutX(s1.j)) / 2), 1.2],
+                          [s1.t.chk1 - 0.2, overview, 1.0], [tFinal - 1.2, finalPose, 2.2]]);
+  return drift(p, t, 0.3, 0.15);
+}
+
+function renderAt(t) {
+  const p = cameraPose(t);
+  st.look(p.pos, p.look);
+  const [s0, s1] = steps;
+  const cur = cutsNow(t);
+  const sidesOn = prog(t, s0.t.sides, s0.t.sides + 0.6);
+  const medianOn = prog(t, s1.t.median + 1.0, s1.t.median + 1.5);
+
+  const styleCol = (c, k, isA, start) => {
+    const grow = easeOutBack(prog(t, start, start + 0.55));
+    const cut = isA ? cur.i : cur.j;
+    const left = k < cut;
+    let opacity = 1 - (left ? 0 : 0.6 * sidesOn);
+    let tint = c.color, lift = 0;
+    // Columns being compared pulse
+    for (const s of steps) {
+      for (const [key, ka, kb] of [['chk1', s.i - 1, s.j], ['chk2', s.i, s.j - 1]]) {
+        const u = t - s.t[key];
+        if (u > 0 && u < 1.2 && ((isA && k === ka) || (!isA && k === kb))) lift = Math.max(lift, Math.sin(Math.PI * u / 1.2) * 0.35);
+      }
+    }
+    if (t > s1.t.median && ((isA && k === s1.i - 1) || (!isA && k === s1.j - 1))) {
+      lift = Math.max(lift, Math.sin(Math.PI * prog(t, s1.t.median, s1.t.median + 1.0)) * 0.4);
+    }
+    if (!isA && k === s1.j - 1) { tint = mixColor(c.color, C.yellow, medianOn).getHex(); lift += 0.5 * medianOn; }
+    c.set({ grow, opacity, tint, lift });
+  };
+  colsA.forEach((c, k) => styleCol(c, k, true, 0.3 + 0.1 * k));
+  colsB.forEach((c, k) => styleCol(c, k, false, 0.65 + 0.1 * k));
+  labA.material.opacity = prog(t, 0.5, 1.0);
+  labB.material.opacity = prog(t, 0.8, 1.3);
+
+  // Blades drop in, then slide with each new cut
+  const inA = easeOutBack(prog(t, s0.t.cutA, s0.t.cutA + 0.5)), inB = easeOutBack(prog(t, s0.t.cutB, s0.t.cutB + 0.5));
+  const validFlash = Math.sin(Math.PI * prog(t, s1.t.valid, s1.t.valid + 1.2));
+  for (const [b, x, inn] of [[bladeA, bladeX(t, 'A'), inA], [bladeB, bladeX(t, 'B'), inB]]) {
+    b.g.position.x = x;
+    b.g.scale.set(1, Math.max(inn, 1e-3), 1);
+    b.g.visible = inn > 0.001;
+    const col = mixColor(C.yellow, C.green, Math.max(validFlash, medianOn * 0.7));
+    b.edgeMat.color.copy(col); b.sliceMat.color.copy(col);
+    b.sliceMat.opacity = 0.13 + 0.12 * validFlash;
+  }
+
+  // Search range: [0, 5] then [3, 5]
+  const r0 = easeInOut(prog(t, tRange, tRange + 0.6));
+  const shrink = easeInOut(prog(t, s0.t.move, s0.t.move + 0.7));
+  const lo = lerp(0, s0.i + 1, shrink), hi = 5;
+  const x0 = cutX(lo) - 0.15, x1 = lerp(cutX(lo), cutX(hi), r0) + 0.15;
+  strip.scale.x = Math.max(x1 - x0, 1e-3); strip.position.x = (x0 + x1) / 2;
+  strip.visible = r0 > 0.001;
+  stripMat.opacity = 0.75;
+  ticks.forEach((s, k) => {
+    const inRange = k >= Math.round(lo) || shrink < 0.5;
+    s.material.opacity = prog(t, tRange, tRange + 0.6) * (inRange ? 1 : 0.3);
+  });
+
+  // Arcs grow, then fade when the next cut is tried (or at the end)
+  for (const [n, s] of steps.entries()) {
+    const out = n === 0 ? s1.t.cutA : s1.t.median + 1.0;
+    for (const [arc, key] of [[s.arc1, 'chk1'], [s.arc2, 'chk2']]) {
+      const g = easeInOut(prog(t, s.t[key], s.t[key] + 0.6));
+      const f = 1 - prog(t, out, out + 0.5);
+      arc.m.geometry.setDrawRange(0, Math.floor(arc.count * g / 48) * 48);
+      arc.m.visible = g > 0.001 && f > 0.001;
+      arc.mat.opacity = f;
+      arc.lab.visible = arc.m.visible;
+      arc.lab.material.opacity = prog(t, s.t[key] + 0.4, s.t[key] + 0.7) * f;
+    }
+  }
+
+  // Median label rises above the winning column
+  const mIn = easeOutBack(prog(t, tFinal, tFinal + 0.6));
+  medLabel.visible = mIn > 0.001;
+  medLabel.position.set(colX(s1.j - 1), height(B[s1.j - 1]) + 2.3, ZB);
+  medLabel.setSize(mIn);
+
+  st.draw(t, TOTAL);
+}
+
+window.renderAt = renderAt;
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

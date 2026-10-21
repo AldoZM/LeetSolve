@@ -1,0 +1,236 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #0B0E1A; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import { THREE, C, prog, easeInOut, easeOutBack, lerp, V, bezier, mixColor, keyed, loadTiming, textSprite, textPlane,
+         makeTile, makeStage, pose, poseTrack, drift } from '/vendor/lib/stage.js';
+
+// Problem data and the sliding-window trace
+const S = 'abcbdea';
+const steps = [];
+{
+  const last = {};
+  let left = 0, best = 0;
+  [...S].forEach((ch, r) => {
+    const prev = ch in last ? last[ch] : -1;
+    const jump = prev >= left;
+    const nl = jump ? prev + 1 : left;
+    best = Math.max(best, r - nl + 1);
+    steps.push({ r, ch, prev, jump, left0: left, left: nl, best });
+    last[ch] = r;
+    left = nl;
+  });
+}
+
+const walk = await (await fetch('/walk.json')).json();
+const { seg, total: TOTAL } = await loadTiming(walk.first, walk.last);
+const at = (spec) => seg(spec[0]) + spec[1];
+const times = walk.steps.map((st) => Object.fromEntries(Object.entries(st).map(([k, v]) => [k, at(v)])));
+const tFinal = at(walk.final);
+
+// Layout in world units
+const COL = 1.7, YCARD = 2.25, YIDX = -1.12, YBEST = -1.85;
+const colX = (r) => r * COL;
+const MID = colX(S.length - 1) / 2;
+
+const st = makeStage({ gridY: -2.4, gridX: MID, offset: 0.17 });
+const { scene } = st;
+
+// Letters, indices and labels
+const tiles = [...S].map((ch, r) => { const t = makeTile(ch, C.cyan, { size: 1.3 }); t.g.position.set(colX(r), 0, 0); scene.add(t.g); return t; });
+const idx = [...S].map((_, r) => { const p = textPlane(r, C.muted, 0.42); p.position.set(colX(r), YIDX, 0); scene.add(p); return p; });
+const sLabel = textSprite('s', C.cyan, 0.6, 'Segoe UI'); sLabel.position.set(-1.65, 0, 0); scene.add(sLabel);
+const mapLabel = textSprite('last seen', C.violet, 0.42, 'Segoe UI'); mapLabel.position.set(-2.0, YCARD, 0); scene.add(mapLabel);
+const shelfMat = new THREE.MeshBasicMaterial({ color: C.violet, transparent: true, opacity: 0.0, toneMapped: false });
+const shelf = new THREE.Mesh(new THREE.BoxGeometry(colX(S.length - 1) + 2.0, 0.04, 0.6), shelfMat);
+shelf.position.set(MID, YCARD - 0.62, 0); scene.add(shelf);
+
+// Window: translucent slab with a magenta left edge and a cyan right edge
+const win = new THREE.Group(); scene.add(win);
+const fillMat = new THREE.MeshBasicMaterial({ color: C.yellow, transparent: true, opacity: 0.07, toneMapped: false, depthWrite: false });
+const fill = new THREE.Mesh(new THREE.PlaneGeometry(1, 1.95), fillMat); fill.position.z = -0.35; win.add(fill);
+const railMat = new THREE.MeshBasicMaterial({ color: C.yellow, transparent: true, opacity: 0.8, toneMapped: false });
+const rails = [0.98, -0.98].map((y) => { const m = new THREE.Mesh(new THREE.BoxGeometry(1, 0.05, 0.05), railMat); m.position.y = y; m.position.z = 0.35; win.add(m); return m; });
+const edgeL = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.2, 0.1), new THREE.MeshBasicMaterial({ color: C.magenta, toneMapped: false, transparent: true }));
+const edgeR = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.2, 0.1), new THREE.MeshBasicMaterial({ color: C.cyan, toneMapped: false, transparent: true }));
+edgeL.position.z = edgeR.position.z = 0.35;
+win.add(edgeL, edgeR);
+const winLight = new THREE.PointLight(C.yellow, 0, 8, 1.6); scene.add(winLight);
+
+// Best range rail under the indices
+const bestMat = new THREE.MeshBasicMaterial({ color: C.green, transparent: true, toneMapped: false });
+const bestRail = new THREE.Mesh(new THREE.BoxGeometry(1, 0.12, 0.12), bestMat); bestRail.position.y = YBEST; scene.add(bestRail);
+const bestLabels = [1, 2, 3, 4, 5, 6, 7].map((n) => { const s = textSprite(`best ${n}`, C.green, 0.42, 'Segoe UI'); s.position.y = YBEST - 0.42; scene.add(s); return s; });
+
+// Map cards: one per assignment last[ch] = r, sitting above tile r
+const cards = steps.map((s) => { const c = makeTile(`${s.ch}:${s.r}`, C.violet, { size: 1.05, textScale: 0.36 }); c.g.position.set(colX(s.r), YCARD, 0); scene.add(c.g); return c; });
+const outside = textSprite('outside window', C.muted, 0.32, 'Segoe UI'); scene.add(outside);
+
+// Lookup beams from the current letter to the card it finds
+const beams = steps.map((s) => {
+  if (s.prev < 0) return null;
+  const curve = new THREE.QuadraticBezierCurve3(V(colX(s.r), 0.7, 0.4), V((colX(s.r) + colX(s.prev)) / 2, 3.4, 1.2), V(colX(s.prev), YCARD - 0.45, 0.4));
+  const geo = new THREE.TubeGeometry(curve, 64, 0.075, 8, false);
+  const mat = new THREE.MeshBasicMaterial({ color: s.jump ? C.magenta : C.muted, toneMapped: false, transparent: true });
+  const m = new THREE.Mesh(geo, mat); scene.add(m);
+  m.userData.count = geo.index.count;
+  return m;
+});
+
+// ---------- timeline helpers ----------
+const edgeOf = (k) => colX(k) - COL / 2;
+function windowRange(t) {
+  // Left and right edges in world x, eased between events
+  let right = edgeOf(0), left = edgeOf(0);
+  for (const [k, s] of steps.entries()) {
+    right = lerp(right, colX(s.r) + COL / 2, easeInOut(prog(t, times[k].start, times[k].start + 0.4)));
+    if (times[k].jump !== undefined) left = lerp(left, edgeOf(s.left), easeInOut(prog(t, times[k].jump, times[k].jump + 0.7)));
+  }
+  return { left, right };
+}
+function stateAt(t) {
+  // Discrete left/right/best indices after all events up to t
+  let left = 0, right = -1, best = 0, bestL = 0, bestR = -1;
+  for (const [k, s] of steps.entries()) {
+    if (t >= times[k].start) right = s.r;
+    if (times[k].jump !== undefined && t >= times[k].jump) left = s.left;
+    if (t >= times[k].best && s.best > best) { best = s.best; bestL = s.left; bestR = s.r; }
+  }
+  return { left, right, best, bestL, bestR };
+}
+function bestRange(t) {
+  let l = edgeOf(0), r = edgeOf(0), n = 0;
+  for (const [k, s] of steps.entries()) {
+    const prevBest = k ? steps[k - 1].best : 0;
+    if (s.best > prevBest) {
+      const p = easeInOut(prog(t, times[k].best, times[k].best + 0.45));
+      l = lerp(l, edgeOf(s.left) + 0.1, p); r = lerp(r, colX(s.r) + COL / 2 - 0.1, p);
+      if (p > 0.5) n = s.best;
+    }
+  }
+  return { l, r, n };
+}
+
+// ---------- camera ----------
+const overview = pose(V(MID + 6.5, 6.5, 21), V(MID + 0.6, 0.3, 0));
+// The a:0 lookup reaches far left, so pull back while it happens
+const k6 = steps.length - 1;
+function cameraPose(t, wr) {
+  const cx = Math.min(Math.max((wr.left + wr.right) / 2, colX(1.4)), colX(4.6));
+  const follow = pose(V(cx + 5.8, 4.4, 12.5), V(cx + 0.2, 0.5, 0));
+  const p = poseTrack(t, [[0, overview], [2.6, follow, 1.6], [times[k6].check - 0.4, overview, 1.0],
+                          [times[k6].card + 0.6, follow, 1.2], [tFinal, overview, 1.4]]);
+  return drift(p, t);
+}
+
+// ---------- per-frame state ----------
+function renderAt(t) {
+  const wr = windowRange(t);
+  const now = stateAt(t);
+  const p = cameraPose(t, wr);
+  st.look(p.pos, p.look);
+
+  // Intro: letters rise in, labels fade in
+  tiles.forEach((tile, r) => {
+    const pop = easeOutBack(prog(t, 0.3 + 0.13 * r, 0.8 + 0.13 * r));
+    let ring = C.cyan, digit = 1, fillC = C.panel;
+    if (r < now.left && r <= now.right) { ring = C.muted; digit = 0.4; }
+    else if (r <= now.right) ring = C.yellow;
+    // The letter being read flashes white
+    let bump = 0;
+    for (const [k, s] of steps.entries()) {
+      if (s.r !== r) continue;
+      const u = t - times[k].start;
+      if (u > 0 && u < 0.6) { bump = Math.sin(Math.PI * u / 0.6) * 0.14; ring = mixColor(ring, 0xffffff, Math.sin(Math.PI * u / 0.6)); }
+    }
+    // Final wave over the answer
+    if (t > tFinal && r >= 2) {
+      const w = prog(t, tFinal + 0.2 + 0.18 * (r - 2), tFinal + 0.55 + 0.18 * (r - 2));
+      bump += Math.sin(Math.PI * w) * 0.16;
+      fillC = mixColor(C.panel, C.yellow, 0.25 * prog(t, tFinal, tFinal + 0.6)).getHex();
+    }
+    tile.set({ scale: pop * (1 + bump), ring, digitOpacity: digit, fill: fillC });
+    tile.g.position.y = -(1 - Math.min(pop, 1)) * 0.8;
+  });
+  idx.forEach((m) => { m.material.opacity = prog(t, 1.2, 1.7); });
+  sLabel.material.opacity = prog(t, 0.6, 1.0);
+  mapLabel.material.opacity = prog(t, 1.6, 2.1);
+  shelfMat.opacity = 0.35 * prog(t, 1.6, 2.1);
+
+  // Window
+  const winIn = prog(t, 2.2, 2.7);
+  const width = Math.max(wr.right - wr.left, 0.001);
+  fill.scale.x = width; fill.position.x = (wr.left + wr.right) / 2;
+  rails.forEach((m) => { m.scale.x = width; m.position.x = fill.position.x; });
+  edgeL.position.x = wr.left; edgeR.position.x = wr.right;
+  const pulse = t > tFinal ? 0.06 * Math.sin(Math.PI * prog(t, tFinal, tFinal + 1.4)) : 0;
+  fillMat.opacity = (0.07 + pulse) * winIn;
+  railMat.opacity = 0.8 * winIn * (width > 0.05 ? 1 : 0);
+  edgeL.material.opacity = edgeR.material.opacity = winIn;
+  edgeL.visible = edgeR.visible = winIn > 0.001;
+  winLight.position.set(fill.position.x, 0.6, 2.4);
+  winLight.intensity = 14 * winIn;
+
+  // Best rail
+  const br = bestRange(t);
+  bestRail.scale.x = Math.max(br.r - br.l, 0.001);
+  bestRail.position.x = (br.l + br.r) / 2;
+  bestRail.visible = br.r - br.l > 0.02;
+  bestLabels.forEach((s, i) => { s.visible = i + 1 === br.n; s.position.x = bestRail.position.x; });
+
+  // Cards: appear at their card time; an older card for the same letter flies to the new spot
+  outside.visible = false;
+  steps.forEach((s, k) => {
+    const c = cards[k];
+    const tc = times[k].card;
+    const pop = easeOutBack(prog(t, tc + 0.25, tc + 0.6));
+    // Replaced later by a newer card for the same letter?
+    const nextK = steps.findIndex((q, j) => j > k && q.ch === s.ch);
+    let scale = pop, x = colX(s.r), y = YCARD, op = 1;
+    if (nextK >= 0 && t > times[nextK].card) {
+      const f = easeInOut(prog(t, times[nextK].card, times[nextK].card + 0.5));
+      x = lerp(colX(s.r), colX(steps[nextK].r), f);
+      y = YCARD + Math.sin(Math.PI * f) * 1.0;
+      op = 1 - prog(t, times[nextK].card + 0.3, times[nextK].card + 0.5);
+      scale = op;
+    }
+    const stale = s.r < now.left;
+    let ring = stale ? C.muted : C.violet;
+    // Flash when a lookup finds this card
+    for (const [j, q] of steps.entries()) {
+      if (q.prev !== s.r || times[j].check === undefined) continue;
+      const u = t - times[j].check;
+      if (u > 0.35 && t < times[j].card) {
+        ring = q.jump ? mixColor(C.violet, C.magenta, prog(u, 0.35, 0.6)).getHex() : C.muted;
+        if (!q.jump) { outside.visible = true; outside.position.set(colX(s.r), YCARD + 0.95, 0.3); outside.material.opacity = prog(u, 0.6, 1.0); }
+      }
+    }
+    c.set({ scale, opacity: (stale ? 0.55 : 1) * op, ring, digitOpacity: (stale ? 0.5 : 1) * op });
+    c.g.position.set(x, y, 0);
+  });
+
+  // Lookup beams grow from the letter to the card, then fade when the card updates
+  beams.forEach((b, k) => {
+    if (!b) return;
+    const g = easeInOut(prog(t, times[k].check, times[k].check + 0.5));
+    const out = prog(t, times[k].card, times[k].card + 0.4);
+    b.geometry.setDrawRange(0, Math.floor(b.userData.count * g / 48) * 48);
+    b.material.opacity = 1 - out;
+    b.visible = g > 0.001 && out < 0.999;
+  });
+
+  st.draw(t, TOTAL);
+}
+
+window.renderAt = renderAt;
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+{
+  "total_duration_s": 95.201,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Longest Substring Without Repeating Characters. LeetCode number three, the classic sliding window problem.",
+      "start_s": 0.0,
+      "end_s": 7.0,
+      "duration_s": 7.0
+    },
+    {
+      "index": 1,
+      "text": "Given a string, find the length of the longest run of characters where no letter repeats.",
+      "start_s": 7.0,
+      "end_s": 12.6,
+      "duration_s": 5.6
+    },
+    {
+      "index": 2,
+      "text": "For a b c b d e a, the answer is five. The run c, b, d, e, a has no repeats.",
+      "start_s": 12.6,
+      "end_s": 18.875,
+      "duration_s": 6.275
+    },
+    {
+      "index": 3,
+      "text": "The brute force way checks every substring, one by one.",
+      "start_s": 18.875,
+      "end_s": 22.6,
+      "duration_s": 3.725
+    },
+    {
+      "index": 4,
+      "text": "With n letters there are about n squared substrings, and each check costs up to n more. That's cubic time.",
+      "start_s": 22.6,
+      "end_s": 29.275,
+      "duration_s": 6.675
+    },
+    {
+      "index": 5,
+      "text": "Instead, slide a window. The right edge always moves forward, and the left edge only jumps on a repeat.",
+      "start_s": 29.275,
+      "end_s": 36.15,
+      "duration_s": 6.875
+    },
+    {
+      "index": 6,
+      "text": "A hash map remembers the last index of each letter, so every jump takes a single step.",
+      "start_s": 36.15,
+      "end_s": 41.85,
+      "duration_s": 5.7
+    },
+    {
+      "index": 7,
+      "text": "Let's run it. The window starts empty, and the map has nothing in it.",
+      "start_s": 41.85,
+      "end_s": 46.275,
+      "duration_s": 4.425
+    },
+    {
+      "index": 8,
+      "text": "a, b, and c are all new. Each goes into the map, and the window grows to three.",
+      "start_s": 46.275,
+      "end_s": 51.575,
+      "duration_s": 5.3
+    },
+    {
+      "index": 9,
+      "text": "Now b shows up again. The map says index one, inside the window. So the left edge jumps to two.",
+      "start_s": 51.575,
+      "end_s": 58.425,
+      "duration_s": 6.85
+    },
+    {
+      "index": 10,
+      "text": "d and e are new. The window is c, b, d, e. Length four.",
+      "start_s": 58.425,
+      "end_s": 62.875,
+      "duration_s": 4.45
+    },
+    {
+      "index": 11,
+      "text": "Then comes a. The map says index zero, but that's already behind the left edge. So we ignore it.",
+      "start_s": 62.875,
+      "end_s": 69.25,
+      "duration_s": 6.375
+    },
+    {
+      "index": 12,
+      "text": "The window grows to five, c, b, d, e, a. That's the answer.",
+      "start_s": 69.25,
+      "end_s": 73.75,
+      "duration_s": 4.5
+    },
+    {
+      "index": 13,
+      "text": "Each letter enters the window once, and the left edge never moves backward. So the time is linear.",
+      "start_s": 73.75,
+      "end_s": 80.225,
+      "duration_s": 6.475
+    },
+    {
+      "index": 14,
+      "text": "The map holds one entry per distinct letter, so the extra space is bounded by the alphabet.",
+      "start_s": 80.225,
+      "end_s": 86.251,
+      "duration_s": 6.026
+    },
+    {
+      "index": 15,
+      "text": "One pass, one map, and a left edge that only jumps forward.",
+      "start_s": 86.251,
+      "end_s": 90.576,
+      "duration_s": 4.325
+    },
+    {
+      "index": 16,
+      "text": "That's the sliding window, the pattern behind dozens of string problems.",
+      "start_s": 90.576,
+      "end_s": 95.201,
+      "duration_s": 4.625
+    }
+  ]
+}

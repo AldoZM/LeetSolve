@@ -1,0 +1,21 @@
+subtitles:
+- Two Sum. Problem number one on LeetCode, and an interview classic.
+- You're given an array of integers and a target number.
+- Find the two numbers that add up exactly to the target, and return their indices.
+- The most direct idea is to try every possible pair.
+- Fix one number, and add it to every number after it.
+- It works, but with just six numbers, that's already fifteen checks.
+- And it grows quadratically. With a million numbers, that's half a trillion pairs.
+- Here's the trick. If the target is twenty three and I'm holding a fourteen, I know exactly what I need. A nine.
+- We call that the complement. The target, minus the current value.
+- So we walk the array just once, with a hash map that remembers every number and its index.
+- At each step, we first ask. Is my complement already in the map?
+- Five needs eighteen. Not there. Store it.
+- Twelve needs eleven. One needs twenty two. Still nothing. Into the map.
+- Fourteen needs nine. Three needs twenty. Keep storing.
+- Now we reach nine. It needs fourteen, and fourteen is already in the map, at index three!
+- The answer is indices three and five.
+- Each map lookup takes constant time, so the whole algorithm is linear.
+- We went from n squared down to n, in exchange for a little extra memory.
+- And the code fits in just a few lines.
+- Trade memory for speed. That's the big lesson of Two Sum.

@@ -7,3 +7,12 @@ video_silent.mp4
 *_Short.mp4
 voiceover.mp3
 frame_*.png
+
+# Review output and logs (regenerable)
+node_modules/
+review*/
+frames*/
+maqueta/
+sheet*.png
+*.log
+review_*.png

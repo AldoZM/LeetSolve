@@ -1,0 +1,145 @@
+{
+  "total_duration_s": 89.101,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Two Sum. Problem number one on LeetCode, and an interview classic.",
+      "start_s": 0.0,
+      "end_s": 4.7,
+      "duration_s": 4.7
+    },
+    {
+      "index": 1,
+      "text": "You're given an array of integers and a target number.",
+      "start_s": 4.7,
+      "end_s": 8.175,
+      "duration_s": 3.475
+    },
+    {
+      "index": 2,
+      "text": "Find the two numbers that add up exactly to the target, and return their indices.",
+      "start_s": 8.175,
+      "end_s": 13.5,
+      "duration_s": 5.325
+    },
+    {
+      "index": 3,
+      "text": "The most direct idea is to try every possible pair.",
+      "start_s": 13.5,
+      "end_s": 17.4,
+      "duration_s": 3.9
+    },
+    {
+      "index": 4,
+      "text": "Fix one number, and add it to every number after it.",
+      "start_s": 17.4,
+      "end_s": 20.975,
+      "duration_s": 3.575
+    },
+    {
+      "index": 5,
+      "text": "It works, but with just six numbers, that's already fifteen checks.",
+      "start_s": 20.975,
+      "end_s": 25.15,
+      "duration_s": 4.175
+    },
+    {
+      "index": 6,
+      "text": "And it grows quadratically. With a million numbers, that's half a trillion pairs.",
+      "start_s": 25.15,
+      "end_s": 30.25,
+      "duration_s": 5.1
+    },
+    {
+      "index": 7,
+      "text": "Here's the trick. If the target is twenty three and I'm holding a fifteen, I know exactly what I need. An eight.",
+      "start_s": 30.25,
+      "end_s": 37.25,
+      "duration_s": 7.0
+    },
+    {
+      "index": 8,
+      "text": "We call that the complement. The target, minus the current value.",
+      "start_s": 37.25,
+      "end_s": 41.6,
+      "duration_s": 4.35
+    },
+    {
+      "index": 9,
+      "text": "So we walk the array just once, with a hash map that remembers every number and its index.",
+      "start_s": 41.6,
+      "end_s": 47.5,
+      "duration_s": 5.9
+    },
+    {
+      "index": 10,
+      "text": "At each step, we first ask. Is my complement already in the map?",
+      "start_s": 47.5,
+      "end_s": 51.75,
+      "duration_s": 4.25
+    },
+    {
+      "index": 11,
+      "text": "Five needs eighteen. Not there. Store it.",
+      "start_s": 51.75,
+      "end_s": 54.776,
+      "duration_s": 3.026
+    },
+    {
+      "index": 12,
+      "text": "Twelve needs eleven. One needs twenty two. Still nothing. Into the map.",
+      "start_s": 54.776,
+      "end_s": 59.851,
+      "duration_s": 5.075
+    },
+    {
+      "index": 13,
+      "text": "Fourteen needs nine. Eight needs fifteen. Keep storing.",
+      "start_s": 59.851,
+      "end_s": 63.826,
+      "duration_s": 3.975
+    },
+    {
+      "index": 14,
+      "text": "Now we reach fifteen. It needs eight, and eight is already in the map, at index four!",
+      "start_s": 63.826,
+      "end_s": 69.226,
+      "duration_s": 5.4
+    },
+    {
+      "index": 15,
+      "text": "The answer is indices four and five.",
+      "start_s": 69.226,
+      "end_s": 71.901,
+      "duration_s": 2.675
+    },
+    {
+      "index": 16,
+      "text": "Each map lookup takes constant time, so the whole algorithm is linear.",
+      "start_s": 71.901,
+      "end_s": 76.701,
+      "duration_s": 4.8
+    },
+    {
+      "index": 17,
+      "text": "We went from n squared down to n, in exchange for a little extra memory.",
+      "start_s": 76.701,
+      "end_s": 81.626,
+      "duration_s": 4.925
+    },
+    {
+      "index": 18,
+      "text": "One loop, one map, and just a few lines of code.",
+      "start_s": 81.626,
+      "end_s": 85.126,
+      "duration_s": 3.5
+    },
+    {
+      "index": 19,
+      "text": "Trade memory for speed. That's the big lesson of Two Sum.",
+      "start_s": 85.126,
+      "end_s": 89.101,
+      "duration_s": 3.975
+    }
+  ]
+}

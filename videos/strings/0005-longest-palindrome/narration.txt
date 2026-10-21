@@ -1,0 +1,18 @@
+subtitles:
+- Longest Palindromic Substring. LeetCode number five.
+- Given a string, return the longest substring that reads the same forwards and backwards.
+- In a b a r a c e c a r, the answer is racecar.
+- Brute force checks every substring to see if it's a palindrome. That's n squared substrings, times n for each check.
+- But a palindrome is a mirror. Every one of them has a center.
+- So pick a center, and expand outward while the two ends match.
+- A center can be a letter, for odd lengths, or the gap between two letters, for even lengths.
+- Let's run it on a b a r a c e c a r, trying every center from left to right.
+- Center on b. a matches a, so a b a is a palindrome of length three. Our best so far.
+- Most other centers stop almost right away, because the two sides don't match.
+- Now center on e. c matches c. a matches a. r matches r.
+- We've hit the end of the string, so the expansion stops. racecar, length seven, is the new best.
+- The last few centers are checked too, but nothing beats seven.
+- There are two n minus one centers, and each one can expand up to n steps. So the time is n squared.
+- But we only track two pointers and the best range, so the extra space is constant.
+- No table, no extra memory. Just expand around each center.
+- Every palindrome has a middle. Start there.

@@ -1,0 +1,138 @@
+{
+  "total_duration_s": 103.925,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Median of Two Sorted Arrays. LeetCode number four, and one of the most famous hard problems.",
+      "start_s": 0.0,
+      "end_s": 6.475,
+      "duration_s": 6.475
+    },
+    {
+      "index": 1,
+      "text": "You get two sorted arrays, and you need the median of all their numbers combined.",
+      "start_s": 6.475,
+      "end_s": 11.475,
+      "duration_s": 5.0
+    },
+    {
+      "index": 2,
+      "text": "Here there are eleven numbers in total, so the median is the sixth smallest. That's eleven.",
+      "start_s": 11.475,
+      "end_s": 17.425,
+      "duration_s": 5.95
+    },
+    {
+      "index": 3,
+      "text": "The easy way merges both arrays, then picks the middle. But that takes linear time.",
+      "start_s": 17.425,
+      "end_s": 22.95,
+      "duration_s": 5.525
+    },
+    {
+      "index": 4,
+      "text": "The problem asks for log time. So we can't even look at every number.",
+      "start_s": 22.95,
+      "end_s": 27.475,
+      "duration_s": 4.525
+    },
+    {
+      "index": 5,
+      "text": "Here's the key idea. The median splits all the numbers into a left half and a right half.",
+      "start_s": 27.475,
+      "end_s": 33.075,
+      "duration_s": 5.6
+    },
+    {
+      "index": 6,
+      "text": "If we cut A at some point i, the cut in B is forced, because the left side must hold exactly six numbers.",
+      "start_s": 33.075,
+      "end_s": 40.1,
+      "duration_s": 7.025
+    },
+    {
+      "index": 7,
+      "text": "So we only binary search the cut in the shorter array.",
+      "start_s": 40.1,
+      "end_s": 43.55,
+      "duration_s": 3.45
+    },
+    {
+      "index": 8,
+      "text": "The cut is valid when everything on the left is at most everything on the right. Since both arrays are sorted, we only check across the cut.",
+      "start_s": 43.55,
+      "end_s": 52.0,
+      "duration_s": 8.45
+    },
+    {
+      "index": 9,
+      "text": "Let's search. The cut in A can go anywhere from zero to five.",
+      "start_s": 52.0,
+      "end_s": 56.025,
+      "duration_s": 4.025
+    },
+    {
+      "index": 10,
+      "text": "Try the middle, i equals two. That forces j to four. The left side gets two numbers from A, and four from B.",
+      "start_s": 56.025,
+      "end_s": 63.8,
+      "duration_s": 7.775
+    },
+    {
+      "index": 11,
+      "text": "Check across the cut. Nineteen on the left is bigger than eight on the right. So the cut in A is too far left.",
+      "start_s": 63.8,
+      "end_s": 70.825,
+      "duration_s": 7.025
+    },
+    {
+      "index": 12,
+      "text": "Move right. Now i is four, and j is two.",
+      "start_s": 70.825,
+      "end_s": 73.975,
+      "duration_s": 3.15
+    },
+    {
+      "index": 13,
+      "text": "Nine is at most eighteen, and eleven is at most fifteen. Both checks pass, so the cut is valid.",
+      "start_s": 73.975,
+      "end_s": 80.55,
+      "duration_s": 6.575
+    },
+    {
+      "index": 14,
+      "text": "The total is odd, so the median is the largest value on the left. The max of nine and eleven is eleven.",
+      "start_s": 80.55,
+      "end_s": 87.7,
+      "duration_s": 7.15
+    },
+    {
+      "index": 15,
+      "text": "We binary search only the shorter array, so the time is log of the smaller length.",
+      "start_s": 87.7,
+      "end_s": 92.95,
+      "duration_s": 5.25
+    },
+    {
+      "index": 16,
+      "text": "And we only keep a few pointers, so the space is constant.",
+      "start_s": 92.95,
+      "end_s": 96.925,
+      "duration_s": 3.975
+    },
+    {
+      "index": 17,
+      "text": "No merging. Just one cut, checked across both arrays.",
+      "start_s": 96.925,
+      "end_s": 100.875,
+      "duration_s": 3.95
+    },
+    {
+      "index": 18,
+      "text": "Find the right cut, and the median falls out.",
+      "start_s": 100.875,
+      "end_s": 103.925,
+      "duration_s": 3.05
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+// Candidate background views in the vertical frame: second k of the timeline shows view k
+import { V } from '/vendor/lib/stage.js';
+import { loadTheme, makeWorld, makeTerrain, makeClouds } from '/vendor/tema/mc.js';
+
+const imgs = await loadTheme([]);
+const world = makeWorld({ fov: 62, offset: 0, fog: [45, 95] });
+world.scene.add(await makeTerrain('/vendor/tema/mundos/claude.json', { turn: -Math.PI / 2, plot: [-5, 5, -2, 7] }));
+world.scene.add(makeClouds(imgs));
+
+const VIEWS = [
+  [V(0, 2.2, 10), V(0, 4, -30)],      // behind the plot, eye height, west to the mountain
+  [V(0, 9, 14), V(0, 3, -30)],        // raised, west
+  [V(-6, 3, 4), V(-20, 6, -40)],      // eye height, west-southwest
+  [V(4, 3, 4), V(30, 4, -30)],        // northwest
+  [V(0, 3, 0), V(0, 3, 40)],          // back toward the east
+  [V(0, 18, 20), V(0, 0, -20)],       // high, looking down the valley
+];
+
+window.renderAt = (t) => {
+  const [p, l] = VIEWS[Math.min(VIEWS.length - 1, Math.floor(t))];
+  world.look(p, l);
+  world.draw(1, 100);
+};
+window.sceneDuration = VIEWS.length;
+</script>
+</body>
+</html>

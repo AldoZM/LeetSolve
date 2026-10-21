@@ -1,0 +1,124 @@
+{
+  "total_duration_s": 85.175,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Binary Tree Level Order Traversal. LeetCode one oh two.",
+      "start_s": 0.0,
+      "end_s": 4.175,
+      "duration_s": 4.175
+    },
+    {
+      "index": 1,
+      "text": "Given the root of a binary tree, return its values level by level, from top to bottom, left to right.",
+      "start_s": 4.175,
+      "end_s": 10.75,
+      "duration_s": 6.575
+    },
+    {
+      "index": 2,
+      "text": "For this tree, that's three. Then nine and twenty. Then four, seven, fifteen, eight. Then six and two.",
+      "start_s": 10.75,
+      "end_s": 17.7,
+      "duration_s": 6.95
+    },
+    {
+      "index": 3,
+      "text": "Depth first search dives straight down one branch, so it visits the nodes in the wrong order.",
+      "start_s": 17.7,
+      "end_s": 23.5,
+      "duration_s": 5.8
+    },
+    {
+      "index": 4,
+      "text": "We want to sweep across each level before going deeper. That's breadth first search.",
+      "start_s": 23.5,
+      "end_s": 28.425,
+      "duration_s": 4.925
+    },
+    {
+      "index": 5,
+      "text": "And breadth first search runs on a queue. First in, first out.",
+      "start_s": 28.425,
+      "end_s": 32.575,
+      "duration_s": 4.15
+    },
+    {
+      "index": 6,
+      "text": "The trick is to measure the queue's length at the start of each level. Exactly that many nodes belong to it.",
+      "start_s": 32.575,
+      "end_s": 39.1,
+      "duration_s": 6.525
+    },
+    {
+      "index": 7,
+      "text": "Let's run it. The queue starts with just the root.",
+      "start_s": 39.1,
+      "end_s": 42.225,
+      "duration_s": 3.125
+    },
+    {
+      "index": 8,
+      "text": "Level zero. The queue holds one node. Pop three, record it, and push nine and twenty.",
+      "start_s": 42.225,
+      "end_s": 48.175,
+      "duration_s": 5.95
+    },
+    {
+      "index": 9,
+      "text": "Level one. Two nodes. Pop nine, push four and seven. Pop twenty, push fifteen and eight.",
+      "start_s": 48.175,
+      "end_s": 54.475,
+      "duration_s": 6.3
+    },
+    {
+      "index": 10,
+      "text": "Level two holds four nodes. Pop them in order. Seven brings six, and fifteen brings two.",
+      "start_s": 54.475,
+      "end_s": 60.65,
+      "duration_s": 6.175
+    },
+    {
+      "index": 11,
+      "text": "Level three. Six and two have no children, so nothing new joins the queue.",
+      "start_s": 60.65,
+      "end_s": 65.7,
+      "duration_s": 5.05
+    },
+    {
+      "index": 12,
+      "text": "The queue is empty, and we have all four levels.",
+      "start_s": 65.7,
+      "end_s": 68.875,
+      "duration_s": 3.175
+    },
+    {
+      "index": 13,
+      "text": "Each node goes in and out of the queue once, so the time is linear.",
+      "start_s": 68.875,
+      "end_s": 73.25,
+      "duration_s": 4.375
+    },
+    {
+      "index": 14,
+      "text": "The queue holds at most one full level, so the space is the width of the tree.",
+      "start_s": 73.25,
+      "end_s": 78.175,
+      "duration_s": 4.925
+    },
+    {
+      "index": 15,
+      "text": "One queue, and one snapshot of its size per level.",
+      "start_s": 78.175,
+      "end_s": 81.625,
+      "duration_s": 3.45
+    },
+    {
+      "index": 16,
+      "text": "Sweep level by level, and the tree comes out in rows.",
+      "start_s": 81.625,
+      "end_s": 85.175,
+      "duration_s": 3.55
+    }
+  ]
+}

@@ -1,29 +1,27 @@
 # LeetSolve
 
-Animated explainers for data structures and algorithms behind common LeetCode problems, built with [Manim Community Edition](https://www.manim.community/) and local [Kokoro](https://github.com/hexgrad/kokoro) TTS narration.
+Animated explainers for the data structures and algorithms behind common LeetCode problems, built with [Manim Community Edition](https://www.manim.community/), local [Kokoro](https://github.com/hexgrad/kokoro) TTS narration and a Three.js 3D section.
 
-## Topics
+Current style: vertical 1080×1440 videos set inside a real Minecraft world, with the code shown next to the solution and a seamless loop.
 
-| Folder | Topic | Video |
-|---|---|---|
-| [Three](Three/) | Trees: anatomy, depth/height, binary search trees, traversals, recursion (`maxDepth`) | [Three.mp4](Three/Three.mp4) |
+## Docs (Spanish)
 
-## Folder contents
+- [GUIA.md](GUIA.md) — full working context: format, folders, workflow, helpers, known problems.
+- [INSTRUCCIONES_IA.md](INSTRUCCIONES_IA.md) — step-by-step brief so any AI model can make a new video with the same parameters.
+- [BITACORA.md](BITACORA.md) — what was done in each session.
 
-- `Three.txt` — the prompt/storyboard used to generate the video
-- `narration.txt` — narration lines
-- `timestamps.json` — per-line audio timing
-- `script.py` — Manim source (one class per scene)
-- `concat.txt` — scene order
-- `Three.mp4` — final video (9:16, narrated)
+## Layout
 
-## Rebuild
+- `videos/<section>/<number>-<name>/` — one video per folder (narration, timings, scenes, 3D page).
+- `pruebas/` — experiments. `pruebas/0001-two-sum-minecraft-original` is the template of the approved style.
+- `herramientas/` — shared tools: `build.py`, `prelude.py`, `sheet.py`, the 3D renderer (`three/render.mjs`, `three/stage.js`) and the visual themes.
+- `herramientas/temas/minecraft-original/mundos/` — the ClaudeEntorno world (`ClaudeEntorno.zip`, Java Edition 26.2+) and its exported surface (`claude.json`).
+- `Three/` — the first tree explainer (16:9).
 
-Requires Python 3.10+, `manim`, `kokoro`, `soundfile`, ffmpeg and a LaTeX distribution.
+Final videos and render intermediates are not committed; `herramientas/build.py` rebuilds them.
 
-```bash
-cd Three
-manim script.py   # render scenes listed in concat.txt
-```
+## Minecraft assets
 
-Then concatenate the scenes with ffmpeg and mux with the narration audio, as described in [manim-skill](https://github.com/Yusuke710/manim-skill).
+The game's textures, GUI, font and sounds are copied from a local Minecraft Java install by `herramientas/temas/minecraft-original/extraer.py` and are never committed. The world save and the code here are original.
+
+NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.

@@ -1,0 +1,216 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import { THREE, prog, easeInOut, easeOut, easeOutBack, lerp, V, bezier, loadTiming } from '/vendor/lib/stage.js';
+import { MC, loadTheme, makeWorld, makeGround, makeTree, makeBlock, makeChest, makeFrame, makeSign, pixelSprite,
+         makeOrb, makeClouds } from '/vendor/tema/mc.js';
+
+const walk = await (await fetch('/walk.json')).json();
+const { seg, total: TOTAL } = await loadTiming(walk.first, walk.last);
+const at = (spec) => seg(spec[0]) + spec[1];
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'planks', 'chest_plain', 'leaves', 'log_side', 'log_top',
+                              ...walk.ores.map((o) => `${o}_ore`)]);
+
+const N = walk.nums.length;
+const steps = walk.steps.map((s) => ({ ...s, visitT: at(s.visit), needT: at(s.need_t), askT: at(s.ask),
+  missT: s.miss ? at(s.miss) : null, storeT: s.store ? at(s.store) : null, hitT: s.hit ? at(s.hit) : null }));
+const T = {
+  row: at(walk.intro_row), chest: at(walk.chest_in), demo: at(walk.demo_cursor), demoAsk: at(walk.demo_ask),
+  four: at(walk.index_four), toast: at(walk.toast), answer: at(walk.answer),
+};
+const hit = steps[steps.length - 1];
+
+const world = makeWorld({ fov: 40, offset: 0.2 });
+const { scene } = world;
+scene.add(makeGround(imgs, [-11, 11], [-9, 13]));
+scene.add(makeTree(imgs, -5.2, -4.5, 4), makeTree(imgs, 5.6, -6, 5));
+const clouds = makeClouds();
+scene.add(clouds);
+
+// The row of blocks, one ore per value
+const SP = 1.2;
+const bx = (i) => (i - (N - 1) / 2) * SP;
+const blocks = walk.nums.map((v, i) => {
+  const b = makeBlock(imgs, `${walk.ores[i]}_ore`, { label: v });
+  scene.add(b.g);
+  return b;
+});
+const idx = walk.nums.map((_, i) => {
+  const s = pixelSprite(String(i), MC.gray, 0.36);
+  s.position.set(bx(i), 0.22, 0.95);
+  scene.add(s);
+  return s;
+});
+
+const CHEST = V(0, 0, 3.7);
+const chest = makeChest(imgs, 0.95);
+chest.g.position.copy(CHEST);
+scene.add(chest.g);
+
+const frame = makeFrame(1.08, 0.05, MC.yellow);
+scene.add(frame);
+const goldFrames = [hit.found, hit.i].map(() => { const f = makeFrame(1.1, 0.06, MC.gold); scene.add(f); return f; });
+
+// One "need" sign per step, shown above the current block
+const signs = steps.map((s) => { const g = makeSign(imgs, [`need ${s.need}`], { w: 1.7, h: 0.8, post: false }); scene.add(g); return g; });
+const miss = pixelSprite('X', MC.red, 0.6);
+scene.add(miss);
+
+// Items that fly from a block into the chest when it is stored
+const items = steps.filter((s) => s.storeT !== null).map((s) => {
+  const it = makeBlock(imgs, `${walk.ores[s.i]}_ore`, { size: 0.34 });
+  scene.add(it.g);
+  return { s, it };
+});
+
+// Gold beam from the chest to the matching block
+const beamMat = new THREE.MeshBasicMaterial({ color: MC.gold, toneMapped: false, transparent: true, opacity: 0.85 });
+const beamGeo = new THREE.BoxGeometry(0.08, 0.08, 1);
+beamGeo.translate(0, 0, 0.5);
+const beam = new THREE.Mesh(beamGeo, beamMat);
+scene.add(beam);
+
+// Experience orbs that burst from the answer
+let seed = 11;
+const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+const orbs = Array.from({ length: 26 }, (_, k) => {
+  const o = makeOrb(0.14);
+  const from = k % 2 ? hit.i : hit.found;
+  o.userData = { from, vx: (rnd() - 0.5) * 2.6, vy: 2.6 + rnd() * 2.2, vz: (rnd() - 0.3) * 2.0, delay: rnd() * 0.35 };
+  scene.add(o);
+  return o;
+});
+
+function cursorX(t) {
+  // Arrives at block i at its visit time
+  let x = bx(0);
+  for (const s of steps) x = lerp(x, bx(s.i), easeInOut(prog(t, s.visitT - 0.28, s.visitT)));
+  return x;
+}
+
+function lidOpen(t) {
+  let a = easeOut(prog(t, T.demoAsk - 0.1, T.demoAsk + 0.15)) * (1 - easeInOut(prog(t, T.demoAsk + 0.9, T.demoAsk + 1.15)));
+  for (const s of steps) {
+    const close = s.storeT !== null ? s.storeT + 0.3 : 1e9;
+    a = Math.max(a, easeOut(prog(t, s.askT - 0.08, s.askT + 0.12)) * (1 - easeInOut(prog(t, close, close + 0.18))));
+  }
+  return a;
+}
+
+function renderAt(t) {
+  // Camera: wide front view with a slow drift, a small push in for the answer
+  const push = easeInOut(prog(t, hit.hitT - 0.3, hit.hitT + 0.8));
+  const sway = 0.5 * Math.sin(t * 0.35);
+  const camPos = V(sway, lerp(7.0, 6.7, push), lerp(15.0, 14.3, push));
+  world.look(camPos, V(sway * 0.4, 1.0, 1.2));
+  clouds.drift(t);
+
+  // Blocks drop in from above, one after another
+  blocks.forEach((b, i) => {
+    const d = prog(t, T.row + 0.12 * i, T.row + 0.12 * i + 0.55);
+    const fall = d < 1 ? (1 - d) * (1 - d) * 4.5 : 0;
+    const bounce = 0.18 * Math.sin(Math.PI * prog(d, 0.75, 1)) ;
+    let y = 0.5 + fall + (d >= 0.75 ? bounce : 0);
+    let glow = 0;
+    const s = steps.find((q) => q.i === i);
+    if (s && t >= s.visitT - 0.1 && t < s.visitT + 0.35) glow = 0.25 * Math.sin(Math.PI * prog(t, s.visitT - 0.1, s.visitT + 0.35));
+    // The answer pair lifts and glows
+    const lift = i === hit.found ? easeOutBack(prog(t, hit.hitT, hit.hitT + 0.5))
+      : i === hit.i ? easeOutBack(prog(t, hit.hitT + 0.25, hit.hitT + 0.75)) : 0;
+    y += 0.45 * lift;
+    if (lift > 0) glow = Math.max(glow, 0.35 * lift + 0.15 * Math.sin(t * 6) * lift);
+    b.g.position.set(bx(i), y, 0);
+    b.g.visible = d > 0;
+    b.set({ glow, opacity: d > 0 ? 1 : 0 });
+    idx[i].material.opacity = prog(t, T.row + 0.4 + 0.12 * i, T.row + 0.8 + 0.12 * i);
+    const big = i === hit.found ? Math.sin(Math.PI * prog(t, T.four, T.four + 0.7)) : 0;
+    idx[i].setSize(1 + 0.6 * big);
+    idx[i].material.color.set(big > 0.05 || (lift > 0.5) ? MC.yellow : 0xffffff);
+  });
+
+  // Chest pops in, its lid opens for every lookup
+  const cIn = easeOutBack(prog(t, T.chest, T.chest + 0.5));
+  chest.g.scale.setScalar(Math.max(cIn, 1e-4));
+  chest.g.visible = cIn > 0.001;
+  chest.open(lidOpen(t));
+
+  // Selection frame on the current block
+  const fIn = prog(t, T.demo, T.demo + 0.25);
+  frame.visible = fIn > 0 && t < hit.hitT + 0.2;
+  frame.position.set(cursorX(t), 0.5, 0);
+  frame.scale.setScalar(1 + 0.03 * Math.sin(t * 5));
+
+  // Need signs
+  steps.forEach((s, k) => {
+    const end = k + 1 < steps.length ? steps[k + 1].visitT - 0.15 : hit.hitT - 0.1;
+    const a = easeOutBack(prog(t, s.needT - 0.05, s.needT + 0.25)) * (1 - prog(t, end, end + 0.15));
+    const g = signs[k];
+    g.visible = a > 0.01;
+    g.scale.setScalar(Math.max(a, 1e-4));
+    // Kept inside the frame for the blocks at the ends
+    g.position.set(Math.max(-2.3, Math.min(2.3, bx(s.i))), 1.75 + 0.05 * Math.sin(t * 3), 0);
+  });
+
+  // Miss marker over the chest
+  let mA = 0;
+  for (const s of steps) if (s.missT !== null) mA = Math.max(mA, Math.sin(Math.PI * prog(t, s.missT, s.missT + 0.4)));
+  miss.visible = mA > 0.01;
+  miss.setSize(0.5 + 0.5 * mA);
+  miss.position.copy(CHEST).add(V(0, 1.75, 0));
+
+  // Items arc from the block into the open chest
+  for (const { s, it } of items) {
+    const f = prog(t, s.storeT, s.storeT + 0.32);
+    it.g.visible = f > 0 && f < 1;
+    const p = bezier(V(bx(s.i), 1.2, 0.1), V((bx(s.i) + CHEST.x) / 2, 2.4, 1.4), CHEST.clone().add(V(0, 0.75, 0)), easeInOut(f));
+    it.g.position.copy(p);
+    it.g.rotation.set(0.4, 6 * f, 0);
+  }
+
+  // Gold beam from the chest to the stored 8
+  const bA = easeOut(prog(t, hit.hitT - 0.05, hit.hitT + 0.3)) * (1 - prog(t, T.toast + 0.6, T.toast + 1.0));
+  const from = CHEST.clone().add(V(0, 0.9, 0));
+  const to = V(bx(hit.found), 0.5 + 0.45 * easeOutBack(prog(t, hit.hitT, hit.hitT + 0.5)), 0);
+  beam.visible = bA > 0.01;
+  beam.position.copy(from);
+  beam.lookAt(to);
+  beam.scale.set(1 + 0.3 * Math.sin(t * 12), 1 + 0.3 * Math.sin(t * 12), Math.max(from.distanceTo(to) * bA, 1e-4));
+
+  goldFrames.forEach((f, k) => {
+    const i = k === 0 ? hit.found : hit.i;
+    const a = prog(t, hit.hitT + 0.25 * k, hit.hitT + 0.25 * k + 0.3);
+    f.visible = a > 0.01;
+    f.position.copy(blocks[i].g.position);
+    f.userData.mat.opacity = a;
+  });
+
+  // Orbs: a short ballistic burst
+  for (const o of orbs) {
+    const { from: i, vx, vy, vz, delay } = o.userData;
+    const t0 = (i === hit.found ? hit.hitT : hit.hitT + 0.25) + delay;
+    const u = t - t0;
+    o.visible = u > 0 && u < 1.6;
+    if (!o.visible) continue;
+    const y = 1.0 + vy * u - 4.5 * u * u;
+    o.position.set(bx(i) + vx * u, Math.max(y, 0.1), vz * u);
+    o.rotation.set(u * 4, u * 3, 0);
+    o.material.color.setHex(Math.sin(t * 14 + delay * 30) > 0 ? MC.xp : 0xF2FF8A);
+    o.material.opacity = 1 - prog(u, 1.2, 1.6);
+  }
+
+  world.draw(t, TOTAL);
+}
+
+window.renderAt = renderAt;
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+{"tema": "minecraft-original",
+ "groups": [["Scene1_Hook", [0]], ["Scene2_Problem", [1, 2]], ["Scene3_Brute", [3, 4, 5, 6]], ["Scene4_Idea", [7, 8]],
+            ["Scene5_Walk", [9, 10, 11, 12, 13, 14, 15]], ["Scene6_Complexity", [16, 17]], ["Scene7_Outro", [18, 19]]],
+ "fondo": {"page": "three/mundo.html", "sharp": ["Scene5_Walk"]}}

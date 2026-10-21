@@ -1,0 +1,18 @@
+subtitles:
+- Binary Tree Level Order Traversal. LeetCode one oh two.
+- Given the root of a binary tree, return its values level by level, from top to bottom, left to right.
+- For this tree, that's three. Then nine and twenty. Then four, seven, fifteen, eight. Then six and two.
+- Depth first search dives straight down one branch, so it visits the nodes in the wrong order.
+- We want to sweep across each level before going deeper. That's breadth first search.
+- And breadth first search runs on a queue. First in, first out.
+- The trick is to measure the queue's length at the start of each level. Exactly that many nodes belong to it.
+- Let's run it. The queue starts with just the root.
+- Level zero. The queue holds one node. Pop three, record it, and push nine and twenty.
+- Level one. Two nodes. Pop nine, push four and seven. Pop twenty, push fifteen and eight.
+- Level two holds four nodes. Pop them in order. Seven brings six, and fifteen brings two.
+- Level three. Six and two have no children, so nothing new joins the queue.
+- The queue is empty, and we have all four levels.
+- Each node goes in and out of the queue once, so the time is linear.
+- The queue holds at most one full level, so the space is the width of the tree.
+- One queue, and one snapshot of its size per level.
+- Sweep level by level, and the tree comes out in rows.

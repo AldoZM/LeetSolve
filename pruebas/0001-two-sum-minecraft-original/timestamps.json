@@ -1,0 +1,145 @@
+{
+  "total_duration_s": 97.201,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Two Sum, Minecraft edition. LeetCode problem number one, and an interview classic.",
+      "start_s": 0.0,
+      "end_s": 5.975,
+      "duration_s": 5.975
+    },
+    {
+      "index": 1,
+      "text": "Our world is a row of blocks, each one with a number. And we have a target.",
+      "start_s": 5.975,
+      "end_s": 10.65,
+      "duration_s": 4.675
+    },
+    {
+      "index": 2,
+      "text": "Find the two blocks that add up exactly to the target, and return their positions.",
+      "start_s": 10.65,
+      "end_s": 15.9,
+      "duration_s": 5.25
+    },
+    {
+      "index": 3,
+      "text": "The direct idea is to try every possible pair of blocks.",
+      "start_s": 15.9,
+      "end_s": 20.0,
+      "duration_s": 4.1
+    },
+    {
+      "index": 4,
+      "text": "Pick one block, and test it against every block after it.",
+      "start_s": 20.0,
+      "end_s": 23.825,
+      "duration_s": 3.825
+    },
+    {
+      "index": 5,
+      "text": "It works, but with just six blocks, that's already fifteen checks. Our pickaxe is almost broken.",
+      "start_s": 23.825,
+      "end_s": 30.2,
+      "duration_s": 6.375
+    },
+    {
+      "index": 6,
+      "text": "And it grows quadratically. With a million blocks, that's half a trillion pairs.",
+      "start_s": 30.2,
+      "end_s": 35.275,
+      "duration_s": 5.075
+    },
+    {
+      "index": 7,
+      "text": "Here's the trick. If the target is twenty three and I'm holding a fifteen, I know exactly what I need. An eight.",
+      "start_s": 35.275,
+      "end_s": 42.275,
+      "duration_s": 7.0
+    },
+    {
+      "index": 8,
+      "text": "We call that the complement. The target, minus the current value.",
+      "start_s": 42.275,
+      "end_s": 46.625,
+      "duration_s": 4.35
+    },
+    {
+      "index": 9,
+      "text": "So we walk the row just once, with a chest that remembers every block and where we found it. That chest is our hash map.",
+      "start_s": 46.625,
+      "end_s": 54.275,
+      "duration_s": 7.65
+    },
+    {
+      "index": 10,
+      "text": "At each block, we first ask. Is my complement already in the chest?",
+      "start_s": 54.275,
+      "end_s": 58.675,
+      "duration_s": 4.4
+    },
+    {
+      "index": 11,
+      "text": "Five needs eighteen. Not there. Store it.",
+      "start_s": 58.675,
+      "end_s": 61.701,
+      "duration_s": 3.026
+    },
+    {
+      "index": 12,
+      "text": "Twelve needs eleven. One needs twenty two. Still nothing. Into the chest.",
+      "start_s": 61.701,
+      "end_s": 66.876,
+      "duration_s": 5.175
+    },
+    {
+      "index": 13,
+      "text": "Fourteen needs nine. Eight needs fifteen. Keep storing.",
+      "start_s": 66.876,
+      "end_s": 70.851,
+      "duration_s": 3.975
+    },
+    {
+      "index": 14,
+      "text": "Now we reach fifteen. It needs eight, and eight is already in the chest, at index four!",
+      "start_s": 70.851,
+      "end_s": 76.401,
+      "duration_s": 5.55
+    },
+    {
+      "index": 15,
+      "text": "Advancement made. The answer is indices four and five.",
+      "start_s": 76.401,
+      "end_s": 80.326,
+      "duration_s": 3.925
+    },
+    {
+      "index": 16,
+      "text": "Each chest lookup takes constant time, so the whole walk is linear.",
+      "start_s": 80.326,
+      "end_s": 84.701,
+      "duration_s": 4.375
+    },
+    {
+      "index": 17,
+      "text": "We went from n squared down to n, in exchange for a little extra memory.",
+      "start_s": 84.701,
+      "end_s": 89.626,
+      "duration_s": 4.925
+    },
+    {
+      "index": 18,
+      "text": "One loop, one chest, and just a few lines of code.",
+      "start_s": 89.626,
+      "end_s": 93.226,
+      "duration_s": 3.6
+    },
+    {
+      "index": 19,
+      "text": "Trade memory for speed. That's the big lesson of Two Sum.",
+      "start_s": 93.226,
+      "end_s": 97.201,
+      "duration_s": 3.975
+    }
+  ]
+}

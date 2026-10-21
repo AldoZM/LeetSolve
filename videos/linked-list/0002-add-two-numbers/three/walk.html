@@ -1,0 +1,415 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #0B0E1A; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+const params = new URLSearchParams(location.search);
+const W = Number(params.get('w') || 1080);
+const H = Number(params.get('h') || 1440);
+
+// Palette shared with the Manim scenes
+const C = { bg: 0x0B0E1A, panel: 0x141B2F, cyan: 0x22D3EE, magenta: 0xF472B6, yellow: 0xFACC15, green: 0x34D399,
+            violet: 0xA78BFA, muted: 0x64748B, ink: 0xE2E8F0, arrow: 0x8291AD };
+const css = (hex) => '#' + hex.toString(16).padStart(6, '0');
+
+// Problem data and the column-by-column trace of the algorithm
+const L1 = [2, 4, 9];
+const L2 = [5, 6, 4, 9];
+const steps = [];
+{
+  let carry = 0;
+  for (let k = 0; k < 5; k++) {
+    const a = L1[k] ?? null, b = L2[k] ?? null;
+    const total = (a ?? 0) + (b ?? 0) + carry;
+    steps.push({ k, a, b, cin: carry, total, digit: total % 10, cout: Math.floor(total / 10) });
+    carry = Math.floor(total / 10);
+  }
+}
+
+// Timing comes from the narration so the clip lines up with the voice
+const FIRST_SEG = 9, LAST_SEG = 15;
+const STEP_B = [0.7, 0.7, 1.2, 2.4, 2.4]; // when digits start flying, per step (seconds into its segment)
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const base = subs[FIRST_SEG].start_s;
+const segStart = (i) => subs[i].start_s - base;
+const TOTAL = subs[LAST_SEG].end_s - base;
+
+// Layout in world units
+const COL = 2.3, Y1 = 2.3, Y2 = 0.5, YR = -1.9, YC = 3.95, YM = -0.7, ZM = 1.7;
+const colX = (k) => k * COL;
+
+// ---------- helpers ----------
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const easeInOut = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const easeOutBack = (x) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+const lerp = (a, b, x) => a + (b - a) * x;
+const lerpV = (a, b, x) => new THREE.Vector3().lerpVectors(a, b, x);
+const bezier = (p0, p1, p2, x) => {
+  const u = 1 - x;
+  return new THREE.Vector3().addScaledVector(p0, u * u).addScaledVector(p1, 2 * u * x).addScaledVector(p2, x * x);
+};
+const mixColor = (a, b, x) => new THREE.Color(a).lerp(new THREE.Color(b), x);
+
+function textCanvas(text, color, px = 180, font = 'Consolas') {
+  const c = document.createElement('canvas');
+  const ctx = c.getContext('2d');
+  ctx.font = `bold ${px}px ${font}`;
+  const w = Math.ceil(ctx.measureText(text).width + px * 0.4);
+  c.width = w; c.height = Math.ceil(px * 1.35);
+  ctx.font = `bold ${px}px ${font}`;
+  ctx.fillStyle = css(color);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, w / 2, c.height / 2 + px * 0.04);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  return { tex, aspect: w / c.height };
+}
+
+function textSprite(text, color, height, font = 'Consolas') {
+  const { tex, aspect } = textCanvas(text, color, 180, font);
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, toneMapped: false, depthWrite: false });
+  const s = new THREE.Sprite(mat);
+  s.scale.set(height * aspect, height, 1);
+  s.userData.base = s.scale.clone();
+  return s;
+}
+
+function rrShape(w, h, r) {
+  const s = new THREE.Shape();
+  const x = -w / 2, y = -h / 2;
+  s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r);
+  s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r);
+  s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y);
+  return s;
+}
+
+const boxGeo = new RoundedBoxGeometry(1.4, 1.4, 0.5, 4, 0.16);
+const ringShape = rrShape(1.5, 1.5, 0.24);
+ringShape.holes.push(rrShape(1.36, 1.36, 0.18));
+const ringGeo = new THREE.ShapeGeometry(ringShape, 10);
+const planeGeo = new THREE.PlaneGeometry(1, 1);
+
+// A list node: dark rounded box, glowing outline on the front face, digit facing the camera
+function makeNode(value, color) {
+  const g = new THREE.Group();
+  const boxMat = new THREE.MeshStandardMaterial({ color: C.panel, roughness: 0.35, metalness: 0.25, transparent: true });
+  const box = new THREE.Mesh(boxGeo, boxMat);
+  const ringMat = new THREE.MeshBasicMaterial({ color, toneMapped: false, transparent: true });
+  const ring = new THREE.Mesh(ringGeo, ringMat);
+  ring.position.z = 0.26;
+  const { tex, aspect } = textCanvas(String(value), C.ink, 200);
+  const digitMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, toneMapped: false, depthWrite: false });
+  const digit = new THREE.Mesh(planeGeo, digitMat);
+  digit.scale.set(0.85 * aspect, 0.85, 1);
+  digit.position.z = 0.27;
+  g.add(box, ring, digit);
+  const node = { g, boxMat, ringMat, digitMat, color };
+  node.set = ({ scale = 1, opacity = 1, ring: ringColor = color, digitOpacity = opacity }) => {
+    g.scale.setScalar(Math.max(scale, 1e-4));
+    g.visible = scale > 0.001 && opacity > 0.001;
+    boxMat.opacity = opacity;
+    ringMat.opacity = opacity;
+    ringMat.color.set(ringColor);
+    digitMat.opacity = digitOpacity;
+  };
+  return node;
+}
+
+function makeArrow(length, color = C.arrow) {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshBasicMaterial({ color, toneMapped: false, transparent: true });
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, length - 0.22, 12), mat);
+  shaft.rotation.z = -Math.PI / 2;
+  shaft.position.x = (length - 0.22) / 2;
+  const head = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.22, 16), mat);
+  head.rotation.z = -Math.PI / 2;
+  head.position.x = length - 0.11;
+  g.add(shaft, head);
+  g.userData.mat = mat;
+  return g;
+}
+
+// ---------- renderer and scene ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.setSize(W, H);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+{
+  const gl = renderer.getContext();
+  const ext = gl.getExtension('WEBGL_debug_renderer_info');
+  window.gpuInfo = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+}
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(C.bg);
+scene.fog = new THREE.Fog(C.bg, 20, 48);
+
+const camera = new THREE.PerspectiveCamera(42, W / H, 0.1, 200);
+// Push the content into the upper part of the frame; the lower part is covered by the code panel
+camera.setViewOffset(W, H, 0, H * 0.24, W, H);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const key = new THREE.DirectionalLight(0xffffff, 1.4);
+key.position.set(6, 10, 12);
+scene.add(key);
+const focusLight = new THREE.PointLight(C.yellow, 20, 9, 1.6);
+scene.add(focusLight);
+
+const grid = new THREE.GridHelper(120, 120, C.cyan, C.cyan);
+grid.material.transparent = true;
+grid.material.opacity = 0.13;
+grid.position.set(colX(2), YR - 1.15, 0);
+scene.add(grid);
+
+// Column highlight beam
+const beamMat = new THREE.MeshBasicMaterial({ color: C.yellow, transparent: true, opacity: 0.06, toneMapped: false, depthWrite: false });
+const beam = new THREE.Mesh(new THREE.PlaneGeometry(1.95, YC - YR + 2.0), beamMat);
+beam.position.set(0, (YC + YR) / 2 + 0.2, -0.45);
+scene.add(beam);
+const beamEdgeMat = new THREE.MeshBasicMaterial({ color: C.yellow, transparent: true, opacity: 0.5, toneMapped: false });
+const beamEdges = new THREE.Group();
+for (const sx of [-1, 1]) {
+  const e = new THREE.Mesh(new THREE.PlaneGeometry(0.03, YC - YR + 2.0), beamEdgeMat);
+  e.position.set(sx * 0.975, 0, 0.001);
+  beamEdges.add(e);
+}
+beam.add(beamEdges);
+
+// Lists
+const l1Nodes = L1.map((v, k) => { const n = makeNode(v, C.cyan); n.g.position.set(colX(k), Y1, 0); scene.add(n.g); return n; });
+const l2Nodes = L2.map((v, k) => { const n = makeNode(v, C.violet); n.g.position.set(colX(k), Y2, 0); scene.add(n.g); return n; });
+const resNodes = steps.map((s) => { const n = makeNode(s.digit, C.green); n.g.position.set(colX(s.k), YR, 0); scene.add(n.g); return n; });
+const ghost1 = { 3: makeNode(0, C.muted), 4: makeNode(0, C.muted) };
+const ghost2 = { 4: makeNode(0, C.muted) };
+for (const [k, n] of Object.entries(ghost1)) { n.g.position.set(colX(+k), Y1, 0); scene.add(n.g); }
+for (const [k, n] of Object.entries(ghost2)) { n.g.position.set(colX(+k), Y2, 0); scene.add(n.g); }
+
+const ARROW_LEN = COL - 1.5;
+function placeArrow(k, y) { const a = makeArrow(ARROW_LEN); a.position.set(colX(k) + 0.75, y, 0); scene.add(a); return a; }
+const l1Arrows = [0, 1, 2].map((k) => placeArrow(k, Y1));   // last one points to null
+const l2Arrows = [0, 1, 2, 3].map((k) => placeArrow(k, Y2));
+const resArrows = [0, 1, 2, 3].map((k) => placeArrow(k, YR));
+const null1 = textSprite('null', C.muted, 0.42); null1.position.set(colX(3), Y1, 0); scene.add(null1);
+const null2 = textSprite('null', C.muted, 0.42); null2.position.set(colX(4), Y2, 0); scene.add(null2);
+
+const labels = [
+  ['l1', C.cyan, Y1], ['l2', C.violet, Y2], ['sum', C.green, YR],
+].map(([t, c, y]) => { const s = textSprite(t, c, 0.5, 'Segoe UI'); s.position.set(-1.65, y, 0); scene.add(s); return s; });
+
+// Flying values, totals, and carry orbs
+const flyA = steps.map((s) => textSprite(String(s.a ?? 0), s.a === null ? C.muted : C.cyan, 0.75));
+const flyB = steps.map((s) => textSprite(String(s.b ?? 0), s.b === null ? C.muted : C.violet, 0.75));
+const totals = steps.map((s) => textSprite(String(s.total), C.yellow, 0.95));
+const digits = steps.map((s) => textSprite(String(s.digit), C.green, 0.8));
+[...flyA, ...flyB, ...totals, ...digits].forEach((s) => scene.add(s));
+
+const orbGeo = new THREE.SphereGeometry(0.34, 32, 16);
+const orbs = steps.map(() => {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshBasicMaterial({ color: C.magenta, toneMapped: false, transparent: true });
+  g.add(new THREE.Mesh(orbGeo, mat));
+  const one = textSprite('1', 0x0B0E1A, 0.55);
+  one.position.z = 0.36;
+  g.add(one);
+  g.userData.mat = mat;
+  scene.add(g);
+  return g;
+});
+
+// Fade plane in front of the camera for the opening and closing fades
+const fadeMat = new THREE.MeshBasicMaterial({ color: C.bg, transparent: true, depthTest: false, depthWrite: false });
+const fade = new THREE.Mesh(new THREE.PlaneGeometry(10, 10), fadeMat);
+fade.position.z = -0.5;
+fade.renderOrder = 999;
+camera.add(fade);
+scene.add(camera);
+
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(W, H), 0.75, 0.45, 0.2));
+composer.addPass(new OutputPass());
+
+// ---------- camera choreography ----------
+const colPose = (x) => ({ pos: new THREE.Vector3(x + 3.4, 3.6, 17.5), look: new THREE.Vector3(x + 1.1, 0.95, 0) });
+const overview = { pos: new THREE.Vector3(colX(2) + 2.6, 5.0, 22.0), look: new THREE.Vector3(colX(2), 0.9, 0) };
+const mixPose = (p, q, x) => ({ pos: lerpV(p.pos, q.pos, x), look: lerpV(p.look, q.look, x) });
+
+function cameraPose(t) {
+  const intro = mixPose(overview, colPose(0), easeInOut(prog(t, 2.4, 4.2)));
+  let pose = intro;
+  for (let k = 1; k < 5; k++) {
+    const s0 = segStart(10 + k);
+    pose = mixPose(pose, colPose(colX(k)), easeInOut(prog(t, s0, s0 + 0.8)));
+  }
+  const f0 = segStart(LAST_SEG);
+  pose = mixPose(pose, overview, easeInOut(prog(t, f0, f0 + 1.3)));
+  // Gentle hand-held drift
+  pose.pos.x += 0.35 * Math.sin(t * 0.45);
+  pose.pos.y += 0.2 * Math.sin(t * 0.31 + 1.0);
+  return pose;
+}
+
+// ---------- per-frame state ----------
+function renderAt(t) {
+  const pose = cameraPose(t);
+  camera.position.copy(pose.pos);
+  camera.lookAt(pose.look);
+
+  // Intro: nodes rise in, arrows grow
+  const pop = (start) => easeOutBack(prog(t, start, start + 0.5));
+  l1Nodes.forEach((n, k) => { const p = pop(0.4 + 0.14 * k); n.set({ scale: p }); n.g.position.y = Y1 - (1 - clamp(p)) * 0.8; });
+  l2Nodes.forEach((n, k) => { const p = pop(0.75 + 0.14 * k); n.set({ scale: p }); n.g.position.y = Y2 - (1 - clamp(p)) * 0.8; });
+  const growArrow = (a, start) => { const p = easeInOut(prog(t, start, start + 0.4)); a.scale.set(Math.max(p, 1e-4), 1, 1); a.visible = p > 0.001; };
+  l1Arrows.forEach((a, k) => growArrow(a, 1.3 + 0.12 * k));
+  l2Arrows.forEach((a, k) => growArrow(a, 1.5 + 0.12 * k));
+  const nullIn = prog(t, 1.9, 2.3);
+  null1.material.opacity = nullIn;
+  null2.material.opacity = nullIn;
+  labels.forEach((s, i) => { s.material.opacity = prog(t, 0.6 + 0.3 * i, 1.0 + 0.3 * i); });
+  resArrows.forEach((a) => { a.visible = false; });
+  resNodes.forEach((n) => n.set({ scale: 0 }));
+  Object.values(ghost1).forEach((n) => n.set({ scale: 0 }));
+  Object.values(ghost2).forEach((n) => n.set({ scale: 0 }));
+  [...flyA, ...flyB, ...totals, ...digits].forEach((s) => { s.visible = false; });
+  orbs.forEach((o) => { o.visible = false; });
+
+  // Beam follows the active column
+  const firstStep = segStart(10);
+  beamMat.opacity = 0.045 * prog(t, firstStep, firstStep + 0.5) * (1 - prog(t, segStart(LAST_SEG), segStart(LAST_SEG) + 0.8));
+  beamEdgeMat.opacity = beamMat.opacity * 9;
+  beam.visible = beamMat.opacity > 0.001;
+  let beamX = 0;
+  for (let k = 1; k < 5; k++) beamX = lerp(beamX, colX(k), easeInOut(prog(t, segStart(10 + k), segStart(10 + k) + 0.7)));
+  beam.position.x = beamX;
+  focusLight.position.set(beamX, 1.0, 2.5);
+  focusLight.intensity = 20 * beamMat.opacity / 0.045;
+
+  // Steps
+  for (const s of steps) {
+    const s0 = segStart(10 + s.k);
+    const u = t - s0;
+    const b = STEP_B[s.k];
+    const x = colX(s.k);
+    const active = prog(u, 0, 0.6);
+    const done = prog(u, b + 2.3, b + 2.7);
+    const inputRing = (base) => (u < 0 ? base : done > 0 ? mixColor(C.yellow, C.muted, done) : mixColor(base, C.yellow, active));
+    const inputDim = 1 - 0.6 * done;
+
+    if (s.a !== null && u > 0) l1Nodes[s.k].set({ ring: inputRing(C.cyan), digitOpacity: inputDim });
+    if (s.b !== null && u > 0) l2Nodes[s.k].set({ ring: inputRing(C.violet), digitOpacity: inputDim });
+
+    // Missing digits: the list's null turns into a ghost zero
+    const ghostIn = prog(u, 0.7, 1.4);
+    if (s.a === null) {
+      const g = ghost1[s.k];
+      if (u > 0.7) g.set({ scale: 1, opacity: 0.5 * ghostIn * inputDim + 0.001, ring: inputRing(C.muted), digitOpacity: 0.7 * ghostIn * inputDim });
+      if (s.k === 3) null1.material.opacity = Math.min(null1.material.opacity, 1 - ghostIn);
+    }
+    if (s.b === null) {
+      const g = ghost2[s.k];
+      if (u > 0.7) g.set({ scale: 1, opacity: 0.5 * ghostIn * inputDim + 0.001, ring: inputRing(C.muted), digitOpacity: 0.7 * ghostIn * inputDim });
+      if (s.k === 4) null2.material.opacity = Math.min(null2.material.opacity, 1 - ghostIn);
+    }
+
+    // B: values fly forward and merge in front of the column
+    const merge = new THREE.Vector3(x, YM, ZM);
+    const fly = easeInOut(prog(u, b, b + 0.9));
+    if (u > b && u < b + 0.95) {
+      const showA = s.a !== null || s.k >= 3;
+      const showB = s.b !== null || s.k >= 4;
+      if (s.k < 4) {
+        const pa = bezier(new THREE.Vector3(x, Y1, 0.4), new THREE.Vector3(x - 0.9, Y1 + 0.3, 2.8), merge, fly);
+        flyA[s.k].position.copy(pa); flyA[s.k].visible = showA;
+        const pb = bezier(new THREE.Vector3(x, Y2, 0.4), new THREE.Vector3(x + 0.9, Y2 + 0.2, 2.6), merge, fly);
+        flyB[s.k].position.copy(pb); flyB[s.k].visible = showB;
+      }
+      const shrink = 1 - 0.5 * prog(u, b + 0.7, b + 0.95);
+      flyA[s.k].scale.copy(flyA[s.k].userData.base).multiplyScalar(shrink);
+      flyB[s.k].scale.copy(flyB[s.k].userData.base).multiplyScalar(shrink);
+    }
+    if (s.cin) {
+      // Orb waits in this column's carry slot until the values fly
+      const orb = orbs[s.k];
+      const slot = new THREE.Vector3(x, YC, 0.2);
+      const into = easeInOut(prog(u, b, b + 0.9));
+      if (u >= 0 && u < b + 0.95) {
+        orb.visible = true;
+        if (u >= b) orb.position.copy(bezier(slot, new THREE.Vector3(x + 1.2, YC - 0.5, 3.2), merge, into));
+        else orb.position.copy(slot);
+        orb.scale.setScalar(1 - 0.5 * prog(u, b + 0.7, b + 0.95));
+        orb.position.y += u < b ? 0.08 * Math.sin(t * 3.0) : 0;
+      }
+    }
+
+    // C: total pops, then splits into the digit and the next carry
+    const c0 = b + 0.9;
+    if (u > c0 && u < c0 + 0.5) {
+      const tp = easeOutBack(prog(u, c0, c0 + 0.3));
+      const tf = 1 - prog(u, c0 + 0.32, c0 + 0.5);
+      totals[s.k].visible = true;
+      totals[s.k].position.copy(merge);
+      totals[s.k].scale.copy(totals[s.k].userData.base).multiplyScalar(Math.max(tp * (0.6 + 0.4 * tf), 1e-3));
+      totals[s.k].material.opacity = tf;
+    }
+    const split = easeInOut(prog(u, c0 + 0.3, c0 + 0.8));
+    if (u > c0 + 0.3 && u < c0 + 0.85) {
+      const d = digits[s.k];
+      d.visible = true;
+      d.position.copy(lerpV(merge, new THREE.Vector3(x, YR, 0.5), split));
+    }
+    if (s.cout && u > c0 + 0.3 && t < segStart(10 + s.k + 1)) {
+      const orb = orbs[s.k + 1];
+      const goes = easeInOut(prog(u, c0 + 0.3, c0 + 1.0));
+      orb.visible = true;
+      orb.position.copy(bezier(merge, new THREE.Vector3(x + COL * 0.6, YC + 1.6, 2.2), new THREE.Vector3(colX(s.k + 1), YC, 0.2), goes));
+      orb.scale.setScalar(lerp(0.5, 1, goes));
+    }
+
+    // D: the result node is created and linked
+    const d0 = b + 1.7;
+    if (u > d0 - 0.05) {
+      const p = easeOutBack(prog(u, d0 - 0.05, d0 + 0.45));
+      resNodes[s.k].set({ scale: p });
+      if (s.k > 0) growArrow(resArrows[s.k - 1], s0 + d0);
+    }
+  }
+
+  // Final: read the result, column by column
+  const f0 = segStart(LAST_SEG);
+  if (t > f0) {
+    resNodes.forEach((n, k) => {
+      const w = prog(t - f0, 1.2 + 0.5 * k, 1.5 + 0.5 * k);
+      const bump = Math.sin(Math.PI * w) * 0.15;
+      n.set({ scale: 1 + bump, ring: mixColor(C.green, 0xffffff, Math.sin(Math.PI * w) * 0.6) });
+    });
+  }
+
+  fadeMat.opacity = 1 - prog(t, 0, 0.5) + prog(t, TOTAL - 0.55, TOTAL - 0.05);
+  fade.visible = fadeMat.opacity > 0.001;
+  composer.render();
+}
+
+window.renderAt = renderAt;
+window.sceneReady = Promise.resolve(true);
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

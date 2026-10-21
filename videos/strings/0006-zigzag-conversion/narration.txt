@@ -1,0 +1,18 @@
+subtitles:
+- Zigzag Conversion. LeetCode number six.
+- Write a string in a zigzag pattern across a number of rows, then read it off row by row.
+- With PAYPALISHIRING and three rows, the letters go down, then diagonally up, then down again.
+- Reading each row from left to right gives P A H N, then A P L S I I G, then Y I R.
+- You could build a full grid and place each letter in its cell. But a lot of that grid stays empty.
+- The trick is that columns don't matter. Only the row of each letter does.
+- So keep one string per row, and a pointer that bounces between the top and the bottom.
+- Let's run it. Three empty rows, and the pointer starts at the top.
+- P goes in row zero, A in row one, Y in row two. We hit the bottom, so the pointer turns around.
+- P goes back up to row one, then A reaches the top, and the pointer turns down again.
+- The pattern repeats for every letter. Down, up, down, up.
+- When the last letter lands, each row holds its own piece of the answer.
+- Join the rows, and we get P A H N A P L S I I G Y I R.
+- Every letter is placed exactly once, so the time is linear.
+- And the rows hold the same n letters, so the space is linear too.
+- No grid. Just rows and a bouncing pointer.
+- Down and up, row by row. That's the zigzag.

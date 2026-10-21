@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+// Stills of an exported world: second k of the timeline shows view k (render with --stills 0,1,2,...)
+import { V } from '/vendor/lib/stage.js';
+import { loadTheme, makeWorld, makeTerrain, makeClouds } from '/vendor/tema/mc.js';
+
+const file = new URLSearchParams(location.search).get('mundo') || 'claude.json';
+const imgs = await loadTheme([]);
+const world = makeWorld({ fov: 60, offset: 0, fog: [40, 90] });
+world.scene.add(await makeTerrain('/' + file));
+world.scene.add(makeClouds(imgs));
+
+// [camera position, look target]
+const VIEWS = [
+  [V(0, 1.62, 0), V(0, 0, 20)],     // player's eye, looking south
+  [V(0, 14, -12), V(0, 0, 20)],     // high, looking south
+  [V(0, 1.62, 0), V(0, 0, -20)],    // player's eye, looking north
+  [V(0, 14, 12), V(0, 0, -20)],     // high, looking north
+  [V(0, 1.62, 0), V(20, 0, 0)],     // east
+  [V(0, 1.62, 0), V(-20, 0, 0)],    // west
+];
+
+window.renderAt = (t) => {
+  const [p, l] = VIEWS[Math.min(VIEWS.length - 1, Math.floor(t))];
+  world.look(p, l);
+  world.draw(1, 100);
+};
+window.sceneDuration = VIEWS.length;
+</script>
+</body>
+</html>
