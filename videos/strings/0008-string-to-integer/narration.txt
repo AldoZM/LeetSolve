@@ -1,0 +1,20 @@
+subtitles:
+- String to Integer, Minecraft edition. LeetCode number eight, the famous a to i.
+- We get a string, and we must read the integer written at its start.
+- First skip the spaces, then read an optional sign, then read digits until something is not a digit.
+- And if the number leaves the thirty two bit range, clamp it to the nearest limit.
+- The lazy idea is to call int on the whole string.
+- But letters and extra symbols make it crash, and a lone minus sign is not a number either.
+- So we read it like a machine, one character at a time, in three phases.
+- Spaces, then a sign, then digits. Each digit is pushed with result times ten, plus the digit.
+- And before every push, we check the limit, so the result can never overflow.
+- Our string is two spaces, a minus, zero, four, two, the letter a, and a seven.
+- The pointer skips both spaces. Then it finds a minus, so the sign is negative.
+- Zero. The result stays zero. Four. Zero times ten plus four is four.
+- Two. Four times ten plus two is forty two.
+- Now the letter a. It's not a digit, so the reading stops right here. The seven is never read.
+- Advancement made. Apply the sign, and the answer is minus forty two.
+- We visit each character at most once, so the time is linear in the length of the string.
+- And we only keep an index, a sign and the result. Constant space.
+- Skip spaces, read the sign, push digits, and check the limit before each push.
+- Parse like a machine. One phase at a time.

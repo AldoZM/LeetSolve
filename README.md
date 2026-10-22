@@ -2,13 +2,14 @@
 
 Animated explainers for the data structures and algorithms behind common LeetCode problems, built with [Manim Community Edition](https://www.manim.community/), local [Kokoro](https://github.com/hexgrad/kokoro) TTS narration and a Three.js 3D section.
 
-Current style: vertical 1080×1440 videos set inside a real Minecraft world, with the code shown next to the solution and a seamless loop.
+Current style: vertical 1080×1920 (9:16, for Shorts) videos set inside a real Minecraft world, with the code shown next to the solution and a seamless loop.
 
 ## Docs (Spanish)
 
 - [GUIA.md](GUIA.md) — full working context: format, folders, workflow, helpers, known problems.
 - [INSTRUCCIONES_IA.md](INSTRUCCIONES_IA.md) — step-by-step brief so any AI model can make a new video with the same parameters.
 - [BITACORA.md](BITACORA.md) — what was done in each session.
+- [RENDER.md](RENDER.md) — how to render a video whose code is ready, resume an interrupted render, and the render status of the latest batch.
 
 ## Layout
 
@@ -16,7 +17,7 @@ Current style: vertical 1080×1440 videos set inside a real Minecraft world, wit
 - `pruebas/` — experiments. `pruebas/0001-two-sum-minecraft-original` is the template of the approved style.
 - `herramientas/` — shared tools: `build.py`, `prelude.py`, `sheet.py`, the 3D renderer (`three/render.mjs`, `three/stage.js`) and the visual themes.
 - `herramientas/temas/minecraft-original/mundos/` — the ClaudeEntorno world (`ClaudeEntorno.zip`, Java Edition 26.2+) and its exported surface (`claude.json`).
-- `Three/` — the first tree explainer (16:9).
+- `Three/` — the first tree explainer (9:16).
 
 Final videos and render intermediates are not committed; `herramientas/build.py` rebuilds them.
 

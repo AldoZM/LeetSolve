@@ -1,0 +1,138 @@
+{
+  "total_duration_s": 95.152,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "String to Integer, Minecraft edition. LeetCode number eight, the famous a to i.",
+      "start_s": 0.0,
+      "end_s": 5.475,
+      "duration_s": 5.475
+    },
+    {
+      "index": 1,
+      "text": "We get a string, and we must read the integer written at its start.",
+      "start_s": 5.475,
+      "end_s": 9.6,
+      "duration_s": 4.125
+    },
+    {
+      "index": 2,
+      "text": "First skip the spaces, then read an optional sign, then read digits until something is not a digit.",
+      "start_s": 9.6,
+      "end_s": 16.226,
+      "duration_s": 6.626
+    },
+    {
+      "index": 3,
+      "text": "And if the number leaves the thirty two bit range, clamp it to the nearest limit.",
+      "start_s": 16.226,
+      "end_s": 21.126,
+      "duration_s": 4.9
+    },
+    {
+      "index": 4,
+      "text": "The lazy idea is to call int on the whole string.",
+      "start_s": 21.126,
+      "end_s": 24.626,
+      "duration_s": 3.5
+    },
+    {
+      "index": 5,
+      "text": "But letters and extra symbols make it crash, and a lone minus sign is not a number either.",
+      "start_s": 24.626,
+      "end_s": 30.526,
+      "duration_s": 5.9
+    },
+    {
+      "index": 6,
+      "text": "So we read it like a machine, one character at a time, in three phases.",
+      "start_s": 30.526,
+      "end_s": 35.251,
+      "duration_s": 4.725
+    },
+    {
+      "index": 7,
+      "text": "Spaces, then a sign, then digits. Each digit is pushed with result times ten, plus the digit.",
+      "start_s": 35.251,
+      "end_s": 41.776,
+      "duration_s": 6.525
+    },
+    {
+      "index": 8,
+      "text": "And before every push, we check the limit, so the result can never overflow.",
+      "start_s": 41.776,
+      "end_s": 46.801,
+      "duration_s": 5.025
+    },
+    {
+      "index": 9,
+      "text": "Our string is two spaces, a minus, zero, four, two, the letter a, and a seven.",
+      "start_s": 46.801,
+      "end_s": 52.301,
+      "duration_s": 5.5
+    },
+    {
+      "index": 10,
+      "text": "The pointer skips both spaces. Then it finds a minus, so the sign is negative.",
+      "start_s": 52.301,
+      "end_s": 57.576,
+      "duration_s": 5.275
+    },
+    {
+      "index": 11,
+      "text": "Zero. The result stays zero. Four. Zero times ten plus four is four.",
+      "start_s": 57.576,
+      "end_s": 62.901,
+      "duration_s": 5.325
+    },
+    {
+      "index": 12,
+      "text": "Two. Four times ten plus two is forty two.",
+      "start_s": 62.901,
+      "end_s": 66.176,
+      "duration_s": 3.275
+    },
+    {
+      "index": 13,
+      "text": "Now the letter a. It's not a digit, so the reading stops right here. The seven is never read.",
+      "start_s": 66.176,
+      "end_s": 72.151,
+      "duration_s": 5.975
+    },
+    {
+      "index": 14,
+      "text": "Advancement made. Apply the sign, and the answer is minus forty two.",
+      "start_s": 72.151,
+      "end_s": 76.977,
+      "duration_s": 4.826
+    },
+    {
+      "index": 15,
+      "text": "We visit each character at most once, so the time is linear in the length of the string.",
+      "start_s": 76.977,
+      "end_s": 82.277,
+      "duration_s": 5.3
+    },
+    {
+      "index": 16,
+      "text": "And we only keep an index, a sign and the result. Constant space.",
+      "start_s": 82.277,
+      "end_s": 86.927,
+      "duration_s": 4.65
+    },
+    {
+      "index": 17,
+      "text": "Skip spaces, read the sign, push digits, and check the limit before each push.",
+      "start_s": 86.927,
+      "end_s": 92.002,
+      "duration_s": 5.075
+    },
+    {
+      "index": 18,
+      "text": "Parse like a machine. One phase at a time.",
+      "start_s": 92.002,
+      "end_s": 95.152,
+      "duration_s": 3.15
+    }
+  ]
+}

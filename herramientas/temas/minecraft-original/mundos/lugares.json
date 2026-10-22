@@ -8,5 +8,11 @@
  "sand-hills": {"center": [-76, 66, -36], "turn": -1.1781, "desc": "Lomas con arena junto al rio", "video": "strings/0006-zigzag-conversion"},
  "south-hill": {"center": [-36, 66, 132], "turn": 2.3562, "desc": "Loma del sur con arboles", "video": "math/0007-reverse-integer"},
  "oak-forest": {"center": [-12, 72, -116], "turn": 0.0, "desc": "Bosque cerrado de robles del norte", "video": "trees/0102-level-order"},
- "stone-forest": {"center": [-60, 65, -144], "turn": -0.3927, "desc": "Bosque del norte con piedra", "video": "trees/0124-max-path-sum"}
+ "stone-forest": {"center": [-60, 65, -144], "turn": -0.3927, "desc": "Bosque del norte con piedra", "video": "trees/0124-max-path-sum"},
+ "river-sand": {"center": [-256, 63, 104], "turn": 0.7854, "desc": "Rio con orilla de arena y lomas (mundo de la laptop, 26.3)", "video": "strings/0008-string-to-integer"},
+ "west-lake": {"center": [-280, 66, -88], "turn": 5.8905, "desc": "Lago abierto del oeste con cana de azucar (mundo de la laptop, 26.3)", "video": "math/0009-palindrome-number"},
+ "birch-pond": {"center": [-72, 66, 464], "turn": 3.1416, "desc": "Estanque frente a un bosque de abedules (mundo de la laptop, 26.3)", "video": "two-pointers/0016-three-sum-closest"},
+ "flower-forest": {"center": [-408, 66, 520], "turn": 2.3562, "desc": "Claro con flores junto a un bosque mixto (mundo de la laptop, 26.3)", "video": "backtracking/0017-letter-combinations"},
+ "high-terraces": {"center": [-448, 89, -320], "turn": 1.5708, "desc": "Lomas altas en terrazas con robles (mundo de la laptop, 26.3)", "video": "two-pointers/0018-four-sum"},
+ "oak-path": {"center": [-304, 65, -344], "turn": 2.3562, "desc": "Sendero dentro de un bosque cerrado de robles (mundo de la laptop, 26.3)", "video": "linked-list/0019-remove-nth-node"}
 }

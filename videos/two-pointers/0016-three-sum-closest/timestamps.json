@@ -1,0 +1,145 @@
+{
+  "total_duration_s": 102.076,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Three Sum Closest, Minecraft edition. LeetCode number sixteen, a twist on three sum.",
+      "start_s": 0.0,
+      "end_s": 6.2,
+      "duration_s": 6.2
+    },
+    {
+      "index": 1,
+      "text": "We get a row of numbered blocks and a target.",
+      "start_s": 6.2,
+      "end_s": 9.075,
+      "duration_s": 2.875
+    },
+    {
+      "index": 2,
+      "text": "Pick three blocks whose sum is as close as possible to the target, and return that sum.",
+      "start_s": 9.075,
+      "end_s": 14.501,
+      "duration_s": 5.426
+    },
+    {
+      "index": 3,
+      "text": "The direct idea tries every group of three blocks.",
+      "start_s": 14.501,
+      "end_s": 18.051,
+      "duration_s": 3.55
+    },
+    {
+      "index": 4,
+      "text": "Fix one block, then a second one after it, then a third one after that.",
+      "start_s": 18.051,
+      "end_s": 22.601,
+      "duration_s": 4.55
+    },
+    {
+      "index": 5,
+      "text": "With just five blocks that's ten triples. Our pickaxe is already wearing out.",
+      "start_s": 22.601,
+      "end_s": 27.626,
+      "duration_s": 5.025
+    },
+    {
+      "index": 6,
+      "text": "And it grows as n cubed. A few thousand blocks means billions of checks.",
+      "start_s": 27.626,
+      "end_s": 32.651,
+      "duration_s": 5.025
+    },
+    {
+      "index": 7,
+      "text": "The trick is to sort the row first. Then fix one block, and use two pointers on the rest.",
+      "start_s": 32.651,
+      "end_s": 38.376,
+      "duration_s": 5.725
+    },
+    {
+      "index": 8,
+      "text": "If the sum is too small, the left pointer moves right. If it's too big, the right pointer moves left.",
+      "start_s": 38.376,
+      "end_s": 44.926,
+      "duration_s": 6.55
+    },
+    {
+      "index": 9,
+      "text": "Sorted, the row is minus five, two, three, four, seven. The target is ten.",
+      "start_s": 44.926,
+      "end_s": 50.001,
+      "duration_s": 5.075
+    },
+    {
+      "index": 10,
+      "text": "Fix minus five. Left on two, right on seven. The sum is four, our best so far. Too small, so left moves right.",
+      "start_s": 50.001,
+      "end_s": 57.801,
+      "duration_s": 7.8
+    },
+    {
+      "index": 11,
+      "text": "Five, then six. Each one is closer, but still too small.",
+      "start_s": 57.801,
+      "end_s": 61.901,
+      "duration_s": 4.1
+    },
+    {
+      "index": 12,
+      "text": "Fix two. Two plus three plus seven is twelve. Only two away, a new best. Too big, so right moves left.",
+      "start_s": 61.901,
+      "end_s": 69.251,
+      "duration_s": 7.35
+    },
+    {
+      "index": 13,
+      "text": "Two plus three plus four is nine. Just one away from ten. New best!",
+      "start_s": 69.251,
+      "end_s": 74.101,
+      "duration_s": 4.85
+    },
+    {
+      "index": 14,
+      "text": "Fix three. Three, four and seven make fourteen. That's four away, so nine stays.",
+      "start_s": 74.101,
+      "end_s": 79.426,
+      "duration_s": 5.325
+    },
+    {
+      "index": 15,
+      "text": "Advancement made. The closest sum is nine.",
+      "start_s": 79.426,
+      "end_s": 82.701,
+      "duration_s": 3.275
+    },
+    {
+      "index": 16,
+      "text": "Sorting costs n log n, and each fixed block runs one linear sweep. That's n squared in total.",
+      "start_s": 82.701,
+      "end_s": 89.526,
+      "duration_s": 6.825
+    },
+    {
+      "index": 17,
+      "text": "Down from n cubed, and we only keep the best sum. Constant extra space.",
+      "start_s": 89.526,
+      "end_s": 94.751,
+      "duration_s": 5.225
+    },
+    {
+      "index": 18,
+      "text": "Sort, fix one, and squeeze the other two with two pointers.",
+      "start_s": 94.751,
+      "end_s": 98.701,
+      "duration_s": 3.95
+    },
+    {
+      "index": 19,
+      "text": "In a sorted row, every move has a direction.",
+      "start_s": 98.701,
+      "end_s": 102.076,
+      "duration_s": 3.375
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+subtitles:
+- Palindrome Number, Minecraft edition. LeetCode number nine, and a perfect warm up.
+- Given an integer x, return true if it reads the same forward and backward.
+- One two one is a palindrome. Minus one two one is not, because the minus sign only sits on the left.
+- The easy way is to turn the number into a string, and compare it with its reverse.
+- It works, but the follow up asks us to solve it without converting to a string.
+- We could reverse the whole number with math, but the reversed number could overflow.
+- The trick is to reverse only half of the digits.
+- Pop digits from the end of x and push them onto a second number, until that number catches up with x.
+- Then the two halves must match.
+- Let's check one two three two one. The reversed half starts at zero.
+- Pop one. x is one two three two, and the half is one.
+- Pop two. x is one two three, and the half is twelve.
+- Pop three. x is twelve, and the half is one hundred twenty three. Now the half is bigger, so we stop.
+- The length is odd, so the middle digit, three, sits at the end of the half. Divide it by ten.
+- Twelve equals twelve. Advancement made. It's a palindrome!
+- We only touch half of the digits, so the time is log of x.
+- No string and no array, just two numbers. Constant space.
+- Negative numbers and numbers ending in zero fail right away. The rest, we fold in half.
+- Reverse only half, and meet in the middle.

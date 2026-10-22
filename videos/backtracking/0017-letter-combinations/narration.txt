@@ -1,0 +1,19 @@
+subtitles:
+- Letter Combinations of a Phone Number, Minecraft edition. LeetCode number seventeen.
+- On an old phone keypad, every digit from two to nine maps to a few letters.
+- Given a string of digits, return every word those letters could spell. For two three, that's nine words.
+- With a fixed number of digits, we could write one loop per digit.
+- But the input length changes. Four digits would need four nested loops, and the code can't know how many.
+- The fix is backtracking. Build the word one letter at a time, one digit per level.
+- At each level, try every letter of that digit, go one level deeper, then undo the choice and try the next one.
+- When the word is as long as the input, it's complete. Save it.
+- Every finished word goes into the chest. Digit two gives a, b and c. Digit three gives d, e and f.
+- Start with a. Then add d. A d is complete. Save it, and step back.
+- Swap d for e, then for f. A e and a f go into the chest.
+- Back up to the first level. Now b, with d, e and f.
+- Then c, with d, e and f again.
+- Advancement made. Nine words, and the chest is full.
+- Each digit has up to four letters, so there are up to four to the n words, and each one has n letters.
+- The time is n times four to the n. The recursion only goes n levels deep.
+- Choose a letter, go deeper, and undo. That's the whole template.
+- Backtracking explores every path, one choice at a time.

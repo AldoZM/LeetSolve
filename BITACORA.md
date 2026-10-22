@@ -4,6 +4,36 @@ Registro de lo que se hizo en cada sesión, de la más reciente a la más antigu
 
 ## 2026-10-21
 
+### Lote #8, #9, #16, #17, #18 y #19 (laptop, con subagentes)
+
+- Aldo pidió seguir desde el #8 con 5 problemas más y uno de linked list Medium a elección. Como #10–#15 ya están en la rama `laptop-videos` (sin unir a `main`), eligió #8, #9, #16, #17 y #18; el de linked list es el #19 Remove Nth Node From End of List. Se trabajó sobre `main`; la unión con `laptop-videos` queda para otra tarea.
+- No quedaban lugares libres en `lugares.json`. Se buscaron 6 nuevos en el ClaudeEntorno de la laptop (26.3, más grande que el del zip) con un escáner de heightmaps y bioma, y se eligieron viendo 12 candidatos con la cámara de paseo (detalles en la guía, "Lugares del mundo"). `mundo.py` ahora lee la paleta de 26.3.
+- Ejemplos verificados en Python antes de narrar:
+  - #8 `"  -042a7"` → -42.
+  - #9 12321 → true, invirtiendo solo la mitad.
+  - #16 `[-5, 2, 3, 4, 7]`, target 10 → 9. Se buscó un ejemplo con un solo más cercano, sin el target exacto y con movimientos de los dos punteros.
+  - #17 "23" → 9 palabras.
+  - #18 `[1, 0, -1, 0, -2, 2]`, target 0 → 3 grupos.
+  - #19 1→2→3→4→5, n = 2 → 1→2→3→5.
+- Narraciones de 18 a 20 líneas y voz de los 6. El #18 duraba 108.3 s y se recortó a 104.5 s.
+- El #8 lo empezó el agente principal (`make_walk.py`, `video.json`, `scenes.py`). Aldo pidió repartir el trabajo con subagentes: 4 en paralelo (#8; #9 y #19; #16 y #18; #17), con un documento común de reglas y diseño.
+- Una caída de red (`ENOTFOUND`) detuvo a los 4 subagentes antes de terminar:
+  - #8, #9, #16 y #17: `video.mp4` completo en la laptop, con la duración del video igual a la del audio (95.2, 91.3, 102.1 y 90.3 s).
+  - #18: escenas de Manim renderizadas; falta el resto.
+  - #19: escenas y clip 3D renderizados; `sync` se cortó a la mitad.
+- Nuevo `RENDER.md`: cómo renderizar un video cuyo código ya está listo, cómo retomar un render cortado y el estado de este lote con el comando que le falta a cada video.
+- Los `script.py` generados llevan la ruta local con el usuario de la PC: los de este lote no se suben, y el cambio de ruta que el build dejó en el `script.py` del #124 tampoco.
+- No verificado en ninguno de los 6: hojas de cuadros, la lista de "Errores ya cometidos", el loop, ver los videos en movimiento y escuchar los volúmenes. Los subagentes no llegaron a escribir sus `NOTAS.md`.
+
+### Render del #1 en la laptop (9:16)
+
+- Se rehizo `arrays-hashing/0001-two-sum` en la laptop desde `main`: 1080×1920 (9:16), 30 fps, 97.2 s (video = audio), 56 efectos de sonido.
+- `build.py mux` fallaba con ffmpeg 9 (`Unrecognized option 'filter_complex_script'`, la opción ya no existe desde ffmpeg 8). Ahora el grafo de audio se pasa directo en `-filter_complex`; funciona con versiones viejas y nuevas.
+- En la laptop faltaban 6 texturas de bloques de los lugares (`mundos/tex/`). Se copiaron del jar con `mundo.block_textures` sin volver a exportar, porque el ClaudeEntorno de la laptop tiene cambios (pale garden) y exportar cambiaría los `.json` de los lugares.
+- README corregido: el formato es 1080×1920 (9:16) y `Three/` también es 9:16 (decía 16:9).
+- Verificado: linter sin problemas (20 líneas, 7 escenas), duración igual al audio, hoja de cuadros y un cuadro completo en 9:16, loop con diferencia media de 1.28.
+- No verificado: ver el video completo en movimiento ni escuchar los volúmenes.
+
 ### Formato 9:16 para Shorts
 
 - Aldo preguntó si los videos estaban en 9:16; estaban en 3:4 (1080×1440). Eligió pasarlos a 9:16.
@@ -143,6 +173,10 @@ Registro de lo que se hizo en cada sesión, de la más reciente a la más antigu
   3. **Escenario y Vida Ambiental en 3D (`vida.js`)**: Se configuró la ubicación `terraced-hill.json` al amanecer (`dawn`) con iluminación matutina y ciclo de mobs autónomos en bucle cerrado (vacas y ovejas pastando, gallinas y cerdos explorando las terrazas), manteniendo un cierre de loop imperceptible (diferencia de 1.848).
 
 ## Pendientes
+
+- Lote #8–#19: terminar el render de #18 y #19 (`RENDER.md`, sección 6) y revisar los 6 (hojas de cuadros, errores conocidos, loop, verlos en movimiento).
+- Unir la rama `laptop-videos` (#10–#15, #1807, #3863 y su `stash@{0}`) con `main`: 5 conflictos (BITACORA, GUIA, extraer.py, mc.js, mundo.py).
+- Subir el ClaudeEntorno de 26.3 al zip (sin `players/` ni `singleplayer_uuid` en `level.dat`) si se quieren volver a exportar los lugares nuevos en otra PC.
 
 - Elegir otro lugar para el #60, que repite la colina en terrazas del #4 (Aldo pidió un lugar por video).
 - Si se quieren los mobs iguales en todos, volver a renderizar el 3D de #1 a #7 y #124 con el `makeLife` nuevo (`build.py three composite sync mux`).

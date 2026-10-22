@@ -1,0 +1,131 @@
+{
+  "total_duration_s": 90.326,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Letter Combinations of a Phone Number, Minecraft edition. LeetCode number seventeen.",
+      "start_s": 0.0,
+      "end_s": 6.026,
+      "duration_s": 6.026
+    },
+    {
+      "index": 1,
+      "text": "On an old phone keypad, every digit from two to nine maps to a few letters.",
+      "start_s": 6.026,
+      "end_s": 11.101,
+      "duration_s": 5.075
+    },
+    {
+      "index": 2,
+      "text": "Given a string of digits, return every word those letters could spell. For two three, that's nine words.",
+      "start_s": 11.101,
+      "end_s": 17.801,
+      "duration_s": 6.7
+    },
+    {
+      "index": 3,
+      "text": "With a fixed number of digits, we could write one loop per digit.",
+      "start_s": 17.801,
+      "end_s": 21.701,
+      "duration_s": 3.9
+    },
+    {
+      "index": 4,
+      "text": "But the input length changes. Four digits would need four nested loops, and the code can't know how many.",
+      "start_s": 21.701,
+      "end_s": 28.401,
+      "duration_s": 6.7
+    },
+    {
+      "index": 5,
+      "text": "The fix is backtracking. Build the word one letter at a time, one digit per level.",
+      "start_s": 28.401,
+      "end_s": 33.876,
+      "duration_s": 5.475
+    },
+    {
+      "index": 6,
+      "text": "At each level, try every letter of that digit, go one level deeper, then undo the choice and try the next one.",
+      "start_s": 33.876,
+      "end_s": 40.976,
+      "duration_s": 7.1
+    },
+    {
+      "index": 7,
+      "text": "When the word is as long as the input, it's complete. Save it.",
+      "start_s": 40.976,
+      "end_s": 44.951,
+      "duration_s": 3.975
+    },
+    {
+      "index": 8,
+      "text": "Every finished word goes into the chest. Digit two gives a, b and c. Digit three gives d, e and f.",
+      "start_s": 44.951,
+      "end_s": 51.601,
+      "duration_s": 6.65
+    },
+    {
+      "index": 9,
+      "text": "Start with a. Then add d. A d is complete. Save it, and step back.",
+      "start_s": 51.601,
+      "end_s": 55.976,
+      "duration_s": 4.375
+    },
+    {
+      "index": 10,
+      "text": "Swap d for e, then for f. A e and a f go into the chest.",
+      "start_s": 55.976,
+      "end_s": 60.351,
+      "duration_s": 4.375
+    },
+    {
+      "index": 11,
+      "text": "Back up to the first level. Now b, with d, e and f.",
+      "start_s": 60.351,
+      "end_s": 64.226,
+      "duration_s": 3.875
+    },
+    {
+      "index": 12,
+      "text": "Then c, with d, e and f again.",
+      "start_s": 64.226,
+      "end_s": 67.126,
+      "duration_s": 2.9
+    },
+    {
+      "index": 13,
+      "text": "Advancement made. Nine words, and the chest is full.",
+      "start_s": 67.126,
+      "end_s": 70.851,
+      "duration_s": 3.725
+    },
+    {
+      "index": 14,
+      "text": "Each digit has up to four letters, so there are up to four to the n words, and each one has n letters.",
+      "start_s": 70.851,
+      "end_s": 77.251,
+      "duration_s": 6.4
+    },
+    {
+      "index": 15,
+      "text": "The time is n times four to the n. The recursion only goes n levels deep.",
+      "start_s": 77.251,
+      "end_s": 82.376,
+      "duration_s": 5.125
+    },
+    {
+      "index": 16,
+      "text": "Choose a letter, go deeper, and undo. That's the whole template.",
+      "start_s": 82.376,
+      "end_s": 86.326,
+      "duration_s": 3.95
+    },
+    {
+      "index": 17,
+      "text": "Backtracking explores every path, one choice at a time.",
+      "start_s": 86.326,
+      "end_s": 90.326,
+      "duration_s": 4.0
+    }
+  ]
+}

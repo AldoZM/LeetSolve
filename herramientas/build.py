@@ -198,8 +198,9 @@ def step_mux():
         n = len(cues) + (1 if musica else 0)
         graph = ';'.join(parts) + f';[1:a]aresample=44100,aformat=channel_layouts=mono[v];[v]{mix}amix=inputs={n + 1}:normalize=0:duration=first[a]'
         open('media/sfx_graph.txt', 'w').write(graph)
-        run(['ffmpeg', '-v', 'error', '-y', '-i', 'video_silent.mp4', '-i', 'voiceover.mp3', *ins, '-filter_complex_script',
-             'media/sfx_graph.txt', '-map', '0:v:0', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k',
+        # Graph passed inline: ffmpeg 8+ dropped -filter_complex_script
+        run(['ffmpeg', '-v', 'error', '-y', '-i', 'video_silent.mp4', '-i', 'voiceover.mp3', *ins, '-filter_complex',
+             graph, '-map', '0:v:0', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k',
              '-movflags', '+faststart', 'video.mp4'])
         print(len(cues), 'sound effects mixed' + (f", music {musica['pista']}" if musica else ''))
     v = subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', 'video.mp4'],

@@ -1,0 +1,19 @@
+subtitles:
+- Remove Nth Node From End of List, Minecraft edition. LeetCode number nineteen.
+- We get a linked list. A chain of blocks, where each block only knows the next one.
+- Remove the nth block counting from the end. Here n is two, so the four must go.
+- The direct idea walks the chain once to count it.
+- Then it walks again, to the block right before the one we remove.
+- It works, but it takes two passes. Can we do it in one?
+- Yes, with two pointers and a fixed gap. The fast pointer gets a head start of n plus one steps.
+- Then both move together. When the fast one falls off the end, the slow one sits right before the target.
+- And a dummy block before the head covers the case where the head itself is removed.
+- Both pointers start on the dummy. Fast moves three steps, to the three.
+- Now they move together. Slow goes to one, and fast to four.
+- Slow to two, fast to five. Slow to three, and fast falls off the end.
+- Slow sits on three, right before the four. Skip it. Three now points straight to five.
+- Advancement made. The list is one, two, three, five.
+- Fast walks the chain only once, so the time is linear, in a single pass.
+- Just two pointers and a dummy block. Constant space.
+- Give the fast pointer a head start, then move both together.
+- A fixed gap turns the end of the list into a landmark.

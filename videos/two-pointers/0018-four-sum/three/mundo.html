@@ -1,0 +1,248 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import { THREE, prog, easeInOut, easeOut, easeOutBack, lerp, V, bezier, pose, mixPose } from '/vendor/lib/stage.js';
+import { MC, loadTheme, makeWorld, makeTerrain, makeBlock, makeChest, makeFrame, pixelSprite, makeOrb, makeClouds, tex } from '/vendor/tema/mc.js';
+import { loadMobs, planLife, makeLife, setTime } from '/vendor/tema/vida.js';
+
+const walk = await (await fetch('/walk.json')).json();
+// One clip for the whole video: times are absolute. The walk happens in [W0, W1]; the rest is a slow roam that
+// ends where it starts, so the video still loops.
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const seg = (i) => subs[i].start_s;
+const TOTAL = subs[subs.length - 1].end_s;
+const W0 = seg(walk.first), W1 = subs[walk.last].end_s;
+const at = (spec) => seg(spec[0]) + spec[1];
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'planks', 'leaves', 'log_side', 'log_top', 'barrier',
+                              ...new Set(walk.ores.map((o) => `${o}_ore`))]);
+
+const N = walk.nums.length;
+const checks = walk.checks.map((e) => ({ ...e, fixT: e.fix ? at(e.fix) : null, sumT: at(e.sum_t),
+  moveT: e.move_t ? at(e.move_t) : null, foundT: e.found ? at(e.found) : null }));
+const skip = { ...walk.skip, fixT: at(walk.skip.fix), skipT: at(walk.skip.skip_t) };
+const T = { row: at(walk.row_in), ends: at(walk.ends), toast: at(walk.toast), names: walk.names.map(at) };
+const founds = checks.filter((e) => e.foundT !== null);
+const nextFix = checks.find((e) => e.fixT !== null && e.fixT > skip.fixT).fixT;
+
+const world = makeWorld({ fov: 40, offset: 0.34, fog: [55, 120] });
+const { scene } = world;
+// Terrain of the ClaudeEntorno world (high terraced hills with oaks, see mundos/lugares.json); the ground drops in
+// front of the lot, so the leveled lot reaches the camera
+const terrain = await makeTerrain('/vendor/tema/mundos/high-terraces.json', { turn: 1.5708, plot: [-12, 12, -2, 20], clear: [-10, 10, 7, 24] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+// Dusk on the terraces: cows, sheep and chickens wander the slopes
+const LIFE = [{ kind: 'cow', count: 2, graze: 1 }, { kind: 'sheep', count: 2, graze: 1 }, { kind: 'chicken', count: 2 }];
+await loadMobs(imgs, LIFE.map((g) => g.kind));
+const dim = await setTime(world, 'dusk', { terrain, clouds, imgs });
+const life = makeLife(imgs, terrain, planLife(terrain, LIFE, { seed: 18 }), TOTAL, dim);
+scene.add(life.g);
+// Everything of the walk lives in its own group, hidden outside the walk
+const stage = new THREE.Group();
+scene.add(stage);
+
+// The sorted row; the two zeros share their ore
+const SP = 1.2;
+const bx = (i) => (i - (N - 1) / 2) * SP;
+const g0 = terrain.groundAt(0, 0);
+const blocks = walk.nums.map((v, i) => {
+  const b = makeBlock(imgs, `${walk.ores[i]}_ore`, { label: v });
+  stage.add(b.g);
+  return b;
+});
+
+// The four pointers: i and j (fixed by the two loops), L and R; outline on the block, letter in front of it
+const PINK = 0xFF55FF;
+const marks = [['i', MC.gold], ['j', MC.yellow], ['L', MC.aqua], ['R', PINK]].map(([c, col]) => {
+  const s = pixelSprite(c, col, 0.55);
+  const f = makeFrame(1.05, 0.045, col);
+  stage.add(s, f);
+  return { s, f };
+});
+
+// One floating total per check: green when it hits the target, white otherwise
+const sums = checks.map((e) => {
+  const sp = pixelSprite(String(e.sum), e.sum === walk.target ? MC.green : MC.white, 0.62);
+  stage.add(sp);
+  return sp;
+});
+
+// The chest in front of the row keeps the groups; each found group flies in as four small blocks
+const CHEST = V(0, 0, 4.5);
+CHEST.y = terrain.groundAt(CHEST.x, CHEST.z);
+const chest = makeChest(imgs, 0.95);
+chest.g.position.copy(CHEST);
+stage.add(chest.g);
+const flies = founds.map((e) => [e.i, e.j, e.l, e.r].map((i, k) => {
+  const it = makeBlock(imgs, `${walk.ores[i]}_ore`, { size: 0.3 });
+  stage.add(it.g);
+  return { i, k, it };
+}));
+const greenFrames = [0, 1, 2, 3].map(() => { const f = makeFrame(1.07, 0.05, MC.green); stage.add(f); return f; });
+
+// The repeated zero: a barrier over it when the second j is skipped
+const barrier = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex(imgs, 'barrier'), transparent: true, depthWrite: false }));
+stage.add(barrier);
+
+// Experience orbs that burst from the chest at the end
+let seed = 18;
+const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+const orbs = Array.from({ length: 26 }, (_, k) => {
+  const o = makeOrb(imgs, 0.34, [1, 2, 4, 5, 6][k % 5]);
+  o.userData = { vx: (rnd() - 0.5) * 3.0, vy: 2.6 + rnd() * 2.2, vz: (rnd() - 0.5) * 1.6, delay: rnd() * 0.35 };
+  stage.add(o);
+  return o;
+});
+
+// Terrain materials are transparent (alpha-tested) and sorted with the sprites; sprites go last so the ground can't paint over them
+stage.traverse((o) => { if (o.isSprite) o.renderOrder = 10; });
+
+// Pointer keyframes: every fix places all four, every move slides one pointer, the skip moves only j
+const keys = [];
+for (const e of checks) {
+  if (e.fixT !== null) keys.push({ t: e.fixT, p: [e.i, e.j, e.l, e.r] });
+  if (e.moveT !== null) keys.push({ t: e.moveT, p: [e.i, e.j, e.verdict === 'small' ? e.l + 1 : e.l, e.verdict === 'big' ? e.r - 1 : e.r] });
+}
+keys.push({ t: skip.fixT, p: [skip.i, skip.j, 4, 5] });
+keys.sort((a, b) => a.t - b.t);
+function pointers(t) {
+  let p = keys[0].p.map(bx);
+  for (const k of keys) {
+    const u = easeInOut(prog(t, k.t, k.t + 0.3));
+    p = p.map((x, j) => lerp(x, bx(k.p[j]), u));
+  }
+  return p;
+}
+
+function lidOpen(t) {
+  let a = 0;
+  for (const e of founds) a = Math.max(a, easeOut(prog(t, e.foundT - 0.1, e.foundT + 0.1)) * (1 - easeInOut(prog(t, e.foundT + 0.75, e.foundT + 0.95))));
+  return Math.max(a, easeOut(prog(t, T.toast - 0.1, T.toast + 0.15)) * (1 - easeInOut(prog(t, T.toast + 1.2, T.toast + 1.5))));
+}
+
+function renderAt(t) {
+  // Walk camera: wide front view with a slow drift, a small push in for the answer
+  const push = easeInOut(prog(t, T.toast - 0.3, T.toast + 0.8));
+  const sway = 0.5 * Math.sin(t * 0.35);
+  const walkPose = pose(V(sway, lerp(6.6, 6.3, push), lerp(15.0, 14.3, push)), V(sway * 0.4, 1.6, 0.0));
+  // Roam camera: one slow loop over the meadow for the whole video
+  const a = 2 * Math.PI * t / TOTAL;
+  const roamPose = pose(V(6 * Math.sin(a), 3.4 + 0.8 * Math.sin(2 * a), 13 + 2.5 * Math.cos(a)), V(3 * Math.sin(a), 4.2, -30));
+  const k = easeInOut(prog(t, W0 - 1.6, W0 - 0.1)) * (1 - easeInOut(prog(t, W1 + 0.1, W1 + 1.6)));
+  const cam = mixPose(roamPose, walkPose, k);
+  world.look(cam.pos, cam.look);
+  // The walk keeps its content high in the frame (the overlay uses the bottom); the roam shows more sky
+  world.camera.setViewOffset(world.W, world.H, 0, world.H * lerp(0.12, 0.34, k), world.W, world.H);
+  clouds.position.x = 4 * Math.sin(a);
+  life.update(t);
+  stage.visible = t < W1;
+
+  // The current check: the last one whose total has been said (none while j is being skipped)
+  let cur = null;
+  for (const e of checks) if (t >= e.sumT) cur = e;
+  const lifted = new Map();
+  for (const e of founds) {
+    const u = Math.sin(Math.PI * prog(t, e.foundT - 0.1, e.foundT + 1.0));
+    for (const i of [e.i, e.j, e.l, e.r]) lifted.set(i, Math.max(lifted.get(i) ?? 0, u));
+  }
+
+  // Blocks drop in one after another, glow when the voice names them, the chosen four glow at each total
+  blocks.forEach((b, i) => {
+    const d = prog(t, T.row + 0.12 * i, T.row + 0.12 * i + 0.55);
+    const fall = d < 1 ? (1 - d) * (1 - d) * 4.5 : 0;
+    const bounce = d >= 0.75 ? 0.18 * Math.sin(Math.PI * prog(d, 0.75, 1)) : 0;
+    let glow = 0.35 * Math.sin(Math.PI * prog(t, T.names[i] - 0.1, T.names[i] + 0.45));
+    if (cur && [cur.i, cur.j, cur.l, cur.r].includes(i)) glow = Math.max(glow, 0.3 * Math.sin(Math.PI * prog(t, cur.sumT - 0.05, cur.sumT + 0.5)));
+    const lift = lifted.get(i) ?? 0;
+    glow = Math.max(glow, 0.35 * lift);
+    b.g.position.set(bx(i), g0 + 0.5 + fall + bounce + 0.4 * lift, 0);
+    b.set({ glow: Math.max(glow, 0), opacity: d > 0 ? 1 : 0 });
+  });
+
+  // Pointers: outlines on their blocks, letters in front; L and R sit side by side when they meet.
+  // L and R step out while j is skipped, and all four leave when the search ends.
+  const p = pointers(t);
+  const pIn = prog(t, keys[0].t - 0.05, keys[0].t + 0.25);
+  const pOut = 1 - prog(t, T.ends - 0.1, T.ends + 0.3);
+  const lrA = 1 - prog(t, skip.fixT, skip.fixT + 0.25) * (1 - prog(t, nextFix, nextFix + 0.25));
+  const meet = Math.max(0, 1 - Math.abs(p[2] - p[3]) / SP);
+  marks.forEach((m, j) => {
+    const a = pIn * pOut * (j >= 2 ? lrA : 1);
+    m.s.visible = m.f.visible = a > 0.01;
+    m.f.position.set(p[j], g0 + 0.5, 0);
+    m.f.userData.mat.opacity = 0.9 * a;
+    m.s.position.set(p[j] + (j === 2 ? -0.22 : j === 3 ? 0.22 : 0) * meet, g0 + 0.32, 1.0);
+    m.s.material.opacity = a;
+  });
+
+  // The total floats above the four chosen blocks until the pointers move on
+  checks.forEach((e, j) => {
+    const nxt = j + 1 < checks.length ? (checks[j + 1].fixT ?? checks[j + 1].sumT) - 0.1 : T.ends;
+    let end = e.moveT !== null ? Math.min(nxt, e.moveT + 0.1) : nxt;
+    if (e.foundT !== null) end = Math.min(end, e.foundT + 1.0);
+    const a = easeOutBack(prog(t, e.sumT, e.sumT + 0.25)) * (1 - prog(t, end, end + 0.15));
+    sums[j].visible = a > 0.01;
+    sums[j].setSize(a);
+    sums[j].position.set((bx(e.i) + bx(e.j) + bx(e.l) + bx(e.r)) / 4, g0 + 1.6 + 0.05 * Math.sin(t * 3), 0.2);
+  });
+
+  // Green outlines on a found group while it lifts
+  const lastFound = [...founds].reverse().find((e) => t >= e.foundT - 0.1);
+  greenFrames.forEach((f, j) => {
+    const a = lastFound ? Math.sin(Math.PI * prog(t, lastFound.foundT - 0.1, lastFound.foundT + 1.0)) : 0;
+    f.visible = a > 0.01;
+    if (!f.visible) return;
+    f.position.copy(blocks[[lastFound.i, lastFound.j, lastFound.l, lastFound.r][j]].g.position);
+    f.userData.mat.opacity = a;
+  });
+
+  // Chest: pops in with the first group's flight, opens for every group and for the advancement
+  const cIn = easeOutBack(prog(t, T.row + 0.8, T.row + 1.3));
+  chest.g.scale.setScalar(Math.max(cIn, 1e-4));
+  chest.g.visible = cIn > 0.001;
+  chest.open(lidOpen(t));
+  founds.forEach((e, n) => {
+    for (const { i, k, it } of flies[n]) {
+      const f = prog(t, e.foundT + 0.1 + 0.07 * k, e.foundT + 0.55 + 0.07 * k);
+      it.g.visible = f > 0 && f < 1;
+      const from = V(bx(i), g0 + 1.3, 0.1);
+      const to = CHEST.clone().add(V(0, 0.75, 0));
+      it.g.position.copy(bezier(from, V((from.x + to.x) / 2, g0 + 2.4, 2.0), to, easeInOut(f)));
+      it.g.rotation.set(0.4, 6 * f, 0);
+    }
+  });
+
+  // Barrier over the repeated zero, from the skip until the next pair is fixed
+  const bA = easeOutBack(prog(t, skip.skipT, skip.skipT + 0.35)) * (1 - prog(t, nextFix, nextFix + 0.25));
+  barrier.visible = bA > 0.01;
+  barrier.position.set(bx(skip.j), g0 + 1.55, 0.2);
+  barrier.scale.setScalar(Math.max(0.8 * bA, 1e-4));
+
+  // Orbs: a short ballistic burst from the open chest
+  for (const o of orbs) {
+    const { vx, vy, vz, delay } = o.userData;
+    const u = t - (T.toast + 0.1 + delay);
+    o.visible = u > 0 && u < 1.6;
+    if (!o.visible) continue;
+    o.position.set(CHEST.x + vx * u, Math.max(CHEST.y + 1.0 + vy * u - 4.5 * u * u, CHEST.y + 0.1), CHEST.z + vz * u);
+    o.tint(t + delay);
+    o.material.opacity = 1 - prog(u, 1.2, 1.6);
+  }
+
+  world.draw(t, TOTAL, 0, 0);
+}
+
+window.renderAt = renderAt;
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

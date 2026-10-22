@@ -106,7 +106,7 @@ def sections(ch):
         bs = s.get('block_states')
         if not bs:
             continue
-        pal = [p['Name'].split(':', 1)[1] + _props(p) for p in bs['palette']]
+        pal = [_name(p) + _props(p) for p in bs['palette']]
         data = bs.get('data')
         if not data:
             out[s['Y']] = (pal, None)
@@ -123,9 +123,16 @@ def sections(ch):
     return out
 
 
+def _name(p):
+    # Up to 26.2 a palette entry is {Name, Properties}; 26.3 writes {id, properties}, a bare name, or {'': name}
+    if isinstance(p, str):
+        return p.split(':', 1)[1]
+    return (p.get('Name') or p.get('id') or p.get('')).split(':', 1)[1]
+
+
 def _props(p):
     # Keep the few properties that change how a block looks
-    pr = p.get('Properties', {})
+    pr = {} if isinstance(p, str) else p.get('Properties') or p.get('properties') or {}
     keep = [f'{k}={pr[k]}' for k in ('axis', 'half', 'type', 'facing') if k in pr]
     return ('[' + ','.join(keep) + ']') if keep else ''
 
@@ -224,7 +231,8 @@ def block_textures(names, out_dir):
     looks = {}
     for full in names:
         base = full.split('[')[0]
-        lower = 'half=lower' in full
+        # 26.3 leaves out properties at their default value, and the default half is the lower one
+        lower = 'half=upper' not in full
         if base == 'grass_block':
             top = save('grass_block_top', extraer.tint(get('grass_block_top'), GRASS_TINT))
             side = get('grass_block_side')

@@ -1,0 +1,21 @@
+subtitles:
+- Four Sum, Minecraft edition. LeetCode number eighteen, three sum's bigger sibling.
+- We get a row of numbered blocks and a target.
+- Return every group of four blocks that adds up to the target, without repeating a group.
+- The direct idea tries every group of four, with four nested loops.
+- Even six blocks give fifteen groups, and a repeated value can produce the same group twice.
+- It grows as n to the fourth. A thousand blocks gives about forty billion groups. The pickaxe breaks.
+- Sort first. Fix two blocks with two loops, and find the other two with two pointers.
+- Too small, left moves right. Too big, right moves left. Equal values get skipped.
+- Sorted, the row is minus two, minus one, zero, zero, one, two. The target is zero.
+- Fix minus two and minus one. Pointers on zero and two. The total is minus one, too small.
+- Left moves to the next zero, still minus one. Then to the one. Total zero, first group!
+- Next, minus two and zero. The other zero and the two balance it. Second group!
+- Minus two with the other zero would only repeat that search, so we skip it.
+- Now minus one and zero. Zero and two make one, too big, so right moves left. Zero and one. Third group!
+- Last, zero and zero with one and two make three. Too big, and the search ends.
+- Advancement made. Three groups, and no repeats.
+- Two fixed loops and one linear sweep. That's n cubed time.
+- Down from n to the fourth. Besides the answer, we only keep a few pointers.
+- Fix the outer blocks, squeeze the inner pair, and skip duplicates at every level.
+- The same pattern works for any k sum.

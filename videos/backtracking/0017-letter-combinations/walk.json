@@ -1,0 +1,578 @@
+{
+ "first": 8,
+ "last": 13,
+ "digits": "23",
+ "keys": {
+  "2": "abc",
+  "3": "def",
+  "4": "ghi",
+  "5": "jkl",
+  "6": "mno",
+  "7": "pqrs",
+  "8": "tuv",
+  "9": "wxyz"
+ },
+ "words": [
+  "ad",
+  "ae",
+  "af",
+  "bd",
+  "be",
+  "bf",
+  "cd",
+  "ce",
+  "cf"
+ ],
+ "nodes": [
+  {
+   "label": "23",
+   "ore": "stone",
+   "lvl": 0,
+   "parent": null,
+   "x": 0,
+   "path": ""
+  },
+  {
+   "label": "a",
+   "ore": "gold",
+   "lvl": 1,
+   "parent": 0,
+   "x": -3,
+   "path": "a"
+  },
+  {
+   "label": "b",
+   "ore": "gold",
+   "lvl": 1,
+   "parent": 0,
+   "x": 0,
+   "path": "b"
+  },
+  {
+   "label": "c",
+   "ore": "gold",
+   "lvl": 1,
+   "parent": 0,
+   "x": 3,
+   "path": "c"
+  },
+  {
+   "label": "d",
+   "ore": "diamond",
+   "lvl": 2,
+   "parent": 1,
+   "x": -4,
+   "path": "ad"
+  },
+  {
+   "label": "e",
+   "ore": "diamond",
+   "lvl": 2,
+   "parent": 1,
+   "x": -3,
+   "path": "ae"
+  },
+  {
+   "label": "f",
+   "ore": "diamond",
+   "lvl": 2,
+   "parent": 1,
+   "x": -2,
+   "path": "af"
+  },
+  {
+   "label": "d",
+   "ore": "diamond",
+   "lvl": 2,
+   "parent": 2,
+   "x": -1,
+   "path": "bd"
+  },
+  {
+   "label": "e",
+   "ore": "diamond",
+   "lvl": 2,
+   "parent": 2,
+   "x": 0,
+   "path": "be"
+  },
+  {
+   "label": "f",
+   "ore": "diamond",
+   "lvl": 2,
+   "parent": 2,
+   "x": 1,
+   "path": "bf"
+  },
+  {
+   "label": "d",
+   "ore": "diamond",
+   "lvl": 2,
+   "parent": 3,
+   "x": 2,
+   "path": "cd"
+  },
+  {
+   "label": "e",
+   "ore": "diamond",
+   "lvl": 2,
+   "parent": 3,
+   "x": 3,
+   "path": "ce"
+  },
+  {
+   "label": "f",
+   "ore": "diamond",
+   "lvl": 2,
+   "parent": 3,
+   "x": 4,
+   "path": "cf"
+  }
+ ],
+ "events": [
+  {
+   "kind": "push",
+   "node": 1,
+   "path": "a",
+   "t": [
+    9,
+    0.567
+   ]
+  },
+  {
+   "kind": "push",
+   "node": 4,
+   "path": "ad",
+   "t": [
+    9,
+    1.15
+   ]
+  },
+  {
+   "kind": "save",
+   "node": 4,
+   "path": "ad",
+   "t": [
+    9,
+    2.66
+   ],
+   "slot": 0
+  },
+  {
+   "kind": "pop",
+   "node": 4,
+   "path": "ad",
+   "t": [
+    9,
+    3.349
+   ]
+  },
+  {
+   "kind": "push",
+   "node": 5,
+   "path": "ae",
+   "t": [
+    10,
+    0.993
+   ]
+  },
+  {
+   "kind": "save",
+   "node": 5,
+   "path": "ae",
+   "t": [
+    10,
+    1.293
+   ],
+   "slot": 1
+  },
+  {
+   "kind": "pop",
+   "node": 5,
+   "path": "ae",
+   "t": [
+    10,
+    1.44
+   ]
+  },
+  {
+   "kind": "push",
+   "node": 6,
+   "path": "af",
+   "t": [
+    10,
+    2.026
+   ]
+  },
+  {
+   "kind": "save",
+   "node": 6,
+   "path": "af",
+   "t": [
+    10,
+    2.326
+   ],
+   "slot": 2
+  },
+  {
+   "kind": "pop",
+   "node": 6,
+   "path": "af",
+   "t": [
+    11,
+    0.33
+   ]
+  },
+  {
+   "kind": "pop",
+   "node": 1,
+   "path": "a",
+   "t": [
+    11,
+    0.791
+   ]
+  },
+  {
+   "kind": "push",
+   "node": 2,
+   "path": "b",
+   "t": [
+    11,
+    2.248
+   ]
+  },
+  {
+   "kind": "push",
+   "node": 7,
+   "path": "bd",
+   "t": [
+    11,
+    2.707
+   ]
+  },
+  {
+   "kind": "save",
+   "node": 7,
+   "path": "bd",
+   "t": [
+    11,
+    2.787
+   ],
+   "slot": 3
+  },
+  {
+   "kind": "pop",
+   "node": 7,
+   "path": "bd",
+   "t": [
+    11,
+    2.82
+   ]
+  },
+  {
+   "kind": "push",
+   "node": 8,
+   "path": "be",
+   "t": [
+    11,
+    2.84
+   ]
+  },
+  {
+   "kind": "save",
+   "node": 8,
+   "path": "be",
+   "t": [
+    11,
+    2.92
+   ],
+   "slot": 4
+  },
+  {
+   "kind": "pop",
+   "node": 8,
+   "path": "be",
+   "t": [
+    11,
+    3.165
+   ]
+  },
+  {
+   "kind": "push",
+   "node": 9,
+   "path": "bf",
+   "t": [
+    11,
+    3.185
+   ]
+  },
+  {
+   "kind": "save",
+   "node": 9,
+   "path": "bf",
+   "t": [
+    11,
+    3.265
+   ],
+   "slot": 5
+  },
+  {
+   "kind": "pop",
+   "node": 9,
+   "path": "bf",
+   "t": [
+    12,
+    0.21
+   ]
+  },
+  {
+   "kind": "pop",
+   "node": 2,
+   "path": "b",
+   "t": [
+    12,
+    0.33
+   ]
+  },
+  {
+   "kind": "push",
+   "node": 3,
+   "path": "c",
+   "t": [
+    12,
+    0.722
+   ]
+  },
+  {
+   "kind": "push",
+   "node": 10,
+   "path": "cd",
+   "t": [
+    12,
+    1.333
+   ]
+  },
+  {
+   "kind": "save",
+   "node": 10,
+   "path": "cd",
+   "t": [
+    12,
+    1.413
+   ],
+   "slot": 6
+  },
+  {
+   "kind": "pop",
+   "node": 10,
+   "path": "cd",
+   "t": [
+    12,
+    1.54
+   ]
+  },
+  {
+   "kind": "push",
+   "node": 11,
+   "path": "ce",
+   "t": [
+    12,
+    1.56
+   ]
+  },
+  {
+   "kind": "save",
+   "node": 11,
+   "path": "ce",
+   "t": [
+    12,
+    1.64
+   ],
+   "slot": 7
+  },
+  {
+   "kind": "pop",
+   "node": 11,
+   "path": "ce",
+   "t": [
+    12,
+    1.904
+   ]
+  },
+  {
+   "kind": "push",
+   "node": 12,
+   "path": "cf",
+   "t": [
+    12,
+    1.924
+   ]
+  },
+  {
+   "kind": "save",
+   "node": 12,
+   "path": "cf",
+   "t": [
+    12,
+    2.004
+   ],
+   "slot": 8
+  },
+  {
+   "kind": "pop",
+   "node": 12,
+   "path": "cf",
+   "t": [
+    13,
+    0.01
+   ]
+  },
+  {
+   "kind": "pop",
+   "node": 3,
+   "path": "c",
+   "t": [
+    13,
+    0.11
+   ]
+  }
+ ],
+ "speech": [
+  [
+   0.33,
+   5.47
+  ],
+  [
+   0.33,
+   4.6
+  ],
+  [
+   0.31,
+   6.23
+  ],
+  [
+   0.31,
+   3.41
+  ],
+  [
+   0.31,
+   6.17
+  ],
+  [
+   0.31,
+   4.97
+  ],
+  [
+   0.3,
+   6.58
+  ],
+  [
+   0.31,
+   3.43
+  ],
+  [
+   0.31,
+   6.1
+  ],
+  [
+   0.3,
+   3.77
+  ],
+  [
+   0.3,
+   3.91
+  ],
+  [
+   0.33,
+   3.3
+  ],
+  [
+   0.33,
+   2.41
+  ],
+  [
+   0.31,
+   3.24
+  ],
+  [
+   0.32,
+   5.91
+  ],
+  [
+   0.31,
+   4.46
+  ],
+  [
+   0.32,
+   3.48
+  ],
+  [
+   0.34,
+   3.47
+  ]
+ ],
+ "inv_in": [
+  8,
+  1.405
+ ],
+ "root_in": [
+  8,
+  0.15
+ ],
+ "keys_bar": [
+  8,
+  2.68
+ ],
+ "drop": {
+  "a": [
+   8,
+   3.427
+  ],
+  "b": [
+   8,
+   3.58
+  ],
+  "c": [
+   8,
+   4.259
+  ],
+  "d": [
+   8,
+   5.199
+  ],
+  "e": [
+   8,
+   5.53
+  ],
+  "f": [
+   8,
+   5.87
+  ]
+ },
+ "complete": [
+  9,
+  1.47
+ ],
+ "recap": [
+  [
+   10,
+   2.32
+  ],
+  [
+   10,
+   2.707
+  ]
+ ],
+ "toast": [
+  13,
+  0.36
+ ],
+ "nine": [
+  13,
+  1.55
+ ],
+ "full": [
+  13,
+  2.544
+ ]
+}

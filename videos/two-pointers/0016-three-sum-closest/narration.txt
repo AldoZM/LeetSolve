@@ -1,0 +1,21 @@
+subtitles:
+- Three Sum Closest, Minecraft edition. LeetCode number sixteen, a twist on three sum.
+- We get a row of numbered blocks and a target.
+- Pick three blocks whose sum is as close as possible to the target, and return that sum.
+- The direct idea tries every group of three blocks.
+- Fix one block, then a second one after it, then a third one after that.
+- With just five blocks that's ten triples. Our pickaxe is already wearing out.
+- And it grows as n cubed. A few thousand blocks means billions of checks.
+- The trick is to sort the row first. Then fix one block, and use two pointers on the rest.
+- If the sum is too small, the left pointer moves right. If it's too big, the right pointer moves left.
+- Sorted, the row is minus five, two, three, four, seven. The target is ten.
+- Fix minus five. Left on two, right on seven. The sum is four, our best so far. Too small, so left moves right.
+- Five, then six. Each one is closer, but still too small.
+- Fix two. Two plus three plus seven is twelve. Only two away, a new best. Too big, so right moves left.
+- Two plus three plus four is nine. Just one away from ten. New best!
+- Fix three. Three, four and seven make fourteen. That's four away, so nine stays.
+- Advancement made. The closest sum is nine.
+- Sorting costs n log n, and each fixed block runs one linear sweep. That's n squared in total.
+- Down from n cubed, and we only keep the best sum. Constant extra space.
+- Sort, fix one, and squeeze the other two with two pointers.
+- In a sorted row, every move has a direction.

@@ -1,0 +1,131 @@
+{
+  "total_duration_s": 84.25,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Remove Nth Node From End of List, Minecraft edition. LeetCode number nineteen.",
+      "start_s": 0.0,
+      "end_s": 5.55,
+      "duration_s": 5.55
+    },
+    {
+      "index": 1,
+      "text": "We get a linked list. A chain of blocks, where each block only knows the next one.",
+      "start_s": 5.55,
+      "end_s": 10.525,
+      "duration_s": 4.975
+    },
+    {
+      "index": 2,
+      "text": "Remove the nth block counting from the end. Here n is two, so the four must go.",
+      "start_s": 10.525,
+      "end_s": 15.925,
+      "duration_s": 5.4
+    },
+    {
+      "index": 3,
+      "text": "The direct idea walks the chain once to count it.",
+      "start_s": 15.925,
+      "end_s": 19.225,
+      "duration_s": 3.3
+    },
+    {
+      "index": 4,
+      "text": "Then it walks again, to the block right before the one we remove.",
+      "start_s": 19.225,
+      "end_s": 23.2,
+      "duration_s": 3.975
+    },
+    {
+      "index": 5,
+      "text": "It works, but it takes two passes. Can we do it in one?",
+      "start_s": 23.2,
+      "end_s": 26.975,
+      "duration_s": 3.775
+    },
+    {
+      "index": 6,
+      "text": "Yes, with two pointers and a fixed gap. The fast pointer gets a head start of n plus one steps.",
+      "start_s": 26.975,
+      "end_s": 33.325,
+      "duration_s": 6.35
+    },
+    {
+      "index": 7,
+      "text": "Then both move together. When the fast one falls off the end, the slow one sits right before the target.",
+      "start_s": 33.325,
+      "end_s": 40.0,
+      "duration_s": 6.675
+    },
+    {
+      "index": 8,
+      "text": "And a dummy block before the head covers the case where the head itself is removed.",
+      "start_s": 40.0,
+      "end_s": 45.1,
+      "duration_s": 5.1
+    },
+    {
+      "index": 9,
+      "text": "Both pointers start on the dummy. Fast moves three steps, to the three.",
+      "start_s": 45.1,
+      "end_s": 49.8,
+      "duration_s": 4.7
+    },
+    {
+      "index": 10,
+      "text": "Now they move together. Slow goes to one, and fast to four.",
+      "start_s": 49.8,
+      "end_s": 53.925,
+      "duration_s": 4.125
+    },
+    {
+      "index": 11,
+      "text": "Slow to two, fast to five. Slow to three, and fast falls off the end.",
+      "start_s": 53.925,
+      "end_s": 58.8,
+      "duration_s": 4.875
+    },
+    {
+      "index": 12,
+      "text": "Slow sits on three, right before the four. Skip it. Three now points straight to five.",
+      "start_s": 58.8,
+      "end_s": 64.4,
+      "duration_s": 5.6
+    },
+    {
+      "index": 13,
+      "text": "Advancement made. The list is one, two, three, five.",
+      "start_s": 64.4,
+      "end_s": 68.2,
+      "duration_s": 3.8
+    },
+    {
+      "index": 14,
+      "text": "Fast walks the chain only once, so the time is linear, in a single pass.",
+      "start_s": 68.2,
+      "end_s": 73.05,
+      "duration_s": 4.85
+    },
+    {
+      "index": 15,
+      "text": "Just two pointers and a dummy block. Constant space.",
+      "start_s": 73.05,
+      "end_s": 76.8,
+      "duration_s": 3.75
+    },
+    {
+      "index": 16,
+      "text": "Give the fast pointer a head start, then move both together.",
+      "start_s": 76.8,
+      "end_s": 80.675,
+      "duration_s": 3.875
+    },
+    {
+      "index": 17,
+      "text": "A fixed gap turns the end of the list into a landmark.",
+      "start_s": 80.675,
+      "end_s": 84.25,
+      "duration_s": 3.575
+    }
+  ]
+}

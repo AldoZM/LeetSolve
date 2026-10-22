@@ -1,0 +1,145 @@
+{
+  "total_duration_s": 104.475,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Four Sum, Minecraft edition. LeetCode number eighteen, three sum's bigger sibling.",
+      "start_s": 0.0,
+      "end_s": 5.9,
+      "duration_s": 5.9
+    },
+    {
+      "index": 1,
+      "text": "We get a row of numbered blocks and a target.",
+      "start_s": 5.9,
+      "end_s": 8.775,
+      "duration_s": 2.875
+    },
+    {
+      "index": 2,
+      "text": "Return every group of four blocks that adds up to the target, without repeating a group.",
+      "start_s": 8.775,
+      "end_s": 14.1,
+      "duration_s": 5.325
+    },
+    {
+      "index": 3,
+      "text": "The direct idea tries every group of four, with four nested loops.",
+      "start_s": 14.1,
+      "end_s": 18.575,
+      "duration_s": 4.475
+    },
+    {
+      "index": 4,
+      "text": "Even six blocks give fifteen groups, and a repeated value can produce the same group twice.",
+      "start_s": 18.575,
+      "end_s": 24.5,
+      "duration_s": 5.925
+    },
+    {
+      "index": 5,
+      "text": "It grows as n to the fourth. A thousand blocks gives about forty billion groups. The pickaxe breaks.",
+      "start_s": 24.5,
+      "end_s": 31.3,
+      "duration_s": 6.8
+    },
+    {
+      "index": 6,
+      "text": "Sort first. Fix two blocks with two loops, and find the other two with two pointers.",
+      "start_s": 31.3,
+      "end_s": 36.7,
+      "duration_s": 5.4
+    },
+    {
+      "index": 7,
+      "text": "Too small, left moves right. Too big, right moves left. Equal values get skipped.",
+      "start_s": 36.7,
+      "end_s": 42.3,
+      "duration_s": 5.6
+    },
+    {
+      "index": 8,
+      "text": "Sorted, the row is minus two, minus one, zero, zero, one, two. The target is zero.",
+      "start_s": 42.3,
+      "end_s": 48.1,
+      "duration_s": 5.8
+    },
+    {
+      "index": 9,
+      "text": "Fix minus two and minus one. Pointers on zero and two. The total is minus one, too small.",
+      "start_s": 48.1,
+      "end_s": 54.775,
+      "duration_s": 6.675
+    },
+    {
+      "index": 10,
+      "text": "Left moves to the next zero, still minus one. Then to the one. Total zero, first group!",
+      "start_s": 54.775,
+      "end_s": 60.975,
+      "duration_s": 6.2
+    },
+    {
+      "index": 11,
+      "text": "Next, minus two and zero. The other zero and the two balance it. Second group!",
+      "start_s": 60.975,
+      "end_s": 66.3,
+      "duration_s": 5.325
+    },
+    {
+      "index": 12,
+      "text": "Minus two with the other zero would only repeat that search, so we skip it.",
+      "start_s": 66.3,
+      "end_s": 71.05,
+      "duration_s": 4.75
+    },
+    {
+      "index": 13,
+      "text": "Now minus one and zero. Zero and two make one, too big, so right moves left. Zero and one. Third group!",
+      "start_s": 71.05,
+      "end_s": 78.45,
+      "duration_s": 7.4
+    },
+    {
+      "index": 14,
+      "text": "Last, zero and zero with one and two make three. Too big, and the search ends.",
+      "start_s": 78.45,
+      "end_s": 83.725,
+      "duration_s": 5.275
+    },
+    {
+      "index": 15,
+      "text": "Advancement made. Three groups, and no repeats.",
+      "start_s": 83.725,
+      "end_s": 87.2,
+      "duration_s": 3.475
+    },
+    {
+      "index": 16,
+      "text": "Two fixed loops and one linear sweep. That's n cubed time.",
+      "start_s": 87.2,
+      "end_s": 91.5,
+      "duration_s": 4.3
+    },
+    {
+      "index": 17,
+      "text": "Down from n to the fourth. Besides the answer, we only keep a few pointers.",
+      "start_s": 91.5,
+      "end_s": 96.6,
+      "duration_s": 5.1
+    },
+    {
+      "index": 18,
+      "text": "Fix the outer blocks, squeeze the inner pair, and skip duplicates at every level.",
+      "start_s": 96.6,
+      "end_s": 101.8,
+      "duration_s": 5.2
+    },
+    {
+      "index": 19,
+      "text": "The same pattern works for any k sum.",
+      "start_s": 101.8,
+      "end_s": 104.475,
+      "duration_s": 2.675
+    }
+  ]
+}

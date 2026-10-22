@@ -77,7 +77,7 @@ LeetSolve/
 └── pruebas/           experimentos que no son videos finales
 ```
 
-Secciones (por tema de LeetCode): `arrays-hashing`, `linked-list`, `sliding-window`, `binary-search`, `strings`, `math`, `trees`. Crea una sección nueva cuando el problema no encaje, con nombre en inglés y en kebab-case (`graphs`, `dynamic-programming`, `two-pointers`...). La carpeta del video lleva el número del problema con 4 dígitos: `videos/trees/0102-level-order`.
+Secciones (por tema de LeetCode): `arrays-hashing`, `linked-list`, `sliding-window`, `binary-search`, `strings`, `math`, `trees`, `two-pointers`, `backtracking`. Crea una sección nueva cuando el problema no encaje, con nombre en inglés y en kebab-case (`graphs`, `dynamic-programming`, `two-pointers`...). La carpeta del video lleva el número del problema con 4 dígitos: `videos/trees/0102-level-order`.
 
 ## Videos hechos
 
@@ -92,6 +92,13 @@ Secciones (por tema de LeetCode): `arrays-hashing`, `linked-list`, `sliding-wind
 - `trees/0124-max-path-sum`: Binary Tree Maximum Path Sum, Hard. Mejor camino 42; cada bloque muestra lo que ofrece hacia arriba. Bosque con piedra (`stone-forest`), al amanecer.
 - `trees/0297-serialize-tree`: Serialize and Deserialize Binary Tree, Hard. Primer video del estilo aprobado. Árbol `[5,8,2,null,null,7]` guardado en 9 casillas (`5,8,#,#,2,7,#,#,#`), barreras para los hijos vacíos.
 - `math/0060-permutation-sequence`: Permutation Sequence, Hard. Segundo video del estilo aprobado. n = 4, k = 9 ("2314"), salto directo por divisiones sucesivas en el sistema numérico factorial.
+- Lote del 2026-10-21 (laptop, hecho con subagentes; estado de render en `RENDER.md`, sección 6). Ninguno está revisado con hojas de cuadros todavía:
+  - `strings/0008-string-to-integer`: String to Integer (atoi), Medium. `"  -042a7"` → -42; espacios en piedra, signo en redstone, dígitos en hierro, la letra en tablones; el resultado en esmeralda. Río con orilla de arena (`river-sand`), de día. Renderizado, 95.2 s.
+  - `math/0009-palindrome-number`: Palindrome Number, Easy. 12321: invertir solo la mitad (12 y 123 → 123 // 10 = 12). Lago del oeste (`west-lake`), al atardecer. Renderizado, 91.3 s.
+  - `two-pointers/0016-three-sum-closest`: 3Sum Closest, Medium. `[-5, 2, 3, 4, 7]`, target 10 → 9. Estanque de abedules (`birch-pond`), al amanecer. Renderizado, 102.1 s.
+  - `backtracking/0017-letter-combinations`: Letter Combinations of a Phone Number, Medium. "23" → 9 palabras que llenan las 9 casillas del cofre. Claro con flores (`flower-forest`), de día. Renderizado, 90.3 s.
+  - `two-pointers/0018-four-sum`: 4Sum, Medium. `[1, 0, -1, 0, -2, 2]`, target 0 → 3 grupos, con el salto del 0 repetido. Terrazas altas (`high-terraces`), al atardecer. Código listo, falta render.
+  - `linked-list/0019-remove-nth-node`: Remove Nth Node From End of List, Medium. 1→2→3→4→5, n = 2, con dummy y separación fija entre `fast` y `slow`. Sendero de robles (`oak-path`), de noche. Código listo, render a medias.
 - `pruebas/0001-two-sum-horizontal`: primera prueba en 16:9, sin código a la par.
 - `pruebas/0001-two-sum-minecraft`: Two Sum con el tema de Minecraft. Se arma con `python ../../herramientas/build.py` (está a dos niveles, no a tres).
 - `pruebas/0001-two-sum-minecraft-original`: **plantilla del estilo aprobado**. Two Sum con los assets y sonidos del juego, en el mundo ClaudeEntorno.
@@ -223,6 +230,9 @@ Un tema cambia el estilo sin tocar el flujo. Vive en `herramientas/temas/<tema>/
   - `clear = [x0, x1, z0, z1]` quita árboles y plantas en esa zona de la escena (donde se para la cámara; no se ve).
   - Si el terreno baja frente al lote, se ve una pared de tierra entre la cámara y el recorrido. En el #7 se resolvió alargando `plot` hasta la cámara (`[-12, 12, -2, 20]`).
   - `terrain.surfaceAt(x, z)` dice qué bloque hay arriba de la columna (`water`, `leaves`, `log` o el nombre) y a qué altura. Lo usa `vida.js`.
+- 2026-10-21: 6 lugares más (`river-sand`, `west-lake`, `birch-pond`, `flower-forest`, `high-terraces`, `oak-path`), exportados del ClaudeEntorno de la laptop (Minecraft 26.3, `%APPDATA%\.minecraft\saves\ClaudeEntorno`), que es más grande que el del zip. Se buscaron con los heightmaps de cada chunk (`OCEAN_FLOOR`, `WORLD_SURFACE`, `MOTION_BLOCKING_NO_LEAVES`) y el bioma: agua donde el bloqueo de movimiento queda arriba del piso, hojas donde la superficie queda arriba del bloqueo sin hojas. Cada centro y giro se calificó con las mismas reglas de arriba, solo en biomas con el tinte de pasto de llanura (`plains`, `forest`, `birch_forest`, `river`...), porque el `mundo.py` de `main` todavía no tiñe por bioma. Luego se vieron 12 candidatos con la cámara de paseo y se eligieron 6.
+- Minecraft 26.3 guarda la paleta de bloques como `{'': 'minecraft:stone'}` en lugar de `{Name, Properties}`, y omite las propiedades con valor por defecto (por ejemplo `half=lower`). `mundo.py` lee los dos formatos.
+- En otra PC, las texturas de esos 6 lugares se copian del jar con el comando de "Problemas conocidos"; no hace falta el mundo de la laptop.
 - `mundo.py` ahora tiñe las hojas de abedul y abeto con su color fijo y dibuja la hojarasca (`leaf_litter`) como una capa plana café. Antes salían grises y como cruces blancas.
 
 ## Vida en el fondo (mobs y hora del día)
@@ -297,4 +307,9 @@ Aldo los encontró en el #297 o salieron en su revisión. Antes de entregar un v
 - Con la fuente del juego, los espacios iniciales no tienen píxeles. Cada línea de código lleva un rectángulo invisible del ancho completo para no perder la sangría.
 - La mezcla de audio va en mono. Pasar la voz mono a estéreo la bajaba 3 dB.
 - En `mundo.html`, los sprites (barreras, orbes, letreros de texto) pueden quedar tapados por el terreno: sus materiales son transparentes y se ordenan junto con los del terreno. Después de crear todo, usar `stage.traverse((o) => { if (o.isSprite) o.renderOrder = 10; })`.
+- Si en una PC faltan texturas de bloques en `mundos/tex/` (el terreno sale con huecos o cuadros sin textura), copiarlas del jar sin volver a exportar, desde `herramientas/temas/minecraft-original`: `python -c "import json,glob,mundo; n=set(); [n.update(json.load(open(f,encoding='utf8')).get('names',[])) for f in glob.glob('mundos/*.json') if 'lugares' not in f]; mundo.block_textures(sorted(n),'mundos/tex')"`. Volver a exportar desde un mundo distinto cambiaría los `.json` de los lugares.
+- ffmpeg 8 o más nuevo ya no tiene `-filter_complex_script`; `build.py` pasa el grafo de audio directo en `-filter_complex`.
+- `script.py` lleva `TEMA_DIR` con la ruta absoluta de la PC (con el usuario local). Desde el lote #8–#19 no se sube a git; los anteriores lo tienen con la ruta de la otra PC y cada build lo vuelve a escribir: no subas esos cambios.
+- Para renderizar un video que ya tiene el código listo (o retomar un render cortado), ver `RENDER.md`.
+- Varios videos a la vez con subagentes: funcionó darles un documento común con las reglas (solo su carpeta, sin commits ni cambios de rama, sin tocar herramientas ni `GUIA.md`, notas en `NOTAS.md`) y el diseño de cada video. Cuatro renders a la vez en la laptop fueron lentos pero terminaron; una caída de red detiene a todos los subagentes y hay que reanudarlos.
 - El juego puede estar abierto mientras se lee el mundo, pero solo se ve lo que ya se guardó. Si se construye algo nuevo, hay que guardar (salir al menú) y volver a exportar.

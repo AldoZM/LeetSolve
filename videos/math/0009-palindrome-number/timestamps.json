@@ -1,0 +1,138 @@
+{
+  "total_duration_s": 91.25,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Palindrome Number, Minecraft edition. LeetCode number nine, and a perfect warm up.",
+      "start_s": 0.0,
+      "end_s": 5.775,
+      "duration_s": 5.775
+    },
+    {
+      "index": 1,
+      "text": "Given an integer x, return true if it reads the same forward and backward.",
+      "start_s": 5.775,
+      "end_s": 10.9,
+      "duration_s": 5.125
+    },
+    {
+      "index": 2,
+      "text": "One two one is a palindrome. Minus one two one is not, because the minus sign only sits on the left.",
+      "start_s": 10.9,
+      "end_s": 18.175,
+      "duration_s": 7.275
+    },
+    {
+      "index": 3,
+      "text": "The easy way is to turn the number into a string, and compare it with its reverse.",
+      "start_s": 18.175,
+      "end_s": 23.3,
+      "duration_s": 5.125
+    },
+    {
+      "index": 4,
+      "text": "It works, but the follow up asks us to solve it without converting to a string.",
+      "start_s": 23.3,
+      "end_s": 28.3,
+      "duration_s": 5.0
+    },
+    {
+      "index": 5,
+      "text": "We could reverse the whole number with math, but the reversed number could overflow.",
+      "start_s": 28.3,
+      "end_s": 33.275,
+      "duration_s": 4.975
+    },
+    {
+      "index": 6,
+      "text": "The trick is to reverse only half of the digits.",
+      "start_s": 33.275,
+      "end_s": 36.65,
+      "duration_s": 3.375
+    },
+    {
+      "index": 7,
+      "text": "Pop digits from the end of x and push them onto a second number, until that number catches up with x.",
+      "start_s": 36.65,
+      "end_s": 43.025,
+      "duration_s": 6.375
+    },
+    {
+      "index": 8,
+      "text": "Then the two halves must match.",
+      "start_s": 43.025,
+      "end_s": 45.15,
+      "duration_s": 2.125
+    },
+    {
+      "index": 9,
+      "text": "Let's check one two three two one. The reversed half starts at zero.",
+      "start_s": 45.15,
+      "end_s": 49.7,
+      "duration_s": 4.55
+    },
+    {
+      "index": 10,
+      "text": "Pop one. x is one two three two, and the half is one.",
+      "start_s": 49.7,
+      "end_s": 53.85,
+      "duration_s": 4.15
+    },
+    {
+      "index": 11,
+      "text": "Pop two. x is one two three, and the half is twelve.",
+      "start_s": 53.85,
+      "end_s": 57.65,
+      "duration_s": 3.8
+    },
+    {
+      "index": 12,
+      "text": "Pop three. x is twelve, and the half is one hundred twenty three. Now the half is bigger, so we stop.",
+      "start_s": 57.65,
+      "end_s": 64.05,
+      "duration_s": 6.4
+    },
+    {
+      "index": 13,
+      "text": "The length is odd, so the middle digit, three, sits at the end of the half. Divide it by ten.",
+      "start_s": 64.05,
+      "end_s": 69.825,
+      "duration_s": 5.775
+    },
+    {
+      "index": 14,
+      "text": "Twelve equals twelve. Advancement made. It's a palindrome!",
+      "start_s": 69.825,
+      "end_s": 74.125,
+      "duration_s": 4.3
+    },
+    {
+      "index": 15,
+      "text": "We only touch half of the digits, so the time is log of x.",
+      "start_s": 74.125,
+      "end_s": 78.05,
+      "duration_s": 3.925
+    },
+    {
+      "index": 16,
+      "text": "No string and no array, just two numbers. Constant space.",
+      "start_s": 78.05,
+      "end_s": 82.075,
+      "duration_s": 4.025
+    },
+    {
+      "index": 17,
+      "text": "Negative numbers and numbers ending in zero fail right away. The rest, we fold in half.",
+      "start_s": 82.075,
+      "end_s": 88.45,
+      "duration_s": 6.375
+    },
+    {
+      "index": 18,
+      "text": "Reverse only half, and meet in the middle.",
+      "start_s": 88.45,
+      "end_s": 91.25,
+      "duration_s": 2.8
+    }
+  ]
+}
