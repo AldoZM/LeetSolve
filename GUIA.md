@@ -92,18 +92,20 @@ Secciones (por tema de LeetCode): `arrays-hashing`, `linked-list`, `sliding-wind
 - `trees/0124-max-path-sum`: Binary Tree Maximum Path Sum, Hard. Mejor camino 42; cada bloque muestra lo que ofrece hacia arriba. Bosque con piedra (`stone-forest`), al amanecer.
 - `trees/0297-serialize-tree`: Serialize and Deserialize Binary Tree, Hard. Primer video del estilo aprobado. Árbol `[5,8,2,null,null,7]` guardado en 9 casillas (`5,8,#,#,2,7,#,#,#`), barreras para los hijos vacíos.
 - `math/0060-permutation-sequence`: Permutation Sequence, Hard. Segundo video del estilo aprobado. n = 4, k = 9 ("2314"), salto directo por divisiones sucesivas en el sistema numérico factorial.
-- Lote del 2026-10-21 (laptop, hecho con subagentes; estado de render en `RENDER.md`, sección 6). Ninguno está revisado con hojas de cuadros todavía:
+- Lote del 2026-10-21 (laptop, hecho con subagentes; estado en `RENDER.md`, sección 6). Los 6 están renderizados, pero ninguno está revisado con hojas de cuadros todavía:
   - `strings/0008-string-to-integer`: String to Integer (atoi), Medium. `"  -042a7"` → -42; espacios en piedra, signo en redstone, dígitos en hierro, la letra en tablones; el resultado en esmeralda. Río con orilla de arena (`river-sand`), de día. Renderizado, 95.2 s.
   - `math/0009-palindrome-number`: Palindrome Number, Easy. 12321: invertir solo la mitad (12 y 123 → 123 // 10 = 12). Lago del oeste (`west-lake`), al atardecer. Renderizado, 91.3 s.
   - `two-pointers/0016-three-sum-closest`: 3Sum Closest, Medium. `[-5, 2, 3, 4, 7]`, target 10 → 9. Estanque de abedules (`birch-pond`), al amanecer. Renderizado, 102.1 s.
   - `backtracking/0017-letter-combinations`: Letter Combinations of a Phone Number, Medium. "23" → 9 palabras que llenan las 9 casillas del cofre. Claro con flores (`flower-forest`), de día. Renderizado, 90.3 s.
-  - `two-pointers/0018-four-sum`: 4Sum, Medium. `[1, 0, -1, 0, -2, 2]`, target 0 → 3 grupos, con el salto del 0 repetido. Terrazas altas (`high-terraces`), al atardecer. Código listo, falta render.
-  - `linked-list/0019-remove-nth-node`: Remove Nth Node From End of List, Medium. 1→2→3→4→5, n = 2, con dummy y separación fija entre `fast` y `slow`. Sendero de robles (`oak-path`), de noche. Código listo, render a medias.
+  - `two-pointers/0018-four-sum`: 4Sum, Medium. `[1, 0, -1, 0, -2, 2]`, target 0 → 3 grupos, con el salto del 0 repetido. Terrazas altas (`high-terraces`), al atardecer. Renderizado, 104.5 s.
+  - `linked-list/0019-remove-nth-node`: Remove Nth Node From End of List, Medium. 1→2→3→4→5, n = 2, con dummy y separación fija entre `fast` y `slow`. Sendero de robles (`oak-path`), de noche. Renderizado, 84.3 s.
 - `pruebas/0001-two-sum-horizontal`: primera prueba en 16:9, sin código a la par.
 - `pruebas/0001-two-sum-minecraft`: Two Sum con el tema de Minecraft. Se arma con `python ../../herramientas/build.py` (está a dos niveles, no a tres).
 - `pruebas/0001-two-sum-minecraft-original`: **plantilla del estilo aprobado**. Two Sum con los assets y sonidos del juego, en el mundo ClaudeEntorno.
 
 Al terminar un video nuevo, agrégalo a esta lista.
+
+Los videos terminados se copian a `export/` en la raíz con el nombre `<Título> #<número>.mp4` (por ejemplo `4Sum #18.mp4`), listos para subir. Esa carpeta no se sube a git.
 
 ## Entorno (Windows)
 

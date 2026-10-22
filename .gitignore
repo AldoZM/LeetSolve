@@ -10,6 +10,7 @@ voiceover.mp3
 frame_*.png
 
 # Review output and logs (regenerable)
+export/
 node_modules/
 review*/
 frames*/

@@ -99,8 +99,9 @@ Todo el código está en git. Los renders de la laptop no se suben; en otra PC h
 | #9 Palindrome Number | `videos/math/0009-palindrome-number` | `video.mp4` completo, 91.3 s (video = audio), 46 efectos | revisión (paso 5) |
 | #16 3Sum Closest | `videos/two-pointers/0016-three-sum-closest` | `video.mp4` completo, 102.1 s (video = audio), 63 efectos | revisión (paso 5) |
 | #17 Letter Combinations | `videos/backtracking/0017-letter-combinations` | `video.mp4` completo, 90.3 s (video = audio), 86 efectos | revisión (paso 5) |
-| #18 4Sum | `videos/two-pointers/0018-four-sum` | escenas de Manim renderizadas; narración recortada a 104.5 s | `build.py three composite sync mux`, luego revisión |
-| #19 Remove Nth Node | `videos/linked-list/0019-remove-nth-node` | escenas y clip 3D renderizados; `sync` se cortó a la mitad | `build.py composite sync mux`, luego revisión |
+| #18 4Sum | `videos/two-pointers/0018-four-sum` | `video.mp4` completo, 104.5 s (video = audio) | revisión (paso 5) |
+| #19 Remove Nth Node | `videos/linked-list/0019-remove-nth-node` | `video.mp4` completo, 84.27 s (audio 84.25 s, menos de un cuadro) | revisión (paso 5) |
 
-- En #18 y #19 el clip 3D no se ha revisado con cuadros sueltos. Antes del paso `three` conviene probarlo: `node ../../../herramientas/three/render.mjs --page three/mundo.html --tema ../../../herramientas/temas/minecraft-original --stills 2,40,60 --outdir review3d` (con `--height 1920` para ver el 9:16).
-- Los 6 videos se hicieron con subagentes en paralelo. Una caída de red los detuvo antes de terminar su revisión, así que ninguno tiene hojas de cuadros revisadas ni `NOTAS.md`.
+- En #18 y #19 el clip 3D no se revisó con cuadros sueltos antes de renderizarlo. Al renderizar en otra PC, conviene probarlo antes del paso `three`: `node ../../../herramientas/three/render.mjs --page three/mundo.html --tema ../../../herramientas/temas/minecraft-original --stills 2,40,60 --outdir review3d` (con `--height 1920` para ver el 9:16).
+- Los 6 videos se hicieron con subagentes en paralelo. Una caída de red los detuvo antes de terminar su revisión, así que ninguno tiene hojas de cuadros revisadas ni `NOTAS.md`. Los renders de #18 y #19 se terminaron después a mano.
+- Los videos terminados se copian a `export/` (raíz, no se sube) como `<Título> #<número>.mp4`.

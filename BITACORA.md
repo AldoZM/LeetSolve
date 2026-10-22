@@ -21,6 +21,8 @@ Registro de lo que se hizo en cada sesión, de la más reciente a la más antigu
   - #8, #9, #16 y #17: `video.mp4` completo en la laptop, con la duración del video igual a la del audio (95.2, 91.3, 102.1 y 90.3 s).
   - #18: escenas de Manim renderizadas; falta el resto.
   - #19: escenas y clip 3D renderizados; `sync` se cortó a la mitad.
+- Después se terminaron los dos renders que faltaban: #18 con `build.py three composite sync mux` (104.5 s, video = audio) y #19 con `composite sync mux` (84.27 s contra 84.25 s de audio, menos de un cuadro). Los 6 videos del lote quedan con `video.mp4` completo.
+- Nueva carpeta `export/` en la raíz con los 17 videos terminados de `main`, nombrados `<Título> #<número>.mp4` para subirlos. No se sube a git (`.gitignore`).
 - Nuevo `RENDER.md`: cómo renderizar un video cuyo código ya está listo, cómo retomar un render cortado y el estado de este lote con el comando que le falta a cada video.
 - Los `script.py` generados llevan la ruta local con el usuario de la PC: los de este lote no se suben, y el cambio de ruta que el build dejó en el `script.py` del #124 tampoco.
 - No verificado en ninguno de los 6: hojas de cuadros, la lista de "Errores ya cometidos", el loop, ver los videos en movimiento y escuchar los volúmenes. Los subagentes no llegaron a escribir sus `NOTAS.md`.
@@ -174,7 +176,7 @@ Registro de lo que se hizo en cada sesión, de la más reciente a la más antigu
 
 ## Pendientes
 
-- Lote #8–#19: terminar el render de #18 y #19 (`RENDER.md`, sección 6) y revisar los 6 (hojas de cuadros, errores conocidos, loop, verlos en movimiento).
+- Lote #8–#19: revisar los 6 videos (hojas de cuadros, errores conocidos, loop, verlos en movimiento y escuchar los volúmenes). Todos tienen `video.mp4` completo en la laptop.
 - Unir la rama `laptop-videos` (#10–#15, #1807, #3863 y su `stash@{0}`) con `main`: 5 conflictos (BITACORA, GUIA, extraer.py, mc.js, mundo.py).
 - Subir el ClaudeEntorno de 26.3 al zip (sin `players/` ni `singleplayer_uuid` en `level.dat`) si se quieren volver a exportar los lugares nuevos en otra PC.
 
