@@ -102,6 +102,8 @@ Secciones (por tema de LeetCode): `arrays-hashing`, `linked-list`, `sliding-wind
 - `pruebas/0001-two-sum-horizontal`: primera prueba en 16:9, sin código a la par.
 - `pruebas/0001-two-sum-minecraft`: Two Sum con el tema de Minecraft. Se arma con `python ../../herramientas/build.py` (está a dos niveles, no a tres).
 - `pruebas/0001-two-sum-minecraft-original`: **plantilla del estilo aprobado**. Two Sum con los assets y sonidos del juego, en el mundo ClaudeEntorno.
+- `pruebas/voces_demo/`: muestras de referencia femeninas diseñadas desde cero con `Qwen3-TTS-12Hz-1.7B-VoiceDesign` (`01_joven_youtuber.mp3`, `02_calida_storyteller.mp3`, `03_clara_directa.mp3`, `04_madura_sensual.mp3`) y los scripts de diseño, clonación y limpieza de silencios.
+- `pruebas/0004-joven-youtuber` y `pruebas/0004-madura-sensual`: pruebas completas del ejercicio #4 (Median of Two Sorted Arrays) con voz clonada en la GPU local (`Qwen3-TTS-12Hz-0.6B-Base`), de 93.12 s y 103.73 s respectivamente.
 
 Al terminar un video nuevo, agrégalo a esta lista.
 
@@ -119,6 +121,51 @@ Los videos terminados se copian a `export/` en la raíz con el nombre `<Título>
 - Render 3D: `herramientas/three/render.mjs` (Node + Playwright Chromium, usa la RX 6600 por D3D11). En una PC nueva, correr `npm ci` y `npx playwright install chromium` dentro de `herramientas/three`. Sirve su propia carpeta como `/vendor/lib/` (ahí está `stage.js`).
 - En otra PC, si la skill no está en `~/.manim-skill-src`, definir `MANIM_SKILL_TOOLS` con la carpeta `tools/` de github.com/Yusuke710/manim-skill.
 - LaTeX: MiKTeX. ffmpeg y ffprobe en el PATH.
+
+## Voz humana con IA (Qwen3-TTS: Diseño y Clonación en GPU)
+
+Además de Kokoro-82M (`af_heart`, que corre en CPU y lee plano línea por línea sin entender el contexto), el proyecto cuenta con un flujo de **diseño y clonación de voz basado en LLM (`Qwen3-TTS`)** acelerado por GPU CUDA:
+
+### 1. Entorno dedicado (`~/.manim-skill-src/.venv-tts`)
+
+- Para no alterar las dependencias del entorno de Manim (`~/.manim-skill-src/.venv`, que usa `torch` CPU), las herramientas de voz con IA viven en un entorno virtual separado creado con `uv` en `~/.manim-skill-src/.venv-tts` (Python 3.12).
+- **Paquetes instalados en `.venv-tts`:**
+  - `torch==2.14.1+cu126` y `torchaudio==2.11.0+cu126` (compilados con CUDA 12.6, aprovechando los 6 GB VRAM de la RTX 3060 Laptop GPU en precisión `bfloat16`).
+  - `qwen-tts==0.1.1` (interfaz oficial `Qwen3TTSModel` con tokenizador de audio discrete multi-codebook a 12 Hz).
+  - `transformers`, `accelerate`, `soundfile`, `librosa`, `scipy`, `onnxruntime` y `gradio_client`.
+- **Instalación desde cero en otra PC con GPU NVIDIA:**
+  ```bash
+  uv venv "$HOME/.manim-skill-src/.venv-tts" --python 3.12
+  uv pip install --python "$HOME/.manim-skill-src/.venv-tts/Scripts/python.exe" torch torchaudio --index-url https://download.pytorch.org/whl/cu126
+  uv pip install --python "$HOME/.manim-skill-src/.venv-tts/Scripts/python.exe" -U qwen-tts soundfile
+  ```
+
+### 2. Fase 1 — Diseñar una voz desde cero (`Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign`)
+
+- Cuando se quiere inventar una identidad vocal nueva sin partir de grabaciones reales, se usa el modelo `Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign` mediante `model.generate_voice_design(text, language="English", instruct=...)`.
+- El parámetro `instruct` recibe una descripción en lenguaje natural (edad, género, timbre, ritmo, acento y actitud).
+- **Por qué no se usa `VoiceDesign` directo en las 20 líneas del video:** `VoiceDesign` inventa una voz a partir del texto descriptivo en cada llamada; si se llamara 20 veces por separado, el timbre podría variar ligeramente de una línea a otra. Por eso `VoiceDesign` se usa **una sola vez** para generar las muestras candidatas de ~10–15 s en `pruebas/voces_demo/`:
+  - `01_joven_youtuber.mp3` (11.8 s): voz femenina joven, energética, estilo creadora de YouTube/gamer.
+  - `02_calida_storyteller.mp3` (15.3 s): voz femenina cálida y suave, estilo narradora.
+  - `03_clara_directa.mp3` (10.6 s): voz femenina rápida, articulada y directa.
+  - `04_madura_sensual.mp3` (17.6 s): voz femenina madura (contralto), profunda, aterciopelada y sensual.
+- **Scripts de esta fase:**
+  - `pruebas/voces_demo/gen_demos.py`: corre `Qwen3-TTS-12Hz-1.7B-VoiceDesign` localmente en la GPU (`cuda:0`, `bfloat16`).
+  - `pruebas/voces_demo/gen_demos_fast.py`: alternativa ligera que consulta el endpoint SSE `/gradio_api/call/generate_voice_design` de los espacios de `Qwen3-TTS` en Hugging Face sin descargar los 3.4 GB del modelo de diseño.
+
+### 3. Fase 2 — Clonar la voz elegida en todo el video (`Qwen/Qwen3-TTS-12Hz-0.6B-Base`)
+
+- Una vez elegido el `.mp3` de referencia, `pruebas/voces_demo/tts_qwen_clone.py` usa el modelo base **`Qwen/Qwen3-TTS-12Hz-0.6B-Base`** (~1.2 GB en disco, ~1.5 GB de VRAM en `bfloat16`) para sintetizar todas las líneas de `narration.txt` manteniendo exactamente el mismo timbre de principio a fin:
+  1. **Preprocesamiento del audio de referencia con `ffmpeg`:** convierte el `.mp3` maestro a un `.wav` temporal mono a 24 kHz (evitando que `qwen-tts`/`librosa` dependan del binario externo `sox`) y le aplica `silenceremove` para recortar cualquier pausa interna mayor a `0.20 s`. Si el audio de referencia tiene pausas largas (~1 s), el LLM aprende a insertar silencios muertos a mitad de las oraciones.
+  2. **Extracción única del prompt vocal:** llama una sola vez a `prompt = model.create_voice_clone_prompt(ref_audio=ref_wav, ref_text=ref_text)`, que extrae tanto los tokens acústicos/semánticos de la referencia como el vector de hablante (`x-vector`).
+  3. **Síntesis línea por línea con control de alucinaciones:** recorre cada viñeta de `narration.txt` con `model.generate_voice_clone(text=text, language="English", voice_clone_prompt=prompt)`. Calcula las palabras de la línea y verifica que la duración cruda cumpla `raw_dur <= words * 0.65 + 1.5`; si el LLM alucina un silencio largo al final, reintenta automáticamente cambiando la semilla (`torch.manual_seed`).
+  4. **Limpieza acústica de cada línea (`write_mp3_clean`):** antes de guardar cada clip en `.tts-cache/`, lo pasa por `ffmpeg` con:
+     ```
+     silenceremove=start_periods=1:start_duration=0.02:start_threshold=-40dB:stop_periods=-1:stop_duration=0.22:stop_threshold=-40dB,apad=pad_dur=0.08
+     ```
+     Esto elimina silencios al inicio de la línea, recorta cualquier pausa interna o final a un máximo de `0.22 s` y deja una cola limpia de `0.08 s` antes de codificar con `libmp3lame -q:a 2`.
+  5. **Empaquetado compatible con `build.py`:** mide cada clip con `ffprobe`, los une en `voiceover.mp3` usando el mismo filtro `apad,atrim` que `tts-generate.py` (para no acumular padding de paquetes MP3) y escribe `timestamps.json` con `start_s`, `end_s` y `duration_s` exactos. Después basta correr `python make_walk.py` y `python ../../herramientas/build.py`.
+- Si un `.tts-cache/` ya fue generado sin el filtro de silencios, `pruebas/voces_demo/fix_madura_silences.py` limpia todos los clips en caché, reconstruye `voiceover.mp3` y actualiza `timestamps.json` en un par de segundos sin volver a correr la red neuronal.
 
 ## Archivos de cada video
 
@@ -283,6 +330,7 @@ Aldo los encontró en el #297 o salieron en su revisión. Antes de entregar un v
 13. **Textos que no caben.** Una cuenta larga en fuente PIXEL (`964632435 > 214748364 overflow!`) o varias cajas `chat` seguidas se salen del cuadro. Cada `chat` agrega 0.56 de relleno: juntar el texto en menos cajas o bajar el tamaño.
 14. **Narración que no coincide con el dibujo.** En el #6 la narración decía "most of that grid stays empty" y en la cuadrícula de 3 × 7 solo faltan 7 de 21. Se corrigió a "a third".
 15. **La fuente del juego no tiene todo.** No hay `³`, `≠` ni `✓`, y `..` se ve como un punto. Usar `^3`, `!=`, `ok` y palabras ("from 0 to 5").
+16. **Silencios muertos al clonar voces lentas con TTS de IA (`Qwen3-TTS`).** Si el audio de referencia tiene pausas de ~1 s entre frases (como pasó en `04_madura_sensual.mp3`), el LLM imita esas pausas y llega a meter silencios de más de 5 s a mitad de una línea (en la línea 2 del #4 metió 5.75 s de silencio antes de `"That's eleven"`). Solución: pasar tanto el audio de referencia como cada clip generado por `silenceremove` de `ffmpeg` (máximo `0.20–0.22 s` por pausa más `0.08 s` de cola con `apad`), como hace `tts_qwen_clone.py`, y verificar con `silencedetect` que no quede ningún silencio mayor a `0.45 s`.
 
 ## Lista de revisión antes de entregar
 
