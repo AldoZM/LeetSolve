@@ -2,6 +2,26 @@
 
 Registro de lo que se hizo en cada sesión, de la más reciente a la más antigua. El cómo trabajar está en `GUIA.md`.
 
+## 2026-10-22
+
+### Investigación y pruebas de voz más humana (Qwen3-TTS / Chatterbox)
+
+- Aldo pidió buscar un TTS con IA que suene humano para reemplazar o complementar `af_heart` de Kokoro-82M (que lee plano línea por línea y corre en CPU).
+- Se revisaron las opciones actuales que caben en la RTX 3060 Laptop (6 GB VRAM):
+  - **Chatterbox TTS (Resemble AI, 350M/500M):** clonación zero-shot con 5–15 s de referencia y control de expresividad (`exaggeration`, `cfg_weight`).
+  - **Qwen3-TTS (`1.7B-VoiceDesign` y `0.6B/1.7B-Base`):** permite diseñar una voz desde cero con descripción en texto (`VoiceDesign`) y luego fijar esa muestra de ~10 s con el modelo `Base` (o con Chatterbox) para mantener el mismo timbre en todas las líneas de `narration.txt`.
+- Se detectó que `~/.manim-skill-src/.venv` tenía `torch 2.14.1+cpu`. Se creó un entorno separado `~/.manim-skill-src/.venv-tts` (Python 3.12) con PyTorch CUDA 12.6 y `qwen-tts` para no tocar el venv de Manim.
+- Aldo eligió crear una voz femenina desde cero y pidió una demo con 4 perfiles en `pruebas/voces_demo/` leyendo el gancho y el truco de Two Sum:
+  - `01_joven_youtuber.mp3` (11.8 s): joven, enérgica, estilo YouTuber/gamer.
+  - `02_calida_storyteller.mp3` (15.3 s): cálida, suave, estilo storytelling.
+  - `03_clara_directa.mp3` (10.6 s): clara, rápida y directa.
+  - `04_madura_sensual.mp3` (17.6 s): mujer madura con voz profunda, aterciopelada y sensual.
+- Scripts de prueba en `pruebas/voces_demo/gen_demos.py` (local con CUDA), `pruebas/voces_demo/gen_demos_fast.py` y `pruebas/voces_demo/tts_qwen_clone.py` (clonación local en la RTX 3060 con `Qwen/Qwen3-TTS-12Hz-0.6B-Base`).
+- Prueba completa en el ejercicio #4 (Median of Two Sorted Arrays, 19 líneas, 62 efectos de sonido) con las dos voces finalistas:
+  - `pruebas/0004-joven-youtuber` (copiado a `pruebas/voces_demo/0004_joven_youtuber.mp4`): 93.12 s (video = audio), linter sin errores.
+  - `pruebas/0004-madura-sensual` (copiado a `pruebas/voces_demo/0004_madura_sensual.mp4`): inicialmente salió de 123.68 s porque el audio de referencia tenía pausas largas (~1 s) y el modelo metió un silencio de 5.75 s en la línea 2; se corrigió con `silenceremove` a máx. 0.22 s por pausa (`fix_madura_silences.py` y `tts_qwen_clone.py`), quedando en **103.73 s** (video = audio) sin silencios muertos y linter sin errores.
+- Pendiente: que Aldo vea los dos videos del #4 y elija cuál voz se queda para integrarla en `tts-generate.py`.
+
 ## 2026-10-21
 
 ### Lote #8, #9, #16, #17, #18 y #19 (laptop, con subagentes)

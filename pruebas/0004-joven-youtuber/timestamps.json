@@ -1,0 +1,138 @@
+{
+  "total_duration_s": 93.12,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Median of Two Sorted Arrays, Minecraft edition. LeetCode number four, one of the most famous hard problems.",
+      "start_s": 0.0,
+      "end_s": 6.8,
+      "duration_s": 6.8
+    },
+    {
+      "index": 1,
+      "text": "We get two sorted rows of blocks, and we need the median of all their numbers combined.",
+      "start_s": 6.8,
+      "end_s": 11.36,
+      "duration_s": 4.56
+    },
+    {
+      "index": 2,
+      "text": "There are eleven blocks in total, so the median is the sixth smallest. That's eleven.",
+      "start_s": 11.36,
+      "end_s": 17.04,
+      "duration_s": 5.68
+    },
+    {
+      "index": 3,
+      "text": "The easy way merges both rows, then picks the middle. But that takes linear time.",
+      "start_s": 17.04,
+      "end_s": 21.68,
+      "duration_s": 4.64
+    },
+    {
+      "index": 4,
+      "text": "The problem asks for log time. So we can't even look at every block.",
+      "start_s": 21.68,
+      "end_s": 25.52,
+      "duration_s": 3.84
+    },
+    {
+      "index": 5,
+      "text": "Here's the trick. The median splits all the blocks into a left half and a right half.",
+      "start_s": 25.52,
+      "end_s": 30.24,
+      "duration_s": 4.72
+    },
+    {
+      "index": 6,
+      "text": "If we cut row A at some point i, the cut in B is forced, because the left side must hold exactly six blocks.",
+      "start_s": 30.24,
+      "end_s": 37.52,
+      "duration_s": 7.28
+    },
+    {
+      "index": 7,
+      "text": "So we only binary search the cut in the shorter row.",
+      "start_s": 37.52,
+      "end_s": 40.24,
+      "duration_s": 2.72
+    },
+    {
+      "index": 8,
+      "text": "The cut is valid when everything on the left is at most everything on the right. Since the rows are sorted, we only check across the cut.",
+      "start_s": 40.24,
+      "end_s": 47.12,
+      "duration_s": 6.88
+    },
+    {
+      "index": 9,
+      "text": "Let's search. The cut in A can go anywhere from zero to five.",
+      "start_s": 47.12,
+      "end_s": 50.96,
+      "duration_s": 3.84
+    },
+    {
+      "index": 10,
+      "text": "Try the middle, i equals two. That forces j to four. The left side gets two blocks from A, and four from B.",
+      "start_s": 50.96,
+      "end_s": 58.08,
+      "duration_s": 7.12
+    },
+    {
+      "index": 11,
+      "text": "Check across the cut. Nineteen on the left is bigger than eight on the right. So the cut in A is too far left.",
+      "start_s": 58.08,
+      "end_s": 64.0,
+      "duration_s": 5.92
+    },
+    {
+      "index": 12,
+      "text": "Move right. Now i is four, and j is two.",
+      "start_s": 64.0,
+      "end_s": 67.12,
+      "duration_s": 3.12
+    },
+    {
+      "index": 13,
+      "text": "Nine is at most eighteen, and eleven is at most fifteen. Both checks pass, so the cut is valid.",
+      "start_s": 67.12,
+      "end_s": 73.12,
+      "duration_s": 6.0
+    },
+    {
+      "index": 14,
+      "text": "Advancement made. The total is odd, so the median is the largest block on the left. That's eleven.",
+      "start_s": 73.12,
+      "end_s": 79.2,
+      "duration_s": 6.08
+    },
+    {
+      "index": 15,
+      "text": "We binary search only the shorter row, so the time is log of the smaller length.",
+      "start_s": 79.2,
+      "end_s": 83.76,
+      "duration_s": 4.56
+    },
+    {
+      "index": 16,
+      "text": "And we only keep a few pointers, so the space is constant.",
+      "start_s": 83.76,
+      "end_s": 87.28,
+      "duration_s": 3.52
+    },
+    {
+      "index": 17,
+      "text": "No merging. Just one cut, checked across both rows.",
+      "start_s": 87.28,
+      "end_s": 90.72,
+      "duration_s": 3.44
+    },
+    {
+      "index": 18,
+      "text": "Find the right cut, and the median falls out.",
+      "start_s": 90.72,
+      "end_s": 93.12,
+      "duration_s": 2.4
+    }
+  ]
+}
