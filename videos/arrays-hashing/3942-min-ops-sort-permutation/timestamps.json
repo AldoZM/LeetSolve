@@ -1,0 +1,145 @@
+{
+  "total_duration_s": 116.55,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Minimum Operations to Sort a Permutation, Minecraft edition. LeetCode problem thirty nine forty two, with only two levers.",
+      "start_s": 0.0,
+      "end_s": 8.551,
+      "duration_s": 8.551
+    },
+    {
+      "index": 1,
+      "text": "Six ore blocks, numbered zero to five. We want them in order, but we only get two levers.",
+      "start_s": 8.551,
+      "end_s": 15.072,
+      "duration_s": 6.521
+    },
+    {
+      "index": 2,
+      "text": "The first lever reverses the whole row. The second one rotates it left, moving the first block to the end.",
+      "start_s": 15.072,
+      "end_s": 22.133,
+      "duration_s": 7.061
+    },
+    {
+      "index": 3,
+      "text": "Find the fewest pulls that sort the row, or return minus one if it can't be done. Here, the answer is three.",
+      "start_s": 22.133,
+      "end_s": 28.064,
+      "duration_s": 5.931
+    },
+    {
+      "index": 4,
+      "text": "The direct idea is a breadth first search over every row we can reach.",
+      "start_s": 28.064,
+      "end_s": 32.439,
+      "duration_s": 4.375
+    },
+    {
+      "index": 5,
+      "text": "Each pull copies the whole row, and there are up to two n different rows to visit.",
+      "start_s": 32.439,
+      "end_s": 37.701,
+      "duration_s": 5.262
+    },
+    {
+      "index": 6,
+      "text": "That's n squared work. With a hundred thousand blocks, it's ten billion steps, and the pickaxe breaks.",
+      "start_s": 37.701,
+      "end_s": 43.409,
+      "duration_s": 5.707
+    },
+    {
+      "index": 7,
+      "text": "Here's the trick. Reversing and rotating never break the circle. Neighbors always stay neighbors.",
+      "start_s": 43.409,
+      "end_s": 49.627,
+      "duration_s": 6.218
+    },
+    {
+      "index": 8,
+      "text": "So the row must be the sorted circle, read forwards or backwards. If not, the answer is minus one.",
+      "start_s": 49.627,
+      "end_s": 56.119,
+      "duration_s": 6.493
+    },
+    {
+      "index": 9,
+      "text": "And then there are only four plans worth trying. We just count the cost of each one.",
+      "start_s": 56.119,
+      "end_s": 61.446,
+      "duration_s": 5.327
+    },
+    {
+      "index": 10,
+      "text": "Let's walk it. First we find block zero. It sits at index five.",
+      "start_s": 61.446,
+      "end_s": 66.091,
+      "duration_s": 4.644
+    },
+    {
+      "index": 11,
+      "text": "Reading the circle forwards from zero, we get zero, one, two, three, four, five. The circle holds forwards, so we compare the two forward plans.",
+      "start_s": 66.091,
+      "end_s": 75.516,
+      "duration_s": 9.425
+    },
+    {
+      "index": 12,
+      "text": "Plan one is to just rotate. Zero needs five pulls to reach the front.",
+      "start_s": 75.516,
+      "end_s": 80.275,
+      "duration_s": 4.759
+    },
+    {
+      "index": 13,
+      "text": "Plan two flips first. Reverse, and zero lands at the front, but the row runs backwards.",
+      "start_s": 80.275,
+      "end_s": 86.469,
+      "duration_s": 6.194
+    },
+    {
+      "index": 14,
+      "text": "Rotate once, and the row reads five down to zero. Reverse again, and it's sorted.",
+      "start_s": 86.469,
+      "end_s": 92.044,
+      "duration_s": 5.575
+    },
+    {
+      "index": 15,
+      "text": "Advancement made. Three pulls beat five. The answer is three.",
+      "start_s": 92.044,
+      "end_s": 96.959,
+      "duration_s": 4.916
+    },
+    {
+      "index": 16,
+      "text": "We read the row once to find zero and check the circle. That's linear time.",
+      "start_s": 96.959,
+      "end_s": 101.799,
+      "duration_s": 4.839
+    },
+    {
+      "index": 17,
+      "text": "And we only keep a few numbers, so the extra space is constant.",
+      "start_s": 101.799,
+      "end_s": 106.729,
+      "duration_s": 4.93
+    },
+    {
+      "index": 18,
+      "text": "Find zero, check both directions, and take the cheapest plan.",
+      "start_s": 106.729,
+      "end_s": 111.058,
+      "duration_s": 4.329
+    },
+    {
+      "index": 19,
+      "text": "When the moves keep the shape, you don't search, you count. That's the big lesson of this problem.",
+      "start_s": 111.058,
+      "end_s": 116.55,
+      "duration_s": 5.492
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+subtitles:
+- Find Target Indices After Sorting Array, Minecraft edition. LeetCode problem twenty eighty nine, and a sneaky shortcut.
+- Six ore blocks in a row, and a target. Two.
+- If we sorted the row, where would every two end up? Return those positions.
+- Sorted, the row reads one, two, two, two, three, five. So the answer is one, two and three.
+- The direct idea is to sort the whole row, then scan it for the twos.
+- Sorting puts every block in order, even the three and the five, which we never needed in order.
+- That costs n log n, when the answer only depends on two counts.
+- Here's the trick. In the sorted row, every block smaller than the target comes first.
+- So the twos start right after them. With one smaller block, the first two lands at index one.
+- And with three twos, they fill three slots in a row from there.
+- Let's walk the row once, with two counters. Less, and equal.
+- Five is bigger. Skip it. Two is the target. Equal is one.
+- One is smaller. Less is one. Two again. Equal is two.
+- Three is bigger. Then the last two. Equal is three.
+- The twos start at index less, which is one, and take equal slots, which is three.
+- Advancement made. The answer is one, two, three, without sorting a thing.
+- One pass with two counters. That's linear time.
+- And besides the answer, we only keep two numbers. Constant extra space.
+- Count the smaller ones, count the matches, and read off the range.
+- Sometimes you don't need the order, only the counts. That's the big lesson of this problem.

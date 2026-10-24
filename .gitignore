@@ -18,3 +18,8 @@ maqueta/
 sheet*.png
 *.log
 review_*.png
+
+# macOS
+.DS_Store
+# Final videos renamed to "<Title> #<number>.mp4" (regenerable)
+*#*.mp4

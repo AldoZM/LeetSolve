@@ -1,0 +1,21 @@
+subtitles:
+- Count Days Spent Together, Minecraft edition. LeetCode problem twenty four oh nine, a little calendar puzzle.
+- Alice and Bob visit Rome. Each one arrives and leaves on a date written as month, dash, day.
+- Alice stays from October twenty eighth to November third. Bob, from October thirtieth to November fifth.
+- How many days are they both in the city? Here, the answer is five.
+- The direct idea is to walk the whole calendar, all three hundred sixty five days.
+- On each day, we check if Alice is there, and if Bob is there too, and count the days where both are.
+- It works, but it touches every day of the year just to find five.
+- Here's the trick. Turn every date into a day of the year.
+- Add up the days of the months before it, then add the day itself.
+- Now each stay is a range of numbers. Together, they start at the later arrival and end at the earlier departure.
+- Let's walk it. The nine months before October add up to two hundred seventy three days.
+- Alice arrives on day three hundred one, and leaves on day three hundred seven.
+- Bob arrives on day three hundred three, and leaves on day three hundred nine.
+- The later arrival is day three oh three. The earlier departure is day three oh seven.
+- Three oh seven minus three oh three, plus one, is five. If that were negative, we would return zero.
+- Advancement made. Alice and Bob share five days in Rome.
+- Each date needs only a few additions, so the time is constant.
+- And we only keep a few numbers, so the space is constant too.
+- Convert the dates, then take the later start and the earlier end.
+- When dates get messy, turn them into numbers first. That's the big lesson of this problem.

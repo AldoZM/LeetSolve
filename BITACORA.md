@@ -2,6 +2,91 @@
 
 Registro de lo que se hizo en cada sesión, de la más reciente a la más antigua. El cómo trabajar está en `GUIA.md`.
 
+## 2026-10-23
+
+### Entorno en la Mac (MacBook Air M2, 8 GB)
+
+- Repositorio clonado en `~/Documents/Codigo Abierto/LeetSolve`.
+- Minecraft: launcher oficial instalado en `/Applications/Minecraft.app`; Aldo inició sesión y abrió la 26.3. En Mac los archivos del juego están en `~/Library/Application Support/minecraft`.
+- `extraer.py` tenía fija la ruta de Windows; ahora elige `%APPDATA%\.minecraft`, `~/Library/Application Support/minecraft` o `~/.minecraft` según el sistema. Se extrajo de la 26.3 (19 texturas de bloques, 12 de interfaz, 13 de mobs, fuente, 31 sonidos y música) y se copiaron del jar las texturas de los 74 bloques de los lugares a `mundos/tex/`.
+- `uv` instalado; venv `~/.manim-skill-src/.venv` (Python 3.12, solo Pillow por ahora: falta manim, kokoro y LaTeX para renderizar) y `~/.manim-skill-src/.venv-tts` (Python 3.12, torch 2.14.1 con MPS, `qwen-tts`, `soundfile`). En Mac el venv usa `bin/`, no `Scripts/`.
+- Homebrew reparado (permisos de `/opt/homebrew` y `brew update`) e instalado ffmpeg 9.0.2.
+- `tts_qwen_clone.py` ahora usa CUDA, MPS (Apple Silicon) o CPU (`pick_device`). Probado en MPS con la voz joven: el modelo `0.6B-Base` carga en ~58 s y genera 7 s de audio en 19.5 s (unos 5 minutos por video de 20 líneas). El aviso de SoX no afecta porque el script pasa un `.wav`.
+- Aldo eligió la **voz madura** (`04_madura_sensual.mp3`). `tts_qwen_clone.py` ahora recibe la carpeta del video y la referencia como argumentos.
+- Entorno completo para renderizar: manim 0.22, kokoro, TinyTeX, Playwright (Chromium con ANGLE Metal; `render.mjs` elige `metal` en Mac y `d3d11` en Windows) y el repo de la skill en `~/.manim-skill-src`. Todo anotado en `GUIA.md`, "Entorno (Mac con Apple Silicon)".
+- Aldo cambió la regla de duración: menos de 3 minutos, sin estirar el video para llenarlos. Ya no aplica el rango de 85 a 105 s.
+
+### #3644 Maximum K to Sort a Permutation (Medium), problema diario
+
+- Carpeta `videos/bit-manipulation/3644-max-k-sort-permutation` (sección nueva). 112.9 s (video 112.87, audio 112.85), 21 líneas, 61 efectos, 9:16.
+- Solución: el AND de los valores fuera de su lugar (0 si ya está ordenado). Se comprobó contra fuerza bruta (unión de valores con `a & b == k`) en todas las permutaciones de hasta 7 y en 3000 al azar de hasta 40. Ejemplo `[0, 3, 2, 5, 4, 1, 6]` → 1; la fuerza bruta prueba k = 6..1 antes de encontrarlo.
+- Metáfora: cada bit es una lámpara de redstone (texturas nuevas en `extraer.py`). Un panel de 3 lámparas grandes, en lugar del cofre, guarda el AND; las lámparas del bloque mal colocado vuelan al panel y este pasa de 111 a 011 y a 001.
+- Voz madura clonada en MPS: 397 s para 21 líneas, sin reintentos y sin silencios de más de 0.45 s.
+- Lugar nuevo `forest-edge`, al atardecer, con lobos, ovejas, vacas y gallinas.
+- `scenes.py` ancla los `until` a frases con `ph(línea, "frase")` (anotado en `INSTRUCCIONES_IA.md`).
+- Correcciones en la revisión:
+  - El `return 1` iba en y = 4.3, encima de la fila 3D: ahora reemplaza la lectura del panel.
+  - `k` y `checks` de la fuerza bruta no se leían sobre los abedules: ahora tienen caja de chat.
+  - "n values of k / n^2 pairs each" era muy chico.
+  - "already sorted -> 0" duraba medio segundo y la pantalla quedaba vacía 2 s antes de la portada.
+  - El linter había reescrito los sonidos de las escenas no renderizadas (61 → 55); anotado en "Problemas conocidos".
+- Verificado: linter sin problemas, duración igual al audio, cuadros sueltos del 3D, hojas de cuadros de todas las escenas, loop con diferencia media de 1.17.
+- No verificado: ver el video completo en movimiento ni escuchar los volúmenes y la pronunciación de la voz.
+- Copiado a `export/Maximum K to Sort a Permutation #3644.mp4`. A petición de Aldo, el `video.mp4` de la carpeta se renombró igual: los videos finales nunca se quedan como `video.mp4` (regla nueva en `GUIA.md`).
+
+### #3942 Minimum Operations to Sort a Permutation (Medium), diario del 22 de octubre
+
+- Carpeta `videos/arrays-hashing/3942-min-ops-sort-permutation`. 120.3 s (video 120.30, audio 120.29), 20 líneas, 52 efectos.
+- El plan de AGY (`DIARIOS_2_SEMANAS.tex`) usaba dos ejemplos distintos para este problema; se dejó uno solo, `[1, 2, 3, 4, 5, 0]` → 3, que muestra el truco (rotar 5 veces pierde contra invertir, rotar e invertir). El código corto del video se comprobó contra BFS en todas las permutaciones de hasta 7.
+- Lugar nuevo `west-hills` (−130, 70, 30), con el lote alargado hasta la cámara para que no se vea la pared de tierra.
+- Correcciones en la revisión: la palanca se veía como un palito; primero se armó a mano y Aldo pidió usar la del juego, así que ahora se dibuja el modelo real (`model_icon("lever")`, y `lever_on` al jalarla; ver `GUIA.md`), los letreros tapaban los índices (sin poste y en el pasto; índices encima de los bloques), los bloques se amontonaban al invertir (cruzan por delante y por detrás) y "forwards" tocaba el círculo.
+- Verificado: linter, duración igual al audio, cuadros sueltos del 3D, hojas de cuadros de todas las escenas, loop 1.01. No verificado: verlo en movimiento ni escucharlo.
+- `Minimum Operations to Sort a Permutation #3942.mp4` en su carpeta y en `export/`, con `descripcion.txt`.
+
+### #2409 Count Days Spent Together (Easy), diario del 24 de octubre
+
+- En LeetCode el diario cambia a la medianoche UTC (18:00 en CST); a las 18:52 ya era el del 24.
+- Carpeta `videos/math/2409-count-days-together`. 101.2 s (video = audio), 20 líneas, 39 efectos.
+- Solución comprobada contra un recorrido de los 365 días en 20 000 rangos al azar; los ejemplos de LeetCode dan 3 y 0. Ejemplo propio que cruza de mes (Alice 10-28 → 11-03, Bob 10-30 → 11-05 → 5).
+- Lugar nuevo `tall-meadow` (−110, 69, −110), del zip. Textura nueva `clock` en `extraer.py`.
+- Correcciones en la revisión: la fila se salía por los lados (bloques más chicos y cámara más atrás), "OCT"/"NOV" y el letrero se tapaban, los días del año chocaban con el conteo, el código salía muy chico (nombres de parámetros cortos) y había un segundo vacío antes de la portada final (el mensaje ahora se cruza con la portada).
+- Verificado: linter, duración, cuadros sueltos del 3D, hojas de cuadros, loop 1.64. No verificado: verlo en movimiento ni escucharlo.
+
+### Narración sin fechas, y los tres videos otra vez
+
+- Aldo pidió que los videos no digan "today", "yesterday" ni "last week", como los primeros. Se cambiaron la primera y la última línea de #3644, #3942 y #2409 (por ejemplo "…with only two levers." y "That's the big lesson of this problem."). Regla en `INSTRUCCIONES_IA.md` 3.3.
+- Se regeneró la voz solo de esas líneas (caché) y se rehicieron los tres, en fila y uno a la vez, con un script que borra el `video.mp4` anterior y se detiene si el build falla (la primera vez tomó por bueno un video viejo del #2409 cuando falló el linter).
+- Duraciones nuevas: #3644 112.8 s, #3942 116.5 s, #2409 101.2 s; los tres con video = audio. Loops: 1.23, 1.03 y 1.64.
+
+### #3886 Sum of Sortable Integers (Hard), diario del 20 de octubre
+
+- Carpeta `videos/arrays-hashing/3886-sum-of-sortable-integers`. 129.8 s (video = audio), 20 líneas, 39 efectos, loop 1.16.
+- El ejemplo de AGY solo tenía un k válido; con fuerza bruta se vio que con 6 valores distintos nunca sirven dos k, así que se usó `[1, 2, 3, 3, 4, 3]` → 5. El código corto se comprobó contra todos los arreglos de hasta 7 con valores 1 a 3.
+- Lugar `east-meadow` (−54, 76, 34), el último bueno del mundo del zip.
+- Correcciones: la fila con k = 1 tocaba las orillas, el código salía muy chico (líneas más cortas) y el veredicto y la suma del 3D no se leían (más grandes).
+
+### Lugares: mundo nuevo MacEntorno
+
+- El mundo del zip ya no tenía lugares buenos (20 usados). Aldo creó en la Mac un mundo nuevo, **MacEntorno** (26.3, otra semilla, 971 chunks, unos 512 × 512 bloques), en `~/Library/Application Support/minecraft/saves/MacEntorno`. ClaudeEntorno quedó intacto en `saves` y en el zip.
+- El escáner de heightmaps encontró 16 candidatos en MacEntorno. Los lugares de ahí llevan `"mundo": "MacEntorno"` en `lugares.json`.
+- Biomas: casi todo playa, bosque de abedules, mar y río (se pintan bien con el tinte de llanura de `mundo.py`). Se descartaron 2 de bosque oscuro (pasto más oscuro, saldría mal pintado) y 3 playas repetidas. Quedan exportados `birch-flowers` (ya asignado al #2089) y `mac-01`, `mac-02`, `mac-03`, `mac-05`, `mac-07`, `mac-09`, `mac-10`, `mac-11`, `mac-12`, `mac-13` para los siguientes videos (ver "Lugares del mundo" en `GUIA.md`). Varios son costa parecida: variar la hora y los mobs.
+
+### #2089 Find Target Indices After Sorting Array (Easy), diario del 19 de octubre: listo para renderizar
+
+- Carpeta `videos/binary-search/2089-find-target-indices`. `[5, 2, 1, 2, 3, 2]`, target 2 → `[1, 2, 3]` contando menores (`less`) e iguales (`equal`), sin ordenar. Comprobado en 20 000 casos al azar.
+- Hechos: narración (99.5 s, voz madura generada), `make_walk.py`, `video.json`, `scenes.py` (linter sin problemas) y `three/mundo.html` revisado con cuadros sueltos. Lugar `birch-flowers` (MacEntorno), de día.
+- El 3D se rehizo: las pilas de bloques detrás de la fila se salían del cuadro y se perdían entre los árboles; ahora los bloques contados suben en su lugar con marco aqua (menores) o dorado (iguales) y al final bajan al frente en orden.
+- Errores de la sesión, para no repetir: indexar listas sacadas de grupos de la escena rompe el linter (error #12; se usa `take(lista, índices)`), y un ayudante llamado `pick` chocaba con la variable local `pick` (el pico): el linter no lo ve y el render real fallaría. El `sed` de macOS no entiende `\b`: para reemplazos con límites de palabra usar Python.
+- **Falta:** el render (se detuvo a petición de Aldo para cerrar la sesión). Retomar con `python ../../../herramientas/build.py script lint render three composite sync mux` desde la carpeta, renombrar a `Find Target Indices After Sorting Array #2089.mp4`, copiar a `export/`, escribir `descripcion.txt` y revisar con hojas de cuadros.
+
+### Reglas nuevas de Aldo
+
+- Los videos finales se llaman `<Título> #<número>.mp4`, nunca `video.mp4`.
+- Cada video lleva `descripcion.txt` (100 caracteres o menos, se sube a git).
+- Un render a la vez en la Mac (ni dos `build.py` ni voz y render juntos).
+- Sin fechas relativas en la narración.
+- Objetos del juego con sus assets reales (`model_icon` para modelos como la palanca), nunca inventados.
+
 ## 2026-10-22
 
 ### Investigación y pruebas de voz más humana (Qwen3-TTS / Chatterbox)
@@ -195,6 +280,11 @@ Registro de lo que se hizo en cada sesión, de la más reciente a la más antigu
   3. **Escenario y Vida Ambiental en 3D (`vida.js`)**: Se configuró la ubicación `terraced-hill.json` al amanecer (`dawn`) con iluminación matutina y ciclo de mobs autónomos en bucle cerrado (vacas y ovejas pastando, gallinas y cerdos explorando las terrazas), manteniendo un cierre de loop imperceptible (diferencia de 1.848).
 
 ## Pendientes
+
+- **Nether (siguiente paso, idea de Aldo):** agregar lugares del Nether para tener más variedad en el mundo. `mundo.py` ya conoce la carpeta `dimensions/minecraft/the_nether` (el zip la trae); falta: que `export` lea esa dimensión, las texturas propias (netherrack, basalto, soul sand, lava, hongos, nether wart blocks), el cielo/niebla del Nether en `setTime` (sin sol ni nubes, niebla roja) y mobs del Nether (piglins, hoglins, ghasts, strider) en `vida.js`. La lava y los bloques brillantes necesitan luz propia. Luego buscar lugares con el escáner (sin heightmaps de superficie útiles: hay techo de bedrock, así que hay que buscar el piso por columnas).
+- **Videos del plan de AGY que faltan** (uno a la vez): #2089 (listo para renderizar), #1569, #3551, #2916, #2913, #3723, #3727, #2897, #2778, #2333 y #1541. #3863 ya está en la rama `laptop-videos`. El plan con el contenido de cada uno está en `DIARIOS_2_SEMANAS.tex`/`.pdf` (de AGY); revisar con fuerza bruta cada código antes de usarlo y corregir lo que se vio en la revisión (narración, código largo, ejemplos).
+- Subir `MacEntorno` comprimido a `mundos/MacEntorno.zip` (sin `players/`) para poder volver a exportar sus lugares en otra PC.
+- Ver en movimiento y escuchar #3644, #3942, #2409 y #3886 antes de subirlos.
 
 - Lote #8–#19: revisar los 6 videos (hojas de cuadros, errores conocidos, loop, verlos en movimiento y escuchar los volúmenes). Todos tienen `video.mp4` completo en la laptop.
 - Unir la rama `laptop-videos` (#10–#15, #1807, #3863 y su `stash@{0}`) con `main`: 5 conflictos (BITACORA, GUIA, extraer.py, mc.js, mundo.py).

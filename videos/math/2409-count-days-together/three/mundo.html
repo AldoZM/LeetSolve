@@ -1,0 +1,189 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import { THREE, prog, easeInOut, easeOut, easeOutBack, lerp, V, pose, mixPose } from '/vendor/lib/stage.js';
+import { MC, loadTheme, makeWorld, makeTerrain, makeBlock, makeFrame, makeSign, pixelSprite, makeOrb, makeClouds } from '/vendor/tema/mc.js';
+import { loadMobs, planLife, makeLife, setTime } from '/vendor/tema/vida.js';
+
+const walk = await (await fetch('/walk.json')).json();
+// One clip for the whole video: times are absolute. The walk happens in [W0, W1]; the rest is a slow roam that
+// ends where it starts, so the video still loops.
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const seg = (i) => subs[i].start_s;
+const TOTAL = subs[subs.length - 1].end_s;
+const W0 = seg(walk.first), W1 = subs[walk.last].end_s;
+const at = (spec) => seg(spec[0]) + spec[1];
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'planks', 'leaves', 'log_side', 'log_top',
+                              ...new Set(walk.ores.map((o) => `${o}_ore`))]);
+
+const N = walk.row.length;
+const T = Object.fromEntries(['months_t', 'sum_t', 'alice_in', 'alice_in_doy', 'alice_out', 'alice_out_doy', 'bob_in', 'bob_in_doy',
+  'bob_out', 'bob_out_doy', 'start_t', 'end_t', 'minus_t', 'count_t', 'five_t', 'toast'].map((k) => [k, at(walk[k])]));
+const [A0, A1] = walk.alice, [B0, B1] = walk.bob;
+const S0 = Math.max(A0, B0), S1 = Math.min(A1, B1);
+
+const world = makeWorld({ fov: 40, offset: 0.34, fog: [55, 120] });
+const { scene } = world;
+// A meadow of tall grass with oaks and birches behind (see mundos/lugares.json); the plot reaches the camera
+const terrain = await makeTerrain('/vendor/tema/mundos/tall-meadow.json', { turn: 0.7854, plot: [-12, 12, -2, 20], clear: [-10, 10, 7, 24] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+// A bright day: animals in the grass, wolves near the trees
+const LIFE = [{ kind: 'cow', count: 2, graze: 1 }, { kind: 'sheep', count: 2, graze: 1 }, { kind: 'chicken', count: 2 },
+              { kind: 'wolf', count: 1 }];
+await loadMobs(imgs, LIFE.map((g) => g.kind));
+const light = await setTime(world, 'day', { terrain, clouds, imgs });
+const life = makeLife(imgs, terrain, planLife(terrain, LIFE, { seed: 2409 }), TOTAL, light);
+scene.add(life.g);
+// Everything of the walk lives in its own group, hidden outside the walk
+const stage = new THREE.Group();
+scene.add(stage);
+
+// Ten days in a row, October in redstone and November in lapis, each with its day of the month
+const SP = 0.84, BS = 0.74;
+const bx = (i) => (i - (N - 1) / 2) * SP;
+const G0 = terrain.groundAt(0, 0);
+const blocks = walk.row.map((d, i) => { const b = makeBlock(imgs, `${walk.ores[i]}_ore`, { size: BS, label: d }); stage.add(b.g); return b; });
+const monthTags = [['OCT', 0, 4], ['NOV', 5, 9]].map(([s, a, b]) => {
+  const t = pixelSprite(s, MC.white, 0.42);
+  t.position.set((bx(a) + bx(b)) / 2, G0 + 0.05, 2.0);  // on the grass in front, clear of the faces
+  stage.add(t);
+  return t;
+});
+
+// The two stays: gold frames for Alice, larger aqua frames for Bob
+const aliceFrames = walk.row.map(() => { const f = makeFrame(BS + 0.05, 0.04, MC.gold); stage.add(f); return f; });
+const bobFrames = walk.row.map(() => { const f = makeFrame(BS + 0.16, 0.04, MC.aqua); stage.add(f); return f; });
+const names = [['Alice', MC.gold, A0], ['Bob', MC.aqua, B0]].map(([s, c, i]) => {
+  const t = pixelSprite(s, c, 0.4);
+  stage.add(t);
+  return { t, i };
+});
+
+// Day-of-year numbers over the four ends of the stays
+const tags = [[A0, walk.alice_doy[0], MC.gold, 'alice_in_doy'], [A1, walk.alice_doy[1], MC.gold, 'alice_out_doy'],
+              [B0, walk.bob_doy[0], MC.aqua, 'bob_in_doy'], [B1, walk.bob_doy[1], MC.aqua, 'bob_out_doy']]
+  .map(([i, v, c, k]) => { const s = pixelSprite(String(v), c, 0.42); stage.add(s); return { s, i, k, c }; });
+
+// The days before October, on a sign
+const sign = makeSign(imgs, ['Jan - Sep', `${walk.before_oct} days`], { w: 2.0, h: 0.9, post: false });
+stage.add(sign);
+// Counts 1..5 over the shared days
+const counts = Array.from({ length: S1 - S0 + 1 }, (_, k) => { const s = pixelSprite(String(k + 1), MC.green, 0.5); stage.add(s); return s; });
+
+let seed = 2409;
+const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+const orbs = Array.from({ length: 22 }, (_, k) => {
+  const o = makeOrb(imgs, 0.3, [1, 2, 4, 5, 6][k % 5]);
+  o.userData = { from: S0 + (k % (S1 - S0 + 1)), vx: (rnd() - 0.5) * 2.2, vy: 2.6 + rnd() * 2.0, vz: (rnd() - 0.4) * 1.4, delay: rnd() * 0.35 };
+  stage.add(o);
+  return o;
+});
+stage.traverse((o) => { if (o.isSprite) o.renderOrder = 10; });
+
+function sweep(t, a, b, i0, i1, i) {
+  // How far a stay's frames have been drawn over day i, sweeping from its arrival to its departure
+  if (i < i0 || i > i1) return 0;
+  const u = (i - i0) / Math.max(1, i1 - i0);
+  return prog(t, lerp(a, b, u) - 0.1, lerp(a, b, u) + 0.15);
+}
+
+function renderAt(t) {
+  // Walk camera: pulled back a little so the ten days fit, a small push in at the answer
+  const push = easeInOut(prog(t, T.toast - 0.3, T.toast + 0.8));
+  const sway = 0.4 * Math.sin(t * 0.35);
+  const walkPose = pose(V(sway, lerp(7.4, 7.1, push), lerp(17.6, 16.9, push)), V(sway * 0.4, 1.4, 0.0));
+  // Roam camera: one slow loop over the meadow for the whole video
+  const a = 2 * Math.PI * t / TOTAL;
+  const roamPose = pose(V(6 * Math.sin(a), 3.4 + 0.8 * Math.sin(2 * a), 13 + 2.5 * Math.cos(a)), V(3 * Math.sin(a), 4.2, -30));
+  const k = easeInOut(prog(t, W0 - 1.6, W0 - 0.1)) * (1 - easeInOut(prog(t, W1 + 0.1, W1 + 1.6)));
+  const cam = mixPose(roamPose, walkPose, k);
+  world.look(cam.pos, cam.look);
+  // The walk keeps its content high in the frame (the overlay uses the bottom); the roam shows more sky
+  world.camera.setViewOffset(world.W, world.H, 0, world.H * lerp(0.12, 0.34, k), world.W, world.H);
+  clouds.position.x = 4 * Math.sin(a);
+  life.update(t);
+  stage.visible = t < W1;
+
+  const win = prog(t, T.five_t, T.five_t + 0.4);
+  blocks.forEach((b, i) => {
+    const d = prog(t, W0 + 0.1 * i, W0 + 0.1 * i + 0.55);
+    const fall = d < 1 ? (1 - d) * (1 - d) * 4.5 : 0;
+    const shared = i >= S0 && i <= S1;
+    // The shared days rise one by one as they are counted
+    const c = shared ? easeOutBack(prog(t, T.count_t + 0.22 * (i - S0), T.count_t + 0.22 * (i - S0) + 0.35)) : 0;
+    let glow = 0;
+    if (i === B0) glow = Math.max(glow, 0.35 * Math.sin(Math.PI * prog(t, T.start_t, T.start_t + 0.8)));
+    if (i === A1) glow = Math.max(glow, 0.35 * Math.sin(Math.PI * prog(t, T.end_t, T.end_t + 0.8)));
+    if (shared) glow = Math.max(glow, 0.3 * win + 0.1 * Math.sin(t * 6) * win);
+    b.g.position.set(bx(i), G0 + BS / 2 + fall + 0.35 * c, 0);
+    b.g.visible = d > 0;
+    b.set({ glow, opacity: d > 0 ? 1 : 0 });
+    const fa = sweep(t, T.alice_in, T.alice_out, A0, A1, i);
+    aliceFrames[i].visible = fa > 0.01;
+    aliceFrames[i].position.copy(b.g.position);
+    aliceFrames[i].userData.mat.opacity = fa;
+    const fb = sweep(t, T.bob_in, T.bob_out, B0, B1, i);
+    bobFrames[i].visible = fb > 0.01;
+    bobFrames[i].position.copy(b.g.position);
+    bobFrames[i].userData.mat.opacity = fb;
+  });
+  monthTags.forEach((m) => { m.material.opacity = prog(t, W0 + 1.0, W0 + 1.4); });
+
+  // Names over each arrival
+  names.forEach(({ t: s, i }, j) => {
+    // Names and day numbers step aside when the shared days are counted; the readout keeps the numbers
+    const a2 = prog(t, j === 0 ? T.alice_in : T.bob_in, (j === 0 ? T.alice_in : T.bob_in) + 0.3) * (1 - prog(t, T.count_t - 0.3, T.count_t));
+    s.visible = a2 > 0.01;
+    s.material.opacity = a2;
+    s.position.set(bx(i), G0 + BS + (j === 0 ? 0.85 : 1.35), 0);
+  });
+
+  // Day-of-year tags pop over the ends of each stay when the voice says them
+  tags.forEach(({ s, i, k: key }, j) => {
+    const a2 = easeOutBack(prog(t, T[key], T[key] + 0.35)) * (1 - prog(t, T.count_t - 0.3, T.count_t));
+    s.visible = a2 > 0.01;
+    s.setSize(Math.max(a2, 1e-4) * (1 + 0.3 * Math.sin(Math.PI * prog(t, (i === B0 ? T.start_t : i === A1 ? T.end_t : -9), (i === B0 ? T.start_t : i === A1 ? T.end_t : -9) + 0.6))));
+    s.position.set(bx(i), G0 + BS + (j < 2 ? 0.4 : 0.9), 0);
+  });
+
+  const sIn = easeOutBack(prog(t, T.months_t, T.months_t + 0.5));
+  sign.visible = sIn > 0.001;
+  sign.scale.setScalar(Math.max(sIn, 1e-4));
+  sign.position.set(0, G0 + 0.5, 3.2);  // between the OCT and NOV tags
+
+  counts.forEach((s, j) => {
+    const a2 = easeOutBack(prog(t, T.count_t + 0.22 * j, T.count_t + 0.22 * j + 0.3));
+    s.visible = a2 > 0.01;
+    s.setSize(Math.max(a2, 1e-4));
+    s.position.set(bx(S0 + j), G0 + BS + 0.35 + 0.35, 0.55);
+  });
+
+  for (const o of orbs) {
+    const { from, vx, vy, vz, delay } = o.userData;
+    const u = t - (T.toast + delay);
+    o.visible = u > 0 && u < 1.6;
+    if (!o.visible) continue;
+    const y = G0 + 1.4 + vy * u - 4.5 * u * u;
+    o.position.set(bx(from) + vx * u, Math.max(y, G0 + 0.1), vz * u);
+    o.tint(t + delay);
+    o.material.opacity = 1 - prog(u, 1.2, 1.6);
+  }
+
+  world.draw(t, TOTAL, 0, 0);
+}
+
+window.renderAt = renderAt;
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

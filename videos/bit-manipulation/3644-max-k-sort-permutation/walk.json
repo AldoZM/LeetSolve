@@ -1,0 +1,179 @@
+{
+ "first": 11,
+ "last": 16,
+ "nums": [
+  0,
+  3,
+  2,
+  5,
+  4,
+  1,
+  6
+ ],
+ "bits": 3,
+ "ores": [
+  "coal",
+  "lapis",
+  "redstone",
+  "diamond",
+  "gold",
+  "iron",
+  "emerald"
+ ],
+ "answer": 1,
+ "intro_row": [
+  11,
+  0.373
+ ],
+ "panel_in": [
+  11,
+  1.553
+ ],
+ "lit": [
+  11,
+  3.665
+ ],
+ "running": [
+  11,
+  4.348
+ ],
+ "toast": [
+  16,
+  1.209
+ ],
+ "answer_t": [
+  16,
+  2.764
+ ],
+ "steps": [
+  {
+   "i": 0,
+   "x": 0,
+   "home": true,
+   "before": 7,
+   "visit": [
+    12,
+    0.0
+   ],
+   "verdict": [
+    12,
+    1.362
+   ],
+   "after": 7
+  },
+  {
+   "i": 1,
+   "x": 3,
+   "home": false,
+   "before": 7,
+   "visit": [
+    13,
+    0.0
+   ],
+   "verdict": [
+    13,
+    0.696
+   ],
+   "and": [
+    13,
+    1.779
+   ],
+   "dark": [
+    13,
+    3.248
+   ],
+   "after": 3
+  },
+  {
+   "i": 2,
+   "x": 2,
+   "home": true,
+   "before": 3,
+   "visit": [
+    14,
+    0.0
+   ],
+   "verdict": [
+    14,
+    0.528
+   ],
+   "after": 3
+  },
+  {
+   "i": 3,
+   "x": 5,
+   "home": false,
+   "before": 3,
+   "visit": [
+    14,
+    0.881
+   ],
+   "verdict": [
+    14,
+    1.359
+   ],
+   "and": [
+    14,
+    1.663
+   ],
+   "dark": [
+    14,
+    2.944
+   ],
+   "after": 1
+  },
+  {
+   "i": 4,
+   "x": 4,
+   "home": true,
+   "before": 1,
+   "visit": [
+    15,
+    0.0
+   ],
+   "verdict": [
+    15,
+    0.525
+   ],
+   "after": 1
+  },
+  {
+   "i": 5,
+   "x": 1,
+   "home": false,
+   "before": 1,
+   "visit": [
+    15,
+    0.818
+   ],
+   "verdict": [
+    15,
+    1.377
+   ],
+   "and": [
+    15,
+    2.099
+   ],
+   "dark": [
+    15,
+    4.59
+   ],
+   "after": 1
+  },
+  {
+   "i": 6,
+   "x": 6,
+   "home": true,
+   "before": 1,
+   "visit": [
+    16,
+    0.0
+   ],
+   "verdict": [
+    16,
+    0.624
+   ],
+   "after": 1
+  }
+ ]
+}

@@ -137,6 +137,76 @@ def iso_block(tex, w=0.6):
     return faces.move_to(ORIGIN)
 
 
+def model_icon(name, w=1.0, rot_x=30, rot_y=225, center=True):
+    """A block model of the game (models/<name>/ from extraer.py) drawn like the inventory does: every element of the
+    model json with its own rotation, every face cut from its texture by its uv, the game's face shading, and the
+    faces that look at the camera painted back to front. With center=False the block's center stays at ORIGIN, so two
+    states of one block (lever and lever_on) line up."""
+    folder = f"{TEMA_DIR}/models/{name}"
+    model = json.load(open(f"{folder}/model.json", encoding="utf-8"))
+    refs = model["textures"]
+
+    def texture(ref):
+        while ref.startswith("#"):
+            ref = refs[ref[1:]]
+        return PILImage.open(f"{folder}/{ref.split('/')[-1]}.png").convert("RGBA")
+
+    def turn(p, axis, deg, origin):
+        a = np.radians(deg)
+        c, s = np.cos(a), np.sin(a)
+        x, y, z = np.array(p, float) - origin
+        if axis == "x":
+            y, z = y * c - z * s, y * s + z * c
+        elif axis == "y":
+            x, z = x * c + z * s, -x * s + z * c
+        else:
+            x, y = x * c - y * s, x * s + y * c
+        return np.array([x, y, z]) + origin
+
+    def view(p):
+        # Inventory display: turned rot_y around the vertical axis, then tilted rot_x toward the viewer (at +z)
+        p = turn(p, "y", rot_y, np.array([8.0, 8.0, 8.0]))
+        p = turn(p, "x", rot_x, np.array([8.0, 8.0, 8.0]))
+        return p - 8.0
+
+    shade = {"up": 1.0, "down": 0.5, "north": 0.8, "south": 0.8, "east": 0.6, "west": 0.6}
+    faces = []
+    for el in model["elements"]:
+        (x0, y0, z0), (x1, y1, z1) = el["from"], el["to"]
+        # Top-left, top-right and bottom-left corners of each face, as its texture is laid on it
+        corners = {
+            "north": [(x1, y1, z0), (x0, y1, z0), (x1, y0, z0)], "south": [(x0, y1, z1), (x1, y1, z1), (x0, y0, z1)],
+            "west": [(x0, y1, z0), (x0, y1, z1), (x0, y0, z0)], "east": [(x1, y1, z1), (x1, y1, z0), (x1, y0, z1)],
+            "up": [(x0, y1, z0), (x1, y1, z0), (x0, y1, z1)], "down": [(x0, y0, z1), (x1, y0, z1), (x0, y0, z0)],
+        }
+        r = el.get("rotation")
+        for side, f in el["faces"].items():
+            pts = [np.array(p, float) for p in corners[side]]
+            if r:
+                pts = [turn(p, r["axis"], r["angle"], np.array(r["origin"], float)) for p in pts]
+            tl, tr, bl = [view(p) for p in pts]
+            e1, e2 = tr - tl, bl - tl
+            if e1[0] * e2[1] - e1[1] * e2[0] >= 0:
+                continue  # facing away from the camera
+            u0, v0, u1, v1 = f["uv"]
+            img = texture(f["texture"]).crop((min(u0, u1), min(v0, v1), max(u0, u1), max(v0, v1)))
+            if u0 > u1:
+                img = img.transpose(PILImage.FLIP_LEFT_RIGHT)
+            if v0 > v1:
+                img = img.transpose(PILImage.FLIP_TOP_BOTTOM)
+            img = ImageEnhance.Brightness(img).enhance(shade[side])
+            depth = (tl[2] + tr[2] + bl[2] + (tr + bl - tl)[2]) / 4
+            faces.append((depth, img, tl, e1, e2))
+    u = w / 16
+    icon = VGroup()
+    for depth, img, tl, e1, e2 in sorted(faces, key=lambda f: f[0]):
+        art = pixel_image(img, 1, 1)
+        art.apply_matrix([[e1[0] * u, -e2[0] * u, 0], [e1[1] * u, -e2[1] * u, 0], [0, 0, 1]], about_point=ORIGIN)
+        art.shift(np.array([*(tl[:2] + (e1[:2] + e2[:2]) / 2), 0]) * u)
+        icon.add(art)
+    return icon.move_to(ORIGIN) if center else icon
+
+
 class Block(VGroup):
     """A flat textured block with its value printed on it; `art`, `edge` and `num` are its parts."""
 

@@ -1,0 +1,145 @@
+{
+  "total_duration_s": 129.823,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Sum of Sortable Integers, Minecraft edition. LeetCode problem thirty eight eighty six, and a tricky one.",
+      "start_s": 0.0,
+      "end_s": 9.855,
+      "duration_s": 9.855
+    },
+    {
+      "index": 1,
+      "text": "Six ore blocks in a row. We pick a size k that divides six, and cut the row into pieces of that size.",
+      "start_s": 9.855,
+      "end_s": 17.023,
+      "duration_s": 7.168
+    },
+    {
+      "index": 2,
+      "text": "Each piece can spin like a carousel, as many times as we want. If every piece spins into place and the whole row ends up sorted, k counts.",
+      "start_s": 17.023,
+      "end_s": 25.435,
+      "duration_s": 8.412
+    },
+    {
+      "index": 3,
+      "text": "Return the sum of every k that works. Here, sizes two and three work, so the answer is five.",
+      "start_s": 25.435,
+      "end_s": 31.835,
+      "duration_s": 6.399
+    },
+    {
+      "index": 4,
+      "text": "The direct idea is to try every size, and spin every piece through all of its turns.",
+      "start_s": 31.835,
+      "end_s": 37.491,
+      "duration_s": 5.657
+    },
+    {
+      "index": 5,
+      "text": "A piece of size k has k turns, and checking each turn takes k steps.",
+      "start_s": 37.491,
+      "end_s": 42.745,
+      "duration_s": 5.254
+    },
+    {
+      "index": 6,
+      "text": "With a hundred thousand blocks and k as big as n, that's ten billion steps, and the pickaxe breaks.",
+      "start_s": 42.745,
+      "end_s": 49.413,
+      "duration_s": 6.668
+    },
+    {
+      "index": 7,
+      "text": "Here's the trick. Walk around a piece like a circle, and count the drops, where a block is bigger than the next one.",
+      "start_s": 49.413,
+      "end_s": 55.861,
+      "duration_s": 6.448
+    },
+    {
+      "index": 8,
+      "text": "A piece spins into order only if it has at most one drop, counting the wrap from its end back to its start.",
+      "start_s": 55.861,
+      "end_s": 62.062,
+      "duration_s": 6.201
+    },
+    {
+      "index": 9,
+      "text": "Then each piece gives its smallest and largest block, and every piece must start at or above where the last one ended.",
+      "start_s": 62.062,
+      "end_s": 68.921,
+      "duration_s": 6.859
+    },
+    {
+      "index": 10,
+      "text": "Let's walk it. Size one fails right away. Four sits before three.",
+      "start_s": 68.921,
+      "end_s": 73.45,
+      "duration_s": 4.529
+    },
+    {
+      "index": 11,
+      "text": "Size two. The pieces are one two, three three, and four three. The last one has one drop, so it spins into three four.",
+      "start_s": 73.45,
+      "end_s": 81.326,
+      "duration_s": 7.876
+    },
+    {
+      "index": 12,
+      "text": "Each piece starts where the last one ended, or higher. Size two works.",
+      "start_s": 81.326,
+      "end_s": 86.135,
+      "duration_s": 4.809
+    },
+    {
+      "index": 13,
+      "text": "Size three. The pieces are one two three, and three four three. One drop each, so both spin into place. Size three works.",
+      "start_s": 86.135,
+      "end_s": 95.092,
+      "duration_s": 8.957
+    },
+    {
+      "index": 14,
+      "text": "Size six is the whole row. Going around it, we drop from four to three, and again from three back to one. Two drops, so it fails.",
+      "start_s": 95.092,
+      "end_s": 103.769,
+      "duration_s": 8.677
+    },
+    {
+      "index": 15,
+      "text": "Advancement made. Two plus three is five.",
+      "start_s": 103.769,
+      "end_s": 106.719,
+      "duration_s": 2.95
+    },
+    {
+      "index": 16,
+      "text": "Each size walks the row once, so it costs linear time.",
+      "start_s": 106.719,
+      "end_s": 110.896,
+      "duration_s": 4.178
+    },
+    {
+      "index": 17,
+      "text": "And a number up to a hundred thousand has at most a hundred twenty eight divisors, so the total stays small.",
+      "start_s": 110.896,
+      "end_s": 117.714,
+      "duration_s": 6.818
+    },
+    {
+      "index": 18,
+      "text": "Find the divisors, count the drops in each piece, and chain the pieces in order.",
+      "start_s": 117.714,
+      "end_s": 123.037,
+      "duration_s": 5.322
+    },
+    {
+      "index": 19,
+      "text": "A circle sorts with a single spin when it has at most one drop. That's the big lesson of this problem.",
+      "start_s": 123.037,
+      "end_s": 129.823,
+      "duration_s": 6.786
+    }
+  ]
+}

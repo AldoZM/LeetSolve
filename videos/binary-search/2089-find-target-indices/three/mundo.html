@@ -1,0 +1,167 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import { THREE, prog, easeInOut, easeOut, easeOutBack, lerp, V, bezier, pose, mixPose } from '/vendor/lib/stage.js';
+import { MC, loadTheme, makeWorld, makeTerrain, makeBlock, makeFrame, makeSign, pixelSprite, makeOrb, makeClouds } from '/vendor/tema/mc.js';
+import { loadMobs, planLife, makeLife, setTime } from '/vendor/tema/vida.js';
+
+const walk = await (await fetch('/walk.json')).json();
+// One clip for the whole video: times are absolute. The walk happens in [W0, W1]; the rest is a slow roam that
+// ends where it starts, so the video still loops.
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const seg = (i) => subs[i].start_s;
+const TOTAL = subs[subs.length - 1].end_s;
+const W0 = seg(walk.first), W1 = subs[walk.last].end_s;
+const at = (spec) => seg(spec[0]) + spec[1];
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'planks', 'leaves', 'log_side', 'log_top',
+                              ...new Set(walk.ores.map((o) => `${o}_ore`))]);
+
+const N = walk.nums.length;
+const steps = walk.steps.map((s) => ({ ...s, visitT: at(s.visit), countT: at(s.count) }));
+const T = { counters: at(walk.counters), placeLess: at(walk.place_less), placeEqual: at(walk.place_equal),
+            toast: at(walk.toast), answer: at(walk.answer_t) };
+
+const world = makeWorld({ fov: 40, offset: 0.34, fog: [55, 120] });
+const { scene } = world;
+// A birch forest with flowers and stones in the MacEntorno world (see mundos/lugares.json)
+const terrain = await makeTerrain('/vendor/tema/mundos/birch-flowers.json', { turn: 0.3927, plot: [-12, 12, -2, 20], clear: [-10, 10, 7, 24] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+// Day in the birch forest: wolves among the trunks, sheep and chickens in the flowers
+const LIFE = [{ kind: 'wolf', count: 2 }, { kind: 'sheep', count: 2, graze: 1 }, { kind: 'chicken', count: 2 }];
+await loadMobs(imgs, LIFE.map((g) => g.kind));
+const light = await setTime(world, 'day', { terrain, clouds, imgs });
+const life = makeLife(imgs, terrain, planLife(terrain, LIFE, { seed: 2089 }), TOTAL, light);
+scene.add(life.g);
+const stage = new THREE.Group();
+scene.add(stage);
+
+const SP = 1.2;
+const bx = (i) => (i - (N - 1) / 2) * SP;
+const G0 = terrain.groundAt(0, 0);
+// Counted blocks rise in place with a colored frame; at the end they glide to the sorted slots in front, a bit smaller
+const FRONT_Z = 2.7, FRONT_S = 0.82;
+const blocks = walk.nums.map((v, i) => { const b = makeBlock(imgs, `${walk.ores[i]}_ore`, { label: v }); stage.add(b.g); return b; });
+const frame = makeFrame();
+stage.add(frame);
+const marks = steps.map((s) => {
+  if (s.kind === 'bigger') return null;
+  const f = makeFrame(1.06, 0.045, s.kind === 'less' ? MC.aqua : MC.gold);
+  stage.add(f);
+  return f;
+});
+const xs = steps.filter((s) => s.kind === 'bigger').map((s) => { const m = pixelSprite('X', MC.red, 0.6); stage.add(m); return { s, m }; });
+// Index labels of the sorted slots, on the grass in front of them
+const slotIdx = walk.nums.map((_, i) => { const s = pixelSprite(String(i), MC.gray, 0.4); stage.add(s); return s; });
+
+let seed = 2089;
+const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+const orbs = Array.from({ length: 22 }, (_, k) => {
+  const o = makeOrb(imgs, 0.3, [1, 2, 4, 5, 6][k % 5]);
+  o.userData = { slot: walk.answer[k % walk.answer.length], vx: (rnd() - 0.5) * 2.2, vy: 2.6 + rnd() * 2.0, vz: (rnd() - 0.4) * 1.4, delay: rnd() * 0.35 };
+  stage.add(o);
+  return o;
+});
+stage.traverse((o) => { if (o.isSprite) o.renderOrder = 10; });
+
+function placeOf(s, t) {
+  // [position, scale] of block s: in the row, raised once counted, then gliding to its sorted slot in front
+  const row = V(bx(s.i), G0 + 0.5, 0);
+  if (s.kind === 'bigger' || t < s.countT) return [row, 1];
+  const up = row.clone().add(V(0, 0.35 * easeOutBack(prog(t, s.countT, s.countT + 0.35)), 0));
+  const slot = s.kind === 'less' ? s.pile : walk.less + s.pile;
+  const placeT = s.kind === 'less' ? T.placeLess : T.placeEqual + 0.15 * s.pile;
+  if (t < placeT) return [up, 1];
+  const f = easeInOut(prog(t, placeT, placeT + 0.6));
+  const front = V(bx(slot) * 0.9, G0 + 0.5 * FRONT_S, FRONT_Z);
+  return [bezier(up, V((up.x + front.x) / 2, up.y + 1.2, 1.4), front, f), lerp(1, FRONT_S, f)];
+}
+
+function renderAt(t) {
+  const push = easeInOut(prog(t, T.toast - 0.3, T.toast + 0.8));
+  const sway = 0.4 * Math.sin(t * 0.35);
+  const walkPose = pose(V(sway, lerp(6.9, 6.6, push), lerp(15.6, 14.9, push)), V(sway * 0.4, 1.4, 0.0));
+  const a = 2 * Math.PI * t / TOTAL;
+  const roamPose = pose(V(6 * Math.sin(a), 3.4 + 0.8 * Math.sin(2 * a), 13 + 2.5 * Math.cos(a)), V(3 * Math.sin(a), 4.2, -30));
+  const k = easeInOut(prog(t, W0 - 1.6, W0 - 0.1)) * (1 - easeInOut(prog(t, W1 + 0.1, W1 + 1.6)));
+  const cam = mixPose(roamPose, walkPose, k);
+  world.look(cam.pos, cam.look);
+  world.camera.setViewOffset(world.W, world.H, 0, world.H * lerp(0.12, 0.34, k), world.W, world.H);
+  clouds.position.x = 4 * Math.sin(a);
+  life.update(t);
+  stage.visible = t < W1;
+
+  const win = prog(t, T.answer, T.answer + 0.4);
+  steps.forEach((s) => {
+    const b = blocks[s.i];
+    const d = prog(t, W0 + 0.12 * s.i, W0 + 0.12 * s.i + 0.55);
+    const fall = d < 1 ? (1 - d) * (1 - d) * 4.5 : 0;
+    const [p, sc] = placeOf(s, t);
+    // Bigger blocks shake when they are skipped
+    const shake = s.kind === 'bigger' ? 0.12 * Math.sin(t * 40) * Math.sin(Math.PI * prog(t, s.countT, s.countT + 0.5)) : 0;
+    b.g.position.set(p.x + shake, p.y + fall, p.z);
+    b.g.scale.setScalar(sc);
+    b.g.visible = d > 0;
+    const m = marks[s.i];
+    if (m) {
+      const v = prog(t, s.countT, s.countT + 0.3) * (1 - prog(t, T.placeLess - 0.2, T.placeLess));
+      m.visible = v > 0.01;
+      m.position.copy(b.g.position);
+      m.userData.mat.opacity = v;
+    }
+    let glow = (t >= s.visitT - 0.1 && t < s.visitT + 0.35) ? 0.25 * Math.sin(Math.PI * prog(t, s.visitT - 0.1, s.visitT + 0.35)) : 0;
+    if (s.kind === 'equal') glow = Math.max(glow, 0.3 * win + 0.1 * Math.sin(t * 6) * win);
+    b.set({ glow, opacity: d > 0 ? 1 : 0 });
+  });
+
+  // Cursor over the block being read
+  let fx = bx(0);
+  for (const s of steps) fx = lerp(fx, bx(s.i), easeInOut(prog(t, s.visitT - 0.25, s.visitT)));
+  frame.visible = t >= steps[0].visitT - 0.25 && t < T.placeLess;
+  frame.position.set(fx, G0 + 0.5, 0);
+
+  xs.forEach(({ s, m }) => {
+    const v = Math.sin(Math.PI * prog(t, s.countT, s.countT + 0.8));
+    m.visible = v > 0.01;
+    m.setSize(0.6 + 0.4 * v);
+    m.position.set(bx(s.i), G0 + 1.6, 0);
+  });
+
+  // Sorted slots in front appear when the less pile moves down
+  const sIn = prog(t, T.placeLess - 0.3, T.placeLess + 0.2);
+  slotIdx.forEach((s, i) => { s.visible = sIn > 0.01; s.material.opacity = sIn; s.position.set(bx(i) * 0.9, G0 + 0.05, FRONT_Z + 1.3); });
+  // The answer's slots get their gold frame back
+  steps.filter((s) => s.kind === 'equal').forEach((s) => {
+    const m = marks[s.i];
+    const v = prog(t, T.answer, T.answer + 0.3);
+    if (v > 0.01) { m.visible = true; m.userData.mat.opacity = v; m.scale.setScalar(FRONT_S); m.position.copy(blocks[s.i].g.position); }
+  });
+
+  for (const o of orbs) {
+    const { slot, vx, vy, vz, delay } = o.userData;
+    const u = t - (T.toast + delay);
+    o.visible = u > 0 && u < 1.6;
+    if (!o.visible) continue;
+    const y = G0 + 1.4 + vy * u - 4.5 * u * u;
+    o.position.set(bx(slot) * 0.9 + vx * u, Math.max(y, G0 + 0.1), FRONT_Z + vz * u);
+    o.tint(t + delay);
+    o.material.opacity = 1 - prog(u, 1.2, 1.6);
+  }
+
+  world.draw(t, TOTAL, 0, 0);
+}
+
+window.renderAt = renderAt;
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

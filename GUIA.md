@@ -51,7 +51,8 @@ Detalles aprendidos en el #297:
 - Vertical 1080×1920 (9:16, para Shorts), 30 fps, desde el 2026-10-21. Las escenas de Manim siguen en 1080×1440 (frame 9×12) y van centradas, a 240 px del borde de arriba; el mundo 3D se renderiza más alto y llena las franjas de arriba y abajo con más cielo y más terreno.
   - Se activa con `"formato": "9:16"` en `video.json`. Sin esa clave, el video sale en 3:4 como antes.
   - `makeWorld` mantiene igual la franja central: las páginas 3D no cambian. Si una página convierte coordenadas de Manim a 3D (`unproject`), debe multiplicar la y por `world.ndcY` (como `slotPoint` en #102 y #297).
-- Narración en inglés con la voz `af_heart` (Kokoro, local). Duración típica: 85 a 105 segundos.
+- Narración en inglés con la voz madura clonada (ver "Voz humana con IA"; antes, `af_heart` de Kokoro). Duración: la que pida la explicación, siempre menos de 3 minutos y sin estirarla para llenarlos (Aldo, 2026-10-23). Los videos anteriores duran de 85 a 120 s.
+- La narración no menciona fechas relativas ("today", "yesterday", "daily challenge"): el video debe servir en cualquier fecha. Ver `INSTRUCCIONES_IA.md`, 3.3.
 - Mientras se resuelve el ejercicio, el código se muestra a la par y una barra resalta la línea que se está ejecutando.
 - Loop: el último cuadro es igual al primero. La portada (`cover()`) se dibuja igual en `Scene1_Hook` y al final de `Scene7_Outro`.
 - Una sección 3D (Three.js) con el recorrido del algoritmo, con la capa de Manim (código, encabezado, lecturas) encima.
@@ -77,7 +78,7 @@ LeetSolve/
 └── pruebas/           experimentos que no son videos finales
 ```
 
-Secciones (por tema de LeetCode): `arrays-hashing`, `linked-list`, `sliding-window`, `binary-search`, `strings`, `math`, `trees`, `two-pointers`, `backtracking`. Crea una sección nueva cuando el problema no encaje, con nombre en inglés y en kebab-case (`graphs`, `dynamic-programming`, `two-pointers`...). La carpeta del video lleva el número del problema con 4 dígitos: `videos/trees/0102-level-order`.
+Secciones (por tema de LeetCode): `arrays-hashing`, `linked-list`, `sliding-window`, `binary-search`, `strings`, `math`, `trees`, `two-pointers`, `backtracking`, `bit-manipulation`. Crea una sección nueva cuando el problema no encaje, con nombre en inglés y en kebab-case (`graphs`, `dynamic-programming`, `two-pointers`...). La carpeta del video lleva el número del problema con 4 dígitos: `videos/trees/0102-level-order`.
 
 ## Videos hechos
 
@@ -99,6 +100,10 @@ Secciones (por tema de LeetCode): `arrays-hashing`, `linked-list`, `sliding-wind
   - `backtracking/0017-letter-combinations`: Letter Combinations of a Phone Number, Medium. "23" → 9 palabras que llenan las 9 casillas del cofre. Claro con flores (`flower-forest`), de día. Renderizado, 90.3 s.
   - `two-pointers/0018-four-sum`: 4Sum, Medium. `[1, 0, -1, 0, -2, 2]`, target 0 → 3 grupos, con el salto del 0 repetido. Terrazas altas (`high-terraces`), al atardecer. Renderizado, 104.5 s.
   - `linked-list/0019-remove-nth-node`: Remove Nth Node From End of List, Medium. 1→2→3→4→5, n = 2, con dummy y separación fija entre `fast` y `slow`. Sendero de robles (`oak-path`), de noche. Renderizado, 84.3 s.
+- `bit-manipulation/3644-max-k-sort-permutation`: Maximum K to Sort a Permutation, Medium (problema diario del 2026-10-23). Primer video hecho en la Mac y primero con la voz madura clonada. `[0, 3, 2, 5, 4, 1, 6]` → 1: la respuesta es el AND de los bloques fuera de su lugar. Cada bit es una lámpara de redstone (`redstone_lamp`) frente a su bloque, y un panel de 3 lámparas grandes guarda el AND (111 → 011 → 001). Borde del bosque (`forest-edge`), al atardecer. 112.8 s, 21 líneas, 61 efectos.
+- `arrays-hashing/3942-min-ops-sort-permutation`: Minimum Operations to Sort a Permutation, Medium (diario del 2026-10-22). `[1, 2, 3, 4, 5, 0]` → 3: girar e invertir nunca rompen el círculo, así que solo hay 4 planes; rotar 5 veces pierde contra invertir, rotar e invertir. Dos palancas dibujadas con el modelo del juego (`model_icon("lever")`; al jalarlas se cambia al modelo `lever_on`), el círculo con anillo dorado y letreros que cuentan cada plan. Colinas del oeste (`west-hills`), al amanecer. 116.5 s, 20 líneas, 52 efectos.
+- `math/2409-count-days-together`: Count Days Spent Together, Easy (diario del 2026-10-24). Alice 10-28 → 11-03 y Bob 10-30 → 11-05 → 5: cada fecha se vuelve día del año (suma de los meses anteriores más el día) y los días juntos son `min(salidas) - max(llegadas) + 1`, sin bajar de 0. Fila de 10 días (octubre en redstone, noviembre en lapis), marcos dorados para Alice y aqua para Bob; la fuerza bruta es un calendario de 365 cuadros. Pradera de pasto alto (`tall-meadow`), de día. 101.2 s, 20 líneas, 39 efectos.
+- `arrays-hashing/3886-sum-of-sortable-integers`: Sum of Sortable Integers, Hard (diario del 2026-10-20). `[1, 2, 3, 3, 4, 3]` → 5 (sirven k = 2 y k = 3; con valores distintos y n = 6 nunca sirven dos k, por eso hay repetidos). Una pieza gira en orden si, recorrida en círculo, tiene a lo más una caída; luego cada pieza debe empezar donde terminó la anterior o más arriba. La fila se corta en piezas con huecos, las caídas son "v" rojas y las de vuelta un arco punteado, y un letrero lleva la suma. Pradera ondulada (`east-meadow`), de noche. 129.8 s, 20 líneas, 39 efectos.
 - `pruebas/0001-two-sum-horizontal`: primera prueba en 16:9, sin código a la par.
 - `pruebas/0001-two-sum-minecraft`: Two Sum con el tema de Minecraft. Se arma con `python ../../herramientas/build.py` (está a dos niveles, no a tres).
 - `pruebas/0001-two-sum-minecraft-original`: **plantilla del estilo aprobado**. Two Sum con los assets y sonidos del juego, en el mundo ClaudeEntorno.
@@ -108,6 +113,10 @@ Secciones (por tema de LeetCode): `arrays-hashing`, `linked-list`, `sliding-wind
 Al terminar un video nuevo, agrégalo a esta lista.
 
 Los videos terminados se copian a `export/` en la raíz con el nombre `<Título> #<número>.mp4` (por ejemplo `4Sum #18.mp4`), listos para subir. Esa carpeta no se sube a git.
+
+**Nombre del video (regla de Aldo, 2026-10-23):** un video terminado nunca se queda como `video.mp4`. Al terminar, en su carpeta se renombra a `<Título> #<número>.mp4` (por ejemplo `videos/bit-manipulation/3644-max-k-sort-permutation/Maximum K to Sort a Permutation #3644.mp4`) y esa misma copia va a `export/`. `build.py` vuelve a escribir `video.mp4` en cada `mux`: después de un rebuild, renombrar otra vez. El `.gitignore` ignora `*#*.mp4`.
+
+**Descripción para subir (regla de Aldo, 2026-10-23):** cada video lleva `descripcion.txt` en su carpeta (sí se sube a git) con la descripción para YouTube Shorts e Instagram Reels: una línea en inglés de **100 caracteres o menos** (Shorts no permite más), con el número y el nombre del problema. Formato: `LeetCode #<número> <Título>, explained in Minecraft #leetcode #coding #shorts` (quitar `#coding` si no cabe). Medir el largo con `len()` antes de guardarla. El aviso "Not an official Minecraft product" no cabe ahí: va en un comentario fijado o en la descripción larga si la plataforma la tiene.
 
 ## Entorno (Windows)
 
@@ -122,7 +131,33 @@ Los videos terminados se copian a `export/` en la raíz con el nombre `<Título>
 - En otra PC, si la skill no está en `~/.manim-skill-src`, definir `MANIM_SKILL_TOOLS` con la carpeta `tools/` de github.com/Yusuke710/manim-skill.
 - LaTeX: MiKTeX. ffmpeg y ffprobe en el PATH.
 
+## Entorno (Mac con Apple Silicon)
+
+Montado el 2026-10-23 en una MacBook Air M2 de 8 GB. Todo vive en el usuario, sin `sudo` salvo para reparar Homebrew.
+
+- **Homebrew:** si dice "unknown or unsupported macOS version" o que `/opt/homebrew` no se puede escribir, correr `sudo chown -R $(whoami) /opt/homebrew` y `brew update`. Luego `brew install ffmpeg cairo pango pkg-config`.
+- **Python:** `uv` (instalador de astral.sh en `~/.local/bin`) crea los dos venvs con Python 3.12:
+  ```bash
+  uv venv ~/.manim-skill-src/.venv --python 3.12
+  uv pip install --python ~/.manim-skill-src/.venv/bin/python "manim==0.22.*" "kokoro>=0.9.4" soundfile pygments pillow
+  uv venv ~/.manim-skill-src/.venv-tts --python 3.12
+  uv pip install --python ~/.manim-skill-src/.venv-tts/bin/python torch torchaudio qwen-tts soundfile
+  ```
+  En Mac los venvs usan `bin/`, no `Scripts/`. El torch normal de PyPI ya trae MPS (la GPU de Apple).
+- **Herramientas de la skill:** el repo `github.com/Yusuke710/manim-skill` va dentro de `~/.manim-skill-src` (junto a los dos venvs).
+- **LaTeX:** TinyTeX en `~/Library/TinyTeX` (instalador de yihui.org, sin `sudo`; el error de `sudo` al final solo es por los enlaces de `/usr/local/bin` y no importa). Paquetes de Manim: `tlmgr install standalone preview doublestroke ms everysel setspace rsfs relsize ragged2e fundus-calligra microtype wasysym physics dvisvgm jknapltx wasy cm-super babel-english gnu-freefont mathastext cbfonts-fd`.
+- **3D:** `npm ci` y `npx playwright install chromium` en `herramientas/three`. En Mac, `render.mjs` usa ANGLE con Metal (en Windows, D3D11); el render reporta `ANGLE Metal Renderer: Apple M2`.
+- **Minecraft:** launcher oficial (`launcher.mojang.com/download/Minecraft.dmg`, firmado por Microsoft) en `/Applications`. Los archivos del juego quedan en `~/Library/Application Support/minecraft`, y `extraer.py` ya busca ahí. Si también hay una snapshot sin `.jar`, `extraer.py` toma la versión con `.jar` más nueva.
+- **Antes de cada comando:**
+  ```bash
+  export PATH="$HOME/.manim-skill-src/.venv/bin:$HOME/Library/TinyTeX/bin/universal-darwin:$HOME/.local/bin:$PATH" PYTHONUTF8=1
+  ```
+- **Voz con Qwen3-TTS en MPS:** `0.6B-Base` en `bfloat16` carga en unos 58 s y genera 7 s de audio en unos 19.5 s, unos 5 minutos por video de 20 líneas. El aviso "SoX could not be found" no afecta, porque se le pasa un `.wav`.
+- `planks_sign.png` da 404 al renderizar el 3D: es opcional en `mc.js`, que usa `planks.png` si falta.
+
 ## Voz humana con IA (Qwen3-TTS: Diseño y Clonación en GPU)
+
+**Voz elegida (2026-10-23): `04_madura_sensual.mp3`.** Los videos nuevos se narran con ella clonada (Fase 2); Kokoro `af_heart` queda como respaldo.
 
 Además de Kokoro-82M (`af_heart`, que corre en CPU y lee plano línea por línea sin entender el contexto), el proyecto cuenta con un flujo de **diseño y clonación de voz basado en LLM (`Qwen3-TTS`)** acelerado por GPU CUDA:
 
@@ -149,6 +184,12 @@ Además de Kokoro-82M (`af_heart`, que corre en CPU y lee plano línea por líne
   - `02_calida_storyteller.mp3` (15.3 s): voz femenina cálida y suave, estilo narradora.
   - `03_clara_directa.mp3` (10.6 s): voz femenina rápida, articulada y directa.
   - `04_madura_sensual.mp3` (17.6 s): voz femenina madura (contralto), profunda, aterciopelada y sensual.
+- **Texto y descripciones usadas** (semilla 42, todas leyendo el mismo texto, que también es el `ref_text` de la clonación): *"Two Sum, Minecraft edition. LeetCode problem number one, and an interview classic. Here's the trick. If the target is twenty three and I'm holding a fifteen, I know exactly what I need. An eight."*
+  - `01_joven_youtuber`: "A young, energetic female voice in her early twenties, natural American accent, bright and engaging YouTube creator tone, lively pacing with clear emphasis."
+  - `02_calida_storyteller`: "A warm, soothing female voice, gentle and natural conversational tone, clear articulation, calm and inviting storyteller style."
+  - `03_clara_directa`: "A crisp, confident young woman's voice, brisk and sharp tech explainer delivery, natural human inflection, articulate and modern."
+  - `04_madura_sensual`: "A mature woman in her late thirties with a deep, rich, velvety and sensual voice, alluring and intimate tone, soft breathy warmth, slow confident delivery."
+  - No está anotado si los `.mp3` del repo salieron de `gen_demos.py` (que guarda `.wav`) o de `gen_demos_fast.py`. Para clonar no importa: la referencia es el `.mp3`.
 - **Scripts de esta fase:**
   - `pruebas/voces_demo/gen_demos.py`: corre `Qwen3-TTS-12Hz-1.7B-VoiceDesign` localmente en la GPU (`cuda:0`, `bfloat16`).
   - `pruebas/voces_demo/gen_demos_fast.py`: alternativa ligera que consulta el endpoint SSE `/gradio_api/call/generate_voice_design` de los espacios de `Qwen3-TTS` en Hugging Face sin descargar los 3.4 GB del modelo de diseño.
@@ -257,6 +298,7 @@ Un tema cambia el estilo sin tocar el flujo. Vive en `herramientas/temas/<tema>/
   - Antes de usarlo: `python herramientas/temas/minecraft-original/extraer.py` copia de `%APPDATA%\.minecraft` (la versión más nueva) las texturas, la interfaz (cofre, barra de objetos, barra de experiencia, aviso de logro), la fuente `ascii.png` y los sonidos.
   - Esos archivos no se pueden redistribuir: `tex/`, `gui/`, `font/` y `sounds/` están en `.gitignore` y nunca se suben a un repositorio. Al publicar un video, poner "Not an official Minecraft product" en la descripción y no usar el logo del juego.
   - Su `tema.py` empieza con `# extends: minecraft`: `build.py` pega primero el tema base y después este, que reemplaza el texto (fuente del juego dibujada como pixel art), los bloques, `Inventory` (pantalla del cofre con 9 casillas), `Hotbar`, `toast`, `xp_bar`, `level_text`, `iso_block` (bloque en vista de inventario), `chest_icon` y el panel de código.
+  - **Íconos de bloques que no son cubos (palanca, antorcha, etc.): usar el modelo del juego, no inventarlos.** `extraer.py` copia cada modelo de `MODELS` (por ahora `lever` y `lever_on`) con sus texturas a `models/<nombre>/` (no se sube). `model_icon(nombre, w, rot_y=45)` en `tema.py` lo dibuja como en el inventario: cada caja del json con su rotación, cada cara recortada de su textura por su `uv`, la sombra por cara del juego y solo las caras que miran a la cámara. Con `center=False` dos estados del mismo bloque comparten coordenadas (la base de la palanca no se mueve al jalarla). La textura suelta `block/lever.png` es solo el palo de 2 × 10: usarla sola se ve como un palito, y armar una palanca a mano con otras proporciones no es la del juego (Aldo lo notó en el #3942).
   - `mc.js` arma el cofre con el modelo y la textura del juego, el contorno negro del bloque apuntado, orbes de experiencia con su color cambiante y nubes sacadas de `clouds.png`.
 
 ## Fondo con un mundo real
@@ -273,6 +315,11 @@ Un tema cambia el estilo sin tocar el flujo. Vive en `herramientas/temas/<tema>/
 
 ## Lugares del mundo
 
+- 2026-10-23: `forest-edge` (−2, 69, 98, giro 1.9635), del mundo del zip. Se buscó con un escáner de heightmaps (`OCEAN_FLOOR`, `MOTION_BLOCKING`, `MOTION_BLOCKING_NO_LEAVES`, `WORLD_SURFACE`) con las reglas de abajo, a más de 45 bloques de los lugares usados, y se eligió entre 4 candidatos viendo la cámara de paseo y la del recorrido. Los otros 3 eran pradera plana con paredes de tierra en la cámara del recorrido.
+- **Dos mundos.** `ClaudeEntorno` (el del zip, 26.2) ya no tiene lugares buenos libres: los 20 que había se usaron. `MacEntorno` (26.3, otra semilla, unos 512 × 512 bloques generados, en `~/Library/Application Support/minecraft/saves/MacEntorno` de la Mac) es el mundo para los lugares nuevos; en `lugares.json` sus lugares llevan `"mundo": "MacEntorno"` (los que no lo llevan son de ClaudeEntorno o del ClaudeEntorno de la laptop). Para más terreno: abrir el mundo en el juego, `/gamemode creative`, volar en línea recta en cada dirección con la distancia de renderizado alta y **guardar y salir** antes de exportar.
+- Candidatos ya exportados de MacEntorno, sin video todavía (`mundos/mac-XX.json`): `mac-01` (−206, 63, −34, giro 4.7124, arena con abedules), `mac-02` (−38, 67, 62, 2.3562, arena con abedules), `mac-03` (−50, 69, 26, 5.1051, dunas frente al mar), `mac-05` (−114, 68, −50, 3.5343, playa), `mac-07` (−174, 66, −34, 1.9635, playa), `mac-09` (−86, 64, −30, 0.3927, loma de abedules con arroyo), `mac-10` (−138, 62, −94, 0.7854, bosque de abedules con flores), `mac-11` (−54, 62, 90, 3.927, mar abierto), `mac-12` (−174, 69, −222, 2.3562, abedules sobre terrazas de arena), `mac-13` (−194, 64, −134, 0.7854, abedules sobre terrazas de tierra). Todos con `plot: [-12, 12, -2, 20]`. Al usar uno, renombrar el archivo con un nombre descriptivo y anotarlo en `lugares.json`.
+- Revisar el bioma antes de usar un lugar: `mundo.py` pinta pasto y hojas con el tinte de llanura; en bosque oscuro, pantano, jungla o taiga se ven mal.
+- El escáner de lugares (heightmaps `OCEAN_FLOOR`, `MOTION_BLOCKING`, `MOTION_BLOCKING_NO_LEAVES`, `WORLD_SURFACE`) califica cada centro y giro: lote plano y seco, cámara libre, agua/hojas/colinas enfrente y ninguna pared a menos de 10 bloques detrás de la fila. Se vieron los candidatos con una página de vista (cámara de paseo y del recorrido) antes de elegir.
 - Cada video usa un lugar distinto de ClaudeEntorno. La lista con el centro, el giro (`turn`) y el video que lo usa está en `mundos/lugares.json`; cada lugar tiene su exportación en `mundos/<lugar>.json`.
 - Para buscar lugares nuevos se hizo un mapa de todo el mundo generado (unos 370 × 350 bloques) y se calificó cada centro y dirección: la zona de la cámara sin árboles ni terreno más alto que 2 bloques, el lote plano y algo interesante enfrente (agua, bosque, piedra, colinas). Luego se probaron con cuadros sueltos de la cámara de paseo.
 - `makeTerrain(url, { turn, plot, clear })`:
@@ -358,6 +405,9 @@ Aldo los encontró en el #297 o salieron en su revisión. Antes de entregar un v
 - La mezcla de audio va en mono. Pasar la voz mono a estéreo la bajaba 3 dB.
 - En `mundo.html`, los sprites (barreras, orbes, letreros de texto) pueden quedar tapados por el terreno: sus materiales son transparentes y se ordenan junto con los del terreno. Después de crear todo, usar `stage.traverse((o) => { if (o.isSprite) o.renderOrder = 10; })`.
 - Si en una PC faltan texturas de bloques en `mundos/tex/` (el terreno sale con huecos o cuadros sin textura), copiarlas del jar sin volver a exportar, desde `herramientas/temas/minecraft-original`: `python -c "import json,glob,mundo; n=set(); [n.update(json.load(open(f,encoding='utf8')).get('names',[])) for f in glob.glob('mundos/*.json') if 'lugares' not in f]; mundo.block_textures(sorted(n),'mundos/tex')"`. Volver a exportar desde un mundo distinto cambiaría los `.json` de los lugares.
+- **Nombres que chocan sin que el linter avise.** Un ayudante `pick()` y la variable local `pick = pickaxe(...)` de una escena: el linter pasa (usa objetos falsos), pero el render real falla. No reusar `pick`, `bar`, `code`, `row`, `idx` como nombres de funciones.
+- El `sed` de macOS no entiende `\b`: para cambiar nombres en archivos usar Python con `re`.
+- **El linter reescribe los sonidos.** `lint` simula las escenas y llama `self.sfx`, así que deja `media/sfx/<Escena>.json` con menos sonidos (sus objetos falsos tienen otro largo). Si después solo se renderizan algunas escenas, las demás se mezclan con los sonidos del linter (en el #3644 bajaron de 61 a 55). Después de `lint`, renderizar todas las escenas (`build.py render composite sync mux`) o no correr `lint` antes de un `mux` parcial.
 - ffmpeg 8 o más nuevo ya no tiene `-filter_complex_script`; `build.py` pasa el grafo de audio directo en `-filter_complex`.
 - `script.py` lleva `TEMA_DIR` con la ruta absoluta de la PC (con el usuario local). Desde el lote #8–#19 no se sube a git; los anteriores lo tienen con la ruta de la otra PC y cada build lo vuelve a escribir: no subas esos cambios.
 - Para renderizar un video que ya tiene el código listo (o retomar un render cortado), ver `RENDER.md`.

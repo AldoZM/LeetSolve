@@ -12,7 +12,7 @@ Un video vertical que explica un problema de LeetCode, ambientado en Minecraft:
 
 - **La plantilla aprobada es `pruebas/0001-two-sum-minecraft-original`.** Antes de escribir nada, lee completos sus archivos `narration.txt`, `video.json`, `make_walk.py`, `scenes.py` y `three/mundo.html`. Tu video debe parecer un episodio más de esa serie.
 - **Formato:** 1080×1920 (9:16), 30 fps, con `"formato": "9:16"` en `video.json`. Las escenas de Manim se hacen en 1080×1440 con un frame de 9 × 12 unidades (x de -4.5 a 4.5, y de -6 a 6) y van centradas sobre el mundo 3D, que llena el resto (ver "Formato fijo" en `GUIA.md`).
-- **Duración:** de 85 a 105 segundos. La plantilla dura 97.2 s.
+- **Duración:** lo que pida la explicación, siempre menos de 3 minutos (límite de Shorts), sin estirarla para llenarlos (regla de Aldo, 2026-10-23). La plantilla dura 97.2 s.
 - **Narración:**
   - En inglés, con la voz Kokoro `af_heart` (local).
   - Unas 20 líneas a unas 2.5 palabras por segundo.
@@ -72,7 +72,7 @@ Assets del juego y mundo:
 
 `videos/<seccion>/<numero de 4 dígitos>-<nombre-corto>/`. Ejemplos: `videos/arrays-hashing/0217-contains-duplicate`, `videos/two-pointers/0011-container-with-most-water`.
 
-- Secciones existentes: `arrays-hashing`, `linked-list`, `sliding-window`, `binary-search`, `strings`, `math`, `trees`.
+- Secciones existentes: `arrays-hashing`, `linked-list`, `sliding-window`, `binary-search`, `strings`, `math`, `trees`, `two-pointers`, `backtracking`, `bit-manipulation`.
 - Si el problema no encaja, crea una sección en inglés y en kebab-case.
 
 Copia de la plantilla `video.json`, `scenes.py`, `make_walk.py` y `three/mundo.html`. **No copies** `media/`, `timestamps.json`, `voiceover.mp3`, `.tts-cache/`, `script.py` ni `video.mp4`.
@@ -107,6 +107,7 @@ Estructura de la plantilla, con 20 líneas y sus índices:
 Reglas:
 
 - Frases cortas, en inglés natural, con números escritos como palabras ("twenty three").
+- **Sin fechas relativas** (regla de Aldo, 2026-10-23): nunca "today", "yesterday", "last week" ni "daily challenge". El video se ve en cualquier fecha. El gancho cierra con una frase del problema ("and an interview classic", "with only two levers") y la lección con "That's the big lesson of <problema>" o "of this problem".
 - **La narración dice exactamente lo que se ve.** Si un dato dicho es falso para el ejemplo, se corrige la narración, no se esconde el dibujo.
 - Puedes cambiar el número de líneas por escena según el problema. Ajusta los índices en `video.json` y en `scenes.py`.
 
@@ -149,6 +150,7 @@ Reglas de tiempo (de `prelude.py`):
 - Nunca pongas `until(DUR - 0.5)` antes de `clear_all()`: se pasa del presupuesto.
 - `self.sfx("nombre", gain, delay=0)` agenda un sonido en el momento actual.
 - Todo está cuantizado a cuadros. No uses `self.play` ni `self.wait` directamente.
+- Para no adivinar segundos, ancla los `until` a frases como `make_walk.py`: el #3644 define `ph(línea, "frase", shift)` en su `scenes.py` y usa `self.until(ph(5, "then check"))`. Así las escenas se ajustan solas si la voz cambia.
 
 Componentes del tema:
 
@@ -231,7 +233,9 @@ Sonidos disponibles:
 - `book_flip1` a `book_flip3` y `book_put`: libro (guardar o leer texto).
 - `villager_no1` a `villager_no3`: el "no" del aldeano, para una idea que falla.
 
-Texturas extra para 2D (`pixel_art`) y 3D (`loadTheme`): `barrier` (marca de vacío o nulo) y `writable_book` (libro y pluma).
+Para un bloque que no es cubo (palanca y similares) usa `model_icon(nombre, w, rot_y=45)`: dibuja el modelo real del juego; no armes íconos a mano. Si el modelo no está, agrégalo a `MODELS` en `extraer.py`.
+
+Texturas extra para 2D (`pixel_art`) y 3D (`loadTheme`): `barrier` (marca de vacío o nulo), `writable_book` (libro y pluma) y `redstone_lamp` / `redstone_lamp_on` (bits apagados y prendidos, desde el #3644).
 
 Volúmenes de 0.22 a 0.45. `challenge` va en 0.32. La plantilla tiene 56 efectos en 97 s. No pongas más sonidos que eventos visibles.
 
@@ -267,6 +271,8 @@ Si el linter falla, el tiempo de alguna línea se pasa de su presupuesto. Corrig
 
 Al terminar:
 
+- Renombra `video.mp4` a `<Título> #<número>.mp4` en su carpeta y copia ese archivo a `export/` (nunca dejes un video final como `video.mp4`).
+- Escribe `descripcion.txt` en la carpeta del video: una línea en inglés de 100 caracteres o menos (ver "Descripción para subir" en `GUIA.md`). Mide el largo antes de guardarla.
 - Agrega el video a la lista "Videos hechos" de `GUIA.md`.
 - Agrega una entrada con fecha a `BITACORA.md`.
 

@@ -1,0 +1,144 @@
+{
+ "first": 10,
+ "last": 15,
+ "nums": [
+  5,
+  2,
+  1,
+  2,
+  3,
+  2
+ ],
+ "target": 2,
+ "ores": [
+  "diamond",
+  "iron",
+  "coal",
+  "iron",
+  "lapis",
+  "iron"
+ ],
+ "answer": [
+  1,
+  2,
+  3
+ ],
+ "less": 1,
+ "equal": 3,
+ "counters": [
+  10,
+  2.184
+ ],
+ "place_less": [
+  14,
+  0.683
+ ],
+ "place_equal": [
+  14,
+  3.642
+ ],
+ "toast": [
+  15,
+  0.05
+ ],
+ "answer_t": [
+  15,
+  1.295
+ ],
+ "steps": [
+  {
+   "i": 0,
+   "x": 5,
+   "kind": "bigger",
+   "visit": [
+    11,
+    0.0
+   ],
+   "count": [
+    11,
+    0.662
+   ],
+   "less": 0,
+   "equal": 0
+  },
+  {
+   "i": 1,
+   "x": 2,
+   "kind": "equal",
+   "visit": [
+    11,
+    1.969
+   ],
+   "count": [
+    11,
+    3.642
+   ],
+   "pile": 0,
+   "less": 0,
+   "equal": 1
+  },
+  {
+   "i": 2,
+   "x": 1,
+   "kind": "less",
+   "visit": [
+    12,
+    0.0
+   ],
+   "count": [
+    12,
+    1.338
+   ],
+   "pile": 0,
+   "less": 1,
+   "equal": 1
+  },
+  {
+   "i": 3,
+   "x": 2,
+   "kind": "equal",
+   "visit": [
+    12,
+    2.325
+   ],
+   "count": [
+    12,
+    3.344
+   ],
+   "pile": 1,
+   "less": 1,
+   "equal": 2
+  },
+  {
+   "i": 4,
+   "x": 3,
+   "kind": "bigger",
+   "visit": [
+    13,
+    0.0
+   ],
+   "count": [
+    13,
+    0.799
+   ],
+   "less": 1,
+   "equal": 2
+  },
+  {
+   "i": 5,
+   "x": 2,
+   "kind": "equal",
+   "visit": [
+    13,
+    1.854
+   ],
+   "count": [
+    13,
+    3.197
+   ],
+   "pile": 2,
+   "less": 1,
+   "equal": 3
+  }
+ ]
+}

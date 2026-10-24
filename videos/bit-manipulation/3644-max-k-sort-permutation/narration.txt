@@ -1,0 +1,22 @@
+subtitles:
+- Maximum K to Sort a Permutation, Minecraft edition. LeetCode problem thirty six forty four, and a neat bit trick.
+- Seven ore blocks, numbered zero to six, all mixed up. Under each one, three redstone lamps show its bits.
+- We may swap two blocks only when their bitwise AND is exactly k.
+- Find the largest k that still lets us sort the whole row. Here, the answer is one.
+- The direct idea is to try every k, from the top down.
+- For each k, test every pair of blocks to see which swaps are allowed, then check if the row can be sorted.
+- Six values of k, twenty one pairs each. That's already a hundred twenty six checks, and our pickaxe is gone.
+- With n blocks, the work grows like n cubed.
+- Here's the trick. A block that is out of place has to move, so it must be part of some swap.
+- And a swap only works when every bit of k is lit in both blocks.
+- So k has to fit inside every misplaced block. The biggest k that does is the AND of all of them.
+- So we walk the row once, with a panel of lamps that starts fully lit. That panel is our running AND.
+- Zero is already home. Skip it.
+- Three is out of place. AND it in, and the top lamp goes dark.
+- Two is home. Five is not. Now only the last lamp survives.
+- Four is home. One is misplaced, but its last bit is lit, so the panel stays at one.
+- Six is home. Advancement made. The answer is k equals one.
+- One pass over the row, and one AND per block. That's linear time.
+- The panel is a single number, so the extra space is constant.
+- One loop, one check, one AND. If nothing is misplaced, we simply return zero.
+- Only the blocks out of place decide k. That's the big lesson of Maximum K.

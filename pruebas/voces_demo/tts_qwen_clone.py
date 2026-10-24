@@ -170,17 +170,25 @@ def run_folder(folder: Path, ref_audio: Path, model: Qwen3TTSModel, ref_text: st
     print(f"Done {folder.name}: total_duration_s = {start:.2f}s")
 
 
-def main():
-    print(f"Loading {MODEL_ID} on CUDA...")
-    model = Qwen3TTSModel.from_pretrained(
-        MODEL_ID,
-        device_map="cuda:0" if torch.cuda.is_available() else "cpu",
-        dtype=torch.bfloat16 if torch.cuda.is_available() else torch.float32,
-    )
-    demos = Path(__file__).resolve().parent
-    base_pruebas = demos.parent
+def pick_device():
+    # CUDA on the Windows laptop, MPS on Apple Silicon, CPU otherwise
+    if torch.cuda.is_available():
+        return "cuda:0", torch.bfloat16
+    if torch.backends.mps.is_available():
+        return "mps", torch.bfloat16
+    return "cpu", torch.float32
 
-    run_folder(base_pruebas / "0004-madura-sensual", demos / "04_madura_sensual.mp3", model, REF_TEXT_DEFAULT)
+
+def main():
+    device, dtype = pick_device()
+    print(f"Loading {MODEL_ID} on {device}...")
+    model = Qwen3TTSModel.from_pretrained(MODEL_ID, device_map=device, dtype=dtype)
+    demos = Path(__file__).resolve().parent
+    # Usage: python tts_qwen_clone.py [video folder] [reference mp3]   (default: the #4 test with the chosen voice)
+    folder = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else demos.parent / "0004-madura-sensual"
+    ref = Path(sys.argv[2]).resolve() if len(sys.argv) > 2 else demos / "04_madura_sensual.mp3"
+
+    run_folder(folder, ref, model, REF_TEXT_DEFAULT)
 
 
 if __name__ == "__main__":

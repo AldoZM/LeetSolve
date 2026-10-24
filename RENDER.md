@@ -46,7 +46,7 @@ python "$HOME/.manim-skill-src/skills/manim-skill/tools/tts-generate.py" --narra
 python make_walk.py
 ```
 
-Las duraciones pueden variar unas centésimas respecto a las de `timestamps.json` del repositorio; `make_walk.py` recalcula los eventos con las nuevas. Revisa que el número de clips sea igual al de líneas y que la duración total siga entre 85 y 105 s.
+Las duraciones pueden variar unas centésimas respecto a las de `timestamps.json` del repositorio; `make_walk.py` recalcula los eventos con las nuevas. Revisa que el número de clips sea igual al de líneas y que la duración total siga debajo de 3 minutos.
 
 ## 4. Render
 
@@ -74,7 +74,7 @@ Sin argumentos corre los 7 pasos en orden. Se pueden correr sueltos, y cada uno 
 - Si se cambió solo la música o los volúmenes: `build.py mux`.
 - **Si el render se interrumpe**, vuelve a empezar desde el paso que quedó a medias y sigue con los demás. El paso a medias se sabe por los archivos que dejó (tabla de arriba) y por `build.log`. `sync` y `mux` siempre se pueden repetir completos.
 - Los registros de cada escena quedan en `media/log_<Escena>.txt`. Si una escena falla por la caché de texto de Manim, `build.py` la reintenta sola; si falla otra vez, corre solo esa escena.
-- No corras más de dos videos a la vez en la laptop: Manim y Chromium se pelean por la memoria.
+- **Un render a la vez** (regla de Aldo, 2026-10-23): no se lanza otro video (ni su voz con Qwen3-TTS) hasta que el anterior termine su `mux`. En la Mac de 8 GB dos renders juntos se quedan sin memoria y se hace un cuello de botella.
 
 Al final `build.py` imprime `video.mp4 duration X audio Y`: las dos deben coincidir.
 
@@ -87,7 +87,8 @@ Lista completa en `GUIA.md`, "Lista de revisión antes de entregar". En corto:
 3. Los 15 "Errores ya cometidos" de `GUIA.md`, uno por uno.
 4. Loop: primer y último cuadro con diferencia media menor a 1 (o solo ruido en los bordes).
 5. Ver el video en el visor: `python "$HOME/.manim-skill-src/skills/manim-skill/tools/video_viewer.py" video.mp4 --order concat.txt --script script.py --port 8081`
-6. Agregar el resultado a "Videos hechos" de `GUIA.md` y a `BITACORA.md`.
+6. Renombrar `video.mp4` a `<Título> #<número>.mp4` en su carpeta y copiarlo a `export/`, y escribir `descripcion.txt` (100 caracteres o menos).
+7. Agregar el resultado a "Videos hechos" de `GUIA.md` y a `BITACORA.md`.
 
 ## 6. Estado del lote #8–#19 (2026-10-21)
 

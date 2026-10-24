@@ -1,0 +1,145 @@
+{
+  "total_duration_s": 99.484,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Find Target Indices After Sorting Array, Minecraft edition. LeetCode problem twenty eighty nine, and a sneaky shortcut.",
+      "start_s": 0.0,
+      "end_s": 7.91,
+      "duration_s": 7.91
+    },
+    {
+      "index": 1,
+      "text": "Six ore blocks in a row, and a target. Two.",
+      "start_s": 7.91,
+      "end_s": 11.743,
+      "duration_s": 3.834
+    },
+    {
+      "index": 2,
+      "text": "If we sorted the row, where would every two end up? Return those positions.",
+      "start_s": 11.743,
+      "end_s": 16.504,
+      "duration_s": 4.761
+    },
+    {
+      "index": 3,
+      "text": "Sorted, the row reads one, two, two, two, three, five. So the answer is one, two and three.",
+      "start_s": 16.504,
+      "end_s": 22.842,
+      "duration_s": 6.338
+    },
+    {
+      "index": 4,
+      "text": "The direct idea is to sort the whole row, then scan it for the twos.",
+      "start_s": 22.842,
+      "end_s": 27.141,
+      "duration_s": 4.298
+    },
+    {
+      "index": 5,
+      "text": "Sorting puts every block in order, even the three and the five, which we never needed in order.",
+      "start_s": 27.141,
+      "end_s": 33.013,
+      "duration_s": 5.872
+    },
+    {
+      "index": 6,
+      "text": "That costs n log n, when the answer only depends on two counts.",
+      "start_s": 33.013,
+      "end_s": 37.851,
+      "duration_s": 4.838
+    },
+    {
+      "index": 7,
+      "text": "Here's the trick. In the sorted row, every block smaller than the target comes first.",
+      "start_s": 37.851,
+      "end_s": 43.408,
+      "duration_s": 5.558
+    },
+    {
+      "index": 8,
+      "text": "So the twos start right after them. With one smaller block, the first two lands at index one.",
+      "start_s": 43.408,
+      "end_s": 48.985,
+      "duration_s": 5.577
+    },
+    {
+      "index": 9,
+      "text": "And with three twos, they fill three slots in a row from there.",
+      "start_s": 48.985,
+      "end_s": 52.736,
+      "duration_s": 3.751
+    },
+    {
+      "index": 10,
+      "text": "Let's walk the row once, with two counters. Less, and equal.",
+      "start_s": 52.736,
+      "end_s": 57.104,
+      "duration_s": 4.368
+    },
+    {
+      "index": 11,
+      "text": "Five is bigger. Skip it. Two is the target. Equal is one.",
+      "start_s": 57.104,
+      "end_s": 61.822,
+      "duration_s": 4.718
+    },
+    {
+      "index": 12,
+      "text": "One is smaller. Less is one. Two again. Equal is two.",
+      "start_s": 61.822,
+      "end_s": 66.253,
+      "duration_s": 4.431
+    },
+    {
+      "index": 13,
+      "text": "Three is bigger. Then the last two. Equal is three.",
+      "start_s": 66.253,
+      "end_s": 70.782,
+      "duration_s": 4.529
+    },
+    {
+      "index": 14,
+      "text": "The twos start at index less, which is one, and take equal slots, which is three.",
+      "start_s": 70.782,
+      "end_s": 76.928,
+      "duration_s": 6.146
+    },
+    {
+      "index": 15,
+      "text": "Advancement made. The answer is one, two, three, without sorting a thing.",
+      "start_s": 76.928,
+      "end_s": 82.18,
+      "duration_s": 5.252
+    },
+    {
+      "index": 16,
+      "text": "One pass with two counters. That's linear time.",
+      "start_s": 82.18,
+      "end_s": 85.43,
+      "duration_s": 3.25
+    },
+    {
+      "index": 17,
+      "text": "And besides the answer, we only keep two numbers. Constant extra space.",
+      "start_s": 85.43,
+      "end_s": 90.414,
+      "duration_s": 4.984
+    },
+    {
+      "index": 18,
+      "text": "Count the smaller ones, count the matches, and read off the range.",
+      "start_s": 90.414,
+      "end_s": 94.219,
+      "duration_s": 3.805
+    },
+    {
+      "index": 19,
+      "text": "Sometimes you don't need the order, only the counts. That's the big lesson of this problem.",
+      "start_s": 94.219,
+      "end_s": 99.484,
+      "duration_s": 5.265
+    }
+  ]
+}

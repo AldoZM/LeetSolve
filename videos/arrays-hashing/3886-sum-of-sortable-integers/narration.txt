@@ -1,0 +1,21 @@
+subtitles:
+- Sum of Sortable Integers, Minecraft edition. LeetCode problem thirty eight eighty six, and a tricky one.
+- Six ore blocks in a row. We pick a size k that divides six, and cut the row into pieces of that size.
+- Each piece can spin like a carousel, as many times as we want. If every piece spins into place and the whole row ends up sorted, k counts.
+- Return the sum of every k that works. Here, sizes two and three work, so the answer is five.
+- The direct idea is to try every size, and spin every piece through all of its turns.
+- A piece of size k has k turns, and checking each turn takes k steps.
+- With a hundred thousand blocks and k as big as n, that's ten billion steps, and the pickaxe breaks.
+- Here's the trick. Walk around a piece like a circle, and count the drops, where a block is bigger than the next one.
+- A piece spins into order only if it has at most one drop, counting the wrap from its end back to its start.
+- Then each piece gives its smallest and largest block, and every piece must start at or above where the last one ended.
+- Let's walk it. Size one fails right away. Four sits before three.
+- Size two. The pieces are one two, three three, and four three. The last one has one drop, so it spins into three four.
+- Each piece starts where the last one ended, or higher. Size two works.
+- Size three. The pieces are one two three, and three four three. One drop each, so both spin into place. Size three works.
+- Size six is the whole row. Going around it, we drop from four to three, and again from three back to one. Two drops, so it fails.
+- Advancement made. Two plus three is five.
+- Each size walks the row once, so it costs linear time.
+- And a number up to a hundred thousand has at most a hundred twenty eight divisors, so the total stays small.
+- Find the divisors, count the drops in each piece, and chain the pieces in order.
+- A circle sorts with a single spin when it has at most one drop. That's the big lesson of this problem.

@@ -1,0 +1,152 @@
+{
+  "total_duration_s": 112.791,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Maximum K to Sort a Permutation, Minecraft edition. LeetCode problem thirty six forty four, and a neat bit trick.",
+      "start_s": 0.0,
+      "end_s": 8.101,
+      "duration_s": 8.101
+    },
+    {
+      "index": 1,
+      "text": "Seven ore blocks, numbered zero to six, all mixed up. Under each one, three redstone lamps show its bits.",
+      "start_s": 8.101,
+      "end_s": 16.202,
+      "duration_s": 8.101
+    },
+    {
+      "index": 2,
+      "text": "We may swap two blocks only when their bitwise AND is exactly k.",
+      "start_s": 16.202,
+      "end_s": 21.287,
+      "duration_s": 5.085
+    },
+    {
+      "index": 3,
+      "text": "Find the largest k that still lets us sort the whole row. Here, the answer is one.",
+      "start_s": 21.287,
+      "end_s": 26.942,
+      "duration_s": 5.654
+    },
+    {
+      "index": 4,
+      "text": "The direct idea is to try every k, from the top down.",
+      "start_s": 26.942,
+      "end_s": 31.098,
+      "duration_s": 4.157
+    },
+    {
+      "index": 5,
+      "text": "For each k, test every pair of blocks to see which swaps are allowed, then check if the row can be sorted.",
+      "start_s": 31.098,
+      "end_s": 37.546,
+      "duration_s": 6.447
+    },
+    {
+      "index": 6,
+      "text": "Six values of k, twenty one pairs each. That's already a hundred twenty six checks, and our pickaxe is gone.",
+      "start_s": 37.546,
+      "end_s": 44.543,
+      "duration_s": 6.997
+    },
+    {
+      "index": 7,
+      "text": "With n blocks, the work grows like n cubed.",
+      "start_s": 44.543,
+      "end_s": 47.839,
+      "duration_s": 3.296
+    },
+    {
+      "index": 8,
+      "text": "Here's the trick. A block that is out of place has to move, so it must be part of some swap.",
+      "start_s": 47.839,
+      "end_s": 53.669,
+      "duration_s": 5.831
+    },
+    {
+      "index": 9,
+      "text": "And a swap only works when every bit of k is lit in both blocks.",
+      "start_s": 53.669,
+      "end_s": 57.925,
+      "duration_s": 4.255
+    },
+    {
+      "index": 10,
+      "text": "So k has to fit inside every misplaced block. The biggest k that does is the AND of all of them.",
+      "start_s": 57.925,
+      "end_s": 64.151,
+      "duration_s": 6.227
+    },
+    {
+      "index": 11,
+      "text": "So we walk the row once, with a panel of lamps that starts fully lit. That panel is our running AND.",
+      "start_s": 64.151,
+      "end_s": 70.363,
+      "duration_s": 6.212
+    },
+    {
+      "index": 12,
+      "text": "Zero is already home. Skip it.",
+      "start_s": 70.363,
+      "end_s": 72.917,
+      "duration_s": 2.554
+    },
+    {
+      "index": 13,
+      "text": "Three is out of place. AND it in, and the top lamp goes dark.",
+      "start_s": 72.917,
+      "end_s": 77.634,
+      "duration_s": 4.718
+    },
+    {
+      "index": 14,
+      "text": "Two is home. Five is not. Now only the last lamp survives.",
+      "start_s": 77.634,
+      "end_s": 82.013,
+      "duration_s": 4.378
+    },
+    {
+      "index": 15,
+      "text": "Four is home. One is misplaced, but its last bit is lit, so the panel stays at one.",
+      "start_s": 82.013,
+      "end_s": 87.455,
+      "duration_s": 5.443
+    },
+    {
+      "index": 16,
+      "text": "Six is home. Advancement made. The answer is k equals one.",
+      "start_s": 87.455,
+      "end_s": 92.626,
+      "duration_s": 5.171
+    },
+    {
+      "index": 17,
+      "text": "One pass over the row, and one AND per block. That's linear time.",
+      "start_s": 92.626,
+      "end_s": 97.242,
+      "duration_s": 4.616
+    },
+    {
+      "index": 18,
+      "text": "The panel is a single number, so the extra space is constant.",
+      "start_s": 97.242,
+      "end_s": 101.405,
+      "duration_s": 4.163
+    },
+    {
+      "index": 19,
+      "text": "One loop, one check, one AND. If nothing is misplaced, we simply return zero.",
+      "start_s": 101.405,
+      "end_s": 107.436,
+      "duration_s": 6.031
+    },
+    {
+      "index": 20,
+      "text": "Only the blocks out of place decide k. That's the big lesson of Maximum K.",
+      "start_s": 107.436,
+      "end_s": 112.791,
+      "duration_s": 5.355
+    }
+  ]
+}

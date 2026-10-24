@@ -1,0 +1,145 @@
+{
+  "total_duration_s": 101.177,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Count Days Spent Together, Minecraft edition. LeetCode problem twenty four oh nine, a little calendar puzzle.",
+      "start_s": 0.0,
+      "end_s": 6.874,
+      "duration_s": 6.874
+    },
+    {
+      "index": 1,
+      "text": "Alice and Bob visit Rome. Each one arrives and leaves on a date written as month, dash, day.",
+      "start_s": 6.874,
+      "end_s": 12.83,
+      "duration_s": 5.956
+    },
+    {
+      "index": 2,
+      "text": "Alice stays from October twenty eighth to November third. Bob, from October thirtieth to November fifth.",
+      "start_s": 12.83,
+      "end_s": 18.765,
+      "duration_s": 5.936
+    },
+    {
+      "index": 3,
+      "text": "How many days are they both in the city? Here, the answer is five.",
+      "start_s": 18.765,
+      "end_s": 22.402,
+      "duration_s": 3.636
+    },
+    {
+      "index": 4,
+      "text": "The direct idea is to walk the whole calendar, all three hundred sixty five days.",
+      "start_s": 22.402,
+      "end_s": 27.338,
+      "duration_s": 4.937
+    },
+    {
+      "index": 5,
+      "text": "On each day, we check if Alice is there, and if Bob is there too, and count the days where both are.",
+      "start_s": 27.338,
+      "end_s": 33.076,
+      "duration_s": 5.738
+    },
+    {
+      "index": 6,
+      "text": "It works, but it touches every day of the year just to find five.",
+      "start_s": 33.076,
+      "end_s": 37.551,
+      "duration_s": 4.475
+    },
+    {
+      "index": 7,
+      "text": "Here's the trick. Turn every date into a day of the year.",
+      "start_s": 37.551,
+      "end_s": 41.624,
+      "duration_s": 4.072
+    },
+    {
+      "index": 8,
+      "text": "Add up the days of the months before it, then add the day itself.",
+      "start_s": 41.624,
+      "end_s": 45.216,
+      "duration_s": 3.592
+    },
+    {
+      "index": 9,
+      "text": "Now each stay is a range of numbers. Together, they start at the later arrival and end at the earlier departure.",
+      "start_s": 45.216,
+      "end_s": 51.718,
+      "duration_s": 6.502
+    },
+    {
+      "index": 10,
+      "text": "Let's walk it. The nine months before October add up to two hundred seventy three days.",
+      "start_s": 51.718,
+      "end_s": 57.186,
+      "duration_s": 5.468
+    },
+    {
+      "index": 11,
+      "text": "Alice arrives on day three hundred one, and leaves on day three hundred seven.",
+      "start_s": 57.186,
+      "end_s": 62.361,
+      "duration_s": 5.175
+    },
+    {
+      "index": 12,
+      "text": "Bob arrives on day three hundred three, and leaves on day three hundred nine.",
+      "start_s": 62.361,
+      "end_s": 67.277,
+      "duration_s": 4.916
+    },
+    {
+      "index": 13,
+      "text": "The later arrival is day three oh three. The earlier departure is day three oh seven.",
+      "start_s": 67.277,
+      "end_s": 72.562,
+      "duration_s": 5.285
+    },
+    {
+      "index": 14,
+      "text": "Three oh seven minus three oh three, plus one, is five. If that were negative, we would return zero.",
+      "start_s": 72.562,
+      "end_s": 78.884,
+      "duration_s": 6.321
+    },
+    {
+      "index": 15,
+      "text": "Advancement made. Alice and Bob share five days in Rome.",
+      "start_s": 78.884,
+      "end_s": 83.011,
+      "duration_s": 4.127
+    },
+    {
+      "index": 16,
+      "text": "Each date needs only a few additions, so the time is constant.",
+      "start_s": 83.011,
+      "end_s": 87.107,
+      "duration_s": 4.096
+    },
+    {
+      "index": 17,
+      "text": "And we only keep a few numbers, so the space is constant too.",
+      "start_s": 87.107,
+      "end_s": 91.231,
+      "duration_s": 4.123
+    },
+    {
+      "index": 18,
+      "text": "Convert the dates, then take the later start and the earlier end.",
+      "start_s": 91.231,
+      "end_s": 95.427,
+      "duration_s": 4.197
+    },
+    {
+      "index": 19,
+      "text": "When dates get messy, turn them into numbers first. That's the big lesson of this problem.",
+      "start_s": 95.427,
+      "end_s": 101.177,
+      "duration_s": 5.75
+    }
+  ]
+}

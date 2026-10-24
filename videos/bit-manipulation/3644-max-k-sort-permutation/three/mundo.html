@@ -1,0 +1,239 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import { THREE, prog, easeInOut, easeOut, easeOutBack, lerp, V, bezier, pose, mixPose } from '/vendor/lib/stage.js';
+import { MC, loadTheme, makeWorld, makeTerrain, makeBlock, makeFrame, pixelSprite, makeOrb, makeClouds } from '/vendor/tema/mc.js';
+import { loadMobs, planLife, makeLife, setTime } from '/vendor/tema/vida.js';
+
+const walk = await (await fetch('/walk.json')).json();
+// One clip for the whole video: times are absolute. The walk happens in [W0, W1]; the rest is a slow roam that
+// ends where it starts, so the video still loops.
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const seg = (i) => subs[i].start_s;
+const TOTAL = subs[subs.length - 1].end_s;
+const W0 = seg(walk.first), W1 = subs[walk.last].end_s;
+const at = (spec) => seg(spec[0]) + spec[1];
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'planks', 'leaves', 'log_side', 'log_top',
+                              'redstone_lamp', 'redstone_lamp_on', ...walk.ores.map((o) => `${o}_ore`)]);
+
+const N = walk.nums.length, B = walk.bits;
+const steps = walk.steps.map((s) => ({ ...s, visitT: at(s.visit), verdictT: at(s.verdict),
+  andT: s.and ? at(s.and) : null, darkT: s.dark ? at(s.dark) : null }));
+const T = { row: at(walk.intro_row), panel: at(walk.panel_in), lit: at(walk.lit), running: at(walk.running),
+            toast: at(walk.toast), answer: at(walk.answer_t) };
+const bit = (v, b) => (v >> (B - 1 - b)) & 1;  // b = 0 is the top (highest) bit
+
+const world = makeWorld({ fov: 40, offset: 0.34, fog: [55, 120] });
+const { scene } = world;
+// The edge of an oak and birch forest south of spawn (see mundos/lugares.json), turned so the camera looking toward -z sees the trees
+const terrain = await makeTerrain('/vendor/tema/mundos/forest-edge.json', { turn: 1.9635, plot: [-6, 6, -2, 7], clear: [-10, 10, 7, 24] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+// Dusk at the forest edge: wolves among the trees, farm animals on the meadow
+const LIFE = [{ kind: 'wolf', count: 2 }, { kind: 'sheep', count: 2, graze: 1 }, { kind: 'cow', count: 2, graze: 1 },
+              { kind: 'chicken', count: 2 }];
+await loadMobs(imgs, LIFE.map((g) => g.kind));
+const dark = await setTime(world, 'dusk', { terrain, clouds, imgs });
+const life = makeLife(imgs, terrain, planLife(terrain, LIFE, { seed: 3644 }), TOTAL, dark);
+scene.add(life.g);
+// Everything of the walk lives in its own group, hidden outside the walk
+const stage = new THREE.Group();
+scene.add(stage);
+
+// A lamp that can be lit or dark: both looks are built, one is shown
+function makeLamp(size) {
+  const off = makeBlock(imgs, 'redstone_lamp', { size }), on = makeBlock(imgs, 'redstone_lamp_on', { size });
+  const g = new THREE.Group();
+  g.add(off.g, on.g);
+  // on.set() shows its block, so visibility goes last
+  return { g, set(lit, glow = 0) { on.set({ glow: 0.2 + glow }); on.g.visible = lit; off.g.visible = !lit; } };
+}
+
+// The row of blocks, one ore per value, with its three bit lamps on the grass in front
+const SP = 1.2, LS = 0.3, LG = 0.34;
+const bx = (i) => (i - (N - 1) / 2) * SP;
+const lampX = (i, b) => bx(i) + (b - (B - 1) / 2) * LG;
+const blocks = walk.nums.map((v, i) => {
+  const b = makeBlock(imgs, `${walk.ores[i]}_ore`, { label: v });
+  stage.add(b.g);
+  return b;
+});
+const small = walk.nums.map((v, i) => Array.from({ length: B }, (_, b) => {
+  const l = makeLamp(LS);
+  l.set(bit(v, b) === 1);
+  stage.add(l.g);
+  return l;
+}));
+// Index above each block: a block is home when its value equals its index
+const idx = walk.nums.map((_, i) => {
+  const s = pixelSprite(String(i), MC.gray, 0.42);
+  stage.add(s);
+  return s;
+});
+
+// The panel: the running AND, one big lamp per bit
+const PANEL = V(0, 0, 3.6);
+PANEL.y = terrain.groundAt(PANEL.x, PANEL.z);
+const PS = 0.78, PG = 0.92;
+const panelX = (b) => (b - (B - 1) / 2) * PG;
+const panel = Array.from({ length: B }, (_, b) => { const l = makeLamp(PS); stage.add(l.g); return l; });
+const weights = Array.from({ length: B }, (_, b) => {
+  const s = pixelSprite(String(1 << (B - 1 - b)), MC.yellow, 0.36);
+  stage.add(s);
+  return s;
+});
+
+// The game's block outline on the block being looked at, and a verdict over each visited block
+const frame = makeFrame();
+stage.add(frame);
+const marks = steps.map((s) => { const m = pixelSprite(s.home ? 'home' : 'X', s.home ? MC.green : MC.red, s.home ? 0.34 : 0.5); stage.add(m); return m; });
+
+// Lamps that fly from a misplaced block into the panel when it is ANDed in
+const flyers = steps.filter((s) => s.andT !== null).map((s) => {
+  const ls = Array.from({ length: B }, (_, b) => { const l = makeLamp(LS); l.set(bit(s.x, b) === 1); stage.add(l.g); return l; });
+  return { s, ls };
+});
+
+// Experience orbs that burst from the panel at the answer
+let seed = 3644;
+const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+const orbs = Array.from({ length: 22 }, (_, k) => {
+  const o = makeOrb(imgs, 0.32, [1, 2, 4, 5, 6][k % 5]);
+  o.userData = { vx: (rnd() - 0.5) * 2.8, vy: 2.6 + rnd() * 2.0, vz: (rnd() - 0.5) * 1.6, delay: rnd() * 0.35 };
+  stage.add(o);
+  return o;
+});
+stage.traverse((o) => { if (o.isSprite) o.renderOrder = 10; });
+
+function cursorX(t) {
+  // Arrives at block i at its visit time
+  let x = bx(0);
+  for (const s of steps) x = lerp(x, bx(s.i), easeInOut(prog(t, s.visitT - 0.28, s.visitT)));
+  return x;
+}
+
+function panelValue(t) {
+  // Fully lit once lit, then each misplaced block darkens it when the voice says so
+  let v = walk.steps[0].before;
+  for (const s of steps) if (s.darkT !== null && t >= s.darkT) v = s.after;
+  return v;
+}
+
+function renderAt(t) {
+  // Walk camera: wide front view with a slow drift, a small push in on the panel at the answer
+  const push = easeInOut(prog(t, T.toast - 0.3, T.toast + 0.8));
+  const sway = 0.5 * Math.sin(t * 0.35);
+  const walkPose = pose(V(sway, lerp(6.9, 6.5, push), lerp(15.8, 15.0, push)), V(sway * 0.4, 1.5, 0.3));
+  // Roam camera: one slow loop over the meadow for the whole video
+  const a = 2 * Math.PI * t / TOTAL;
+  const roamPose = pose(V(6 * Math.sin(a), 3.4 + 0.8 * Math.sin(2 * a), 13 + 2.5 * Math.cos(a)), V(3 * Math.sin(a), 4.2, -30));
+  const k = easeInOut(prog(t, W0 - 1.6, W0 - 0.1)) * (1 - easeInOut(prog(t, W1 + 0.1, W1 + 1.6)));
+  const cam = mixPose(roamPose, walkPose, k);
+  world.look(cam.pos, cam.look);
+  // The walk keeps its content high in the frame (the overlay uses the bottom); the roam shows more sky
+  world.camera.setViewOffset(world.W, world.H, 0, world.H * lerp(0.12, 0.34, k), world.W, world.H);
+  clouds.position.x = 4 * Math.sin(a);
+  life.update(t);
+  stage.visible = t < W1;
+
+  // Blocks drop in from above, one after another; their lamps and index follow
+  blocks.forEach((b, i) => {
+    const d = prog(t, T.row + 0.12 * i, T.row + 0.12 * i + 0.55);
+    const fall = d < 1 ? (1 - d) * (1 - d) * 4.5 : 0;
+    const bounce = 0.18 * Math.sin(Math.PI * prog(d, 0.75, 1));
+    const g0 = terrain.groundAt(bx(i), 0);
+    const s = steps[i];
+    let glow = 0;
+    if (t >= s.visitT - 0.1 && t < s.visitT + 0.35) glow = 0.25 * Math.sin(Math.PI * prog(t, s.visitT - 0.1, s.visitT + 0.35));
+    b.g.position.set(bx(i), 0.5 + fall + (d >= 0.75 ? bounce : 0) + g0, 0);
+    b.g.visible = d > 0;
+    b.set({ glow, opacity: d > 0 ? 1 : 0 });
+    const li = prog(t, T.row + 0.5 + 0.12 * i, T.row + 0.8 + 0.12 * i);
+    small[i].forEach((l, bb) => {
+      l.g.visible = li > 0;
+      l.g.scale.setScalar(Math.max(easeOutBack(li), 1e-4));
+      l.g.position.set(lampX(i, bb), g0 + LS / 2, 0.9);
+    });
+    idx[i].material.opacity = prog(t, T.row + 0.4 + 0.12 * i, T.row + 0.8 + 0.12 * i);
+    idx[i].position.set(bx(i), g0 + 1.38, 0);
+    const v = Math.sin(Math.PI * prog(t, s.verdictT - 0.1, s.verdictT + 0.5));
+    idx[i].setSize(1 + 0.5 * Math.max(v, 0));
+    idx[i].material.color.set(v > 0.05 ? MC.yellow : 0xffffff);
+  });
+
+  // Panel pops in, lights up bit by bit, then follows the running AND
+  const pIn = easeOutBack(prog(t, T.panel, T.panel + 0.5));
+  const value = panelValue(t);
+  const win = prog(t, T.toast - 0.2, T.toast + 0.3);
+  panel.forEach((l, b) => {
+    l.g.visible = pIn > 0.001;
+    l.g.scale.setScalar(Math.max(pIn, 1e-4));
+    l.g.position.set(PANEL.x + panelX(b), PANEL.y + PS / 2, PANEL.z);
+    const lit = t >= T.lit + 0.25 * b && bit(value, b) === 1;
+    // The surviving lamp glows at the answer
+    l.set(lit, lit ? 0.35 * win * (1 + 0.4 * Math.sin(t * 6)) : 0);
+    // A short squash when a lamp goes dark
+    let pop = 0;
+    for (const s of steps) if (s.darkT !== null && bit(s.before, b) !== bit(s.after, b)) pop = Math.max(pop, Math.sin(Math.PI * prog(t, s.darkT, s.darkT + 0.35)));
+    l.g.scale.y = Math.max(pIn, 1e-4) * (1 - 0.25 * pop);
+    weights[b].position.set(PANEL.x + panelX(b), PANEL.y + PS + 0.32, PANEL.z);
+    weights[b].material.opacity = prog(t, T.running, T.running + 0.4);
+  });
+
+  // Selection frame on the current block
+  const fIn = prog(t, steps[0].visitT - 0.25, steps[0].visitT);
+  frame.visible = fIn > 0 && t < T.toast;
+  frame.position.set(cursorX(t), 0.5 + terrain.groundAt(cursorX(t), 0), 0);
+
+  // Verdicts stay over the visited blocks
+  steps.forEach((s, i) => {
+    const m = marks[i];
+    const a = easeOutBack(prog(t, s.verdictT, s.verdictT + 0.3));
+    m.visible = a > 0.01;
+    m.setSize(Math.max(a, 1e-4));
+    m.position.set(bx(i), terrain.groundAt(bx(i), 0) + 1.85 + 0.04 * Math.sin(t * 3 + i), 0);
+  });
+
+  // Lamps arc from the misplaced block into the panel, one per bit
+  for (const { s, ls } of flyers) {
+    ls.forEach((l, b) => {
+      const f = prog(t, s.andT + 0.06 * b, s.andT + 0.06 * b + 0.5);
+      l.g.visible = f > 0 && f < 1;
+      const from = V(lampX(s.i, b), terrain.groundAt(bx(s.i), 0) + LS / 2, 0.9);
+      const to = V(PANEL.x + panelX(b), PANEL.y + PS + 0.1, PANEL.z);
+      const mid = V((from.x + to.x) / 2, 2.4, (from.z + to.z) / 2);
+      l.g.position.copy(bezier(from, mid, to, easeInOut(f)));
+      l.g.rotation.set(0, 5 * f, 0);
+    });
+  }
+
+  // Orbs: a short ballistic burst from the lamp that survived
+  const keep = Array.from({ length: B }, (_, b) => b).find((b) => bit(walk.answer, b) === 1) ?? 1;
+  for (const o of orbs) {
+    const { vx, vy, vz, delay } = o.userData;
+    const u = t - (T.toast + delay);
+    o.visible = u > 0 && u < 1.6;
+    if (!o.visible) continue;
+    const y = PANEL.y + PS + vy * u - 4.5 * u * u;
+    o.position.set(PANEL.x + panelX(keep) + vx * u, Math.max(y, PANEL.y + 0.1), PANEL.z + vz * u);
+    o.tint(t + delay);
+    o.material.opacity = 1 - prog(u, 1.2, 1.6);
+  }
+
+  world.draw(t, TOTAL, 0, 0);
+}
+
+window.renderAt = renderAt;
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

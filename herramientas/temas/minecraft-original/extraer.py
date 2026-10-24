@@ -8,7 +8,8 @@ import zipfile
 from PIL import Image, ImageChops
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-MC = os.path.expandvars(r'%APPDATA%\.minecraft')
+MC = os.path.expandvars(r'%APPDATA%\.minecraft') if os.name == 'nt' else os.path.expanduser(
+    '~/Library/Application Support/minecraft' if sys.platform == 'darwin' else '~/.minecraft')
 A = 'assets/minecraft/'
 
 GRASS_TINT = (145, 189, 89)    # plains grass
@@ -20,6 +21,9 @@ BLOCKS = {  # output name -> texture inside the jar
     'emerald_ore': 'block/emerald_ore', 'stone': 'block/stone', 'dirt': 'block/dirt', 'planks': 'block/oak_planks',
     'gold_block': 'block/gold_block', 'log_side': 'block/oak_log', 'log_top': 'block/oak_log_top',
     'cobble': 'block/cobblestone', 'barrier': 'item/barrier', 'writable_book': 'item/writable_book',
+    'redstone_lamp': 'block/redstone_lamp', 'redstone_lamp_on': 'block/redstone_lamp_on',  # bits (#3644)
+    'lever': 'block/lever',  # the two moves (#3942)
+    'clock': 'item/clock_00',  # dates (#2409)
 }
 GUI = {
     'generic_54': 'gui/container/generic_54', 'hotbar': 'gui/sprites/hud/hotbar',
@@ -45,6 +49,8 @@ MOBS = {
     'creeper': 'entity/creeper/creeper', 'spider': 'entity/spider/spider', 'spider_eyes': 'entity/spider/spider_eyes',
     'moon': 'environment/celestial/moon/full_moon',
 }
+# Block models drawn as 2D icons by model_icon() in tema.py: the model json and every texture it uses go to models/<name>/
+MODELS = {'lever': 'block/lever', 'lever_on': 'block/lever_on'}
 # Background music (video.json "musica"); C418's tracks get copyright claims on YouTube, see GUIA.md
 MUSIC = {'subwoofer_lullaby': 'music/game/subwoofer_lullaby'}
 
@@ -71,7 +77,7 @@ def main():
     version = sys.argv[1] if len(sys.argv) > 1 else newest_version()
     jar = zipfile.ZipFile(os.path.join(MC, 'versions', version, version + '.jar'))
     tex = lambda p: Image.open(jar.open(f'{A}textures/{p}.png')).convert('RGBA')
-    for d in ('tex', 'gui', 'font', 'sounds', 'music', 'mobs'):
+    for d in ('tex', 'gui', 'font', 'sounds', 'music', 'mobs', 'models'):
         os.makedirs(os.path.join(HERE, d), exist_ok=True)
 
     for name, p in BLOCKS.items():
@@ -85,6 +91,21 @@ def main():
         tex(p).save(os.path.join(HERE, 'gui', f'{name}.png'))
     for name, p in MOBS.items():
         tex(p).save(os.path.join(HERE, 'mobs', f'{name}.png'))
+
+    # Models, resolving the parent chain; textures keep their game names ("block/cobblestone" -> cobblestone.png)
+    for name, p in MODELS.items():
+        model, cur = {}, p
+        while cur:
+            m = json.loads(jar.read(f'{A}models/{cur.split(":")[-1]}.json'))
+            model = {**m, **model, 'textures': {**m.get('textures', {}), **model.get('textures', {})}}
+            cur = m.get('parent') if 'elements' not in model else None
+        out = os.path.join(HERE, 'models', name)
+        os.makedirs(out, exist_ok=True)
+        for ref in model['textures'].values():
+            if not ref.startswith('#'):
+                path = ref.split(':')[-1]
+                tex(path).save(os.path.join(out, path.split('/')[-1] + '.png'))
+        json.dump(model, open(os.path.join(out, 'model.json'), 'w'), indent=1)
 
     # Chest front for 2D icons: lid front + body front + latch, from the entity atlas (box UV layout)
     atlas = tex('entity/chest/normal')

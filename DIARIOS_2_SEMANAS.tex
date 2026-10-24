@@ -1,0 +1,1040 @@
+\documentclass[letterpaper,10pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[margin=0.65in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{xcolor}
+\usepackage{fancyvrb}
+\usepackage{framed}
+\usepackage[hidelinks]{hyperref}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+\linespread{1.04}
+
+\definecolor{mcgold}{HTML}{D97706}
+\definecolor{mcaqua}{HTML}{0284C7}
+\definecolor{mcgreen}{HTML}{15803D}
+\definecolor{mcred}{HTML}{B91C1C}
+\definecolor{mcgray}{HTML}{4B5563}
+\definecolor{shadecolor}{HTML}{F8FAFC}
+
+\newcommand{\scene}[2]{\noindent\textbf{\textcolor{mcaqua}{#1}} --- \textbf{#2}\par\vspace{1pt}}
+\newcommand{\folder}[1]{\texttt{\textcolor{mcgreen}{#1}}}
+\newcommand{\badge}[2]{\textbf{\textcolor{#1}{[#2]}}}
+
+\begin{document}
+
+\begin{center}
+  {\LARGE\bfseries LeetSolve --- Gu\'ia de Resoluci\'on de los Ejercicios Diarios}\\[4pt]
+  {\large Basada en la estructura de 7 escenas y secciones de \texttt{GUIA.md} e \texttt{INSTRUCCIONES\_IA.md}}\\[2pt]
+  {\small Periodo: \'Ultimas 2 semanas (9 al 23 de octubre de 2026)}
+\end{center}
+
+\vspace{4pt}
+\hrule
+\vspace{6pt}
+
+\section*{1. Contexto: Ejercicios ya realizados en el repositorio}
+
+Antes de abordar los ejercicios diarios de las \'ultimas dos semanas, este es el estado actual de los videos en \texttt{LeetSolve}:
+
+\begin{itemize}\setlength{\itemsep}{2pt}
+  \item \textbf{Rama \texttt{main} (18 videos):}
+  \begin{itemize}\setlength{\itemsep}{1pt}
+    \item \texttt{arrays-hashing/0001-two-sum} (\#1 Two Sum --- Plantilla aprobada)
+    \item \texttt{linked-list/0002-add-two-numbers} (\#2 Add Two Numbers) y \texttt{0019-remove-nth-node} (\#19 Remove Nth Node)
+    \item \texttt{sliding-window/0003-longest-substring} (\#3 Longest Substring Without Repeating Characters)
+    \item \texttt{binary-search/0004-median-two-arrays} (\#4 Median of Two Sorted Arrays)
+    \item \texttt{strings/0005-longest-palindrome} (\#5), \texttt{0006-zigzag-conversion} (\#6) y \texttt{0008-string-to-integer} (\#8)
+    \item \texttt{math/0007-reverse-integer} (\#7), \texttt{0009-palindrome-number} (\#9) y \texttt{0060-permutation-sequence} (\#60)
+    \item \texttt{two-pointers/0016-three-sum-closest} (\#16) y \texttt{0018-four-sum} (\#18)
+    \item \texttt{backtracking/0017-letter-combinations} (\#17 Letter Combinations of a Phone Number)
+    \item \texttt{trees/0102-level-order} (\#102), \texttt{0124-max-path-sum} (\#124) y \texttt{0297-serialize-tree} (\#297)
+    \item \texttt{bit-manipulation/3644-max-k-sort-permutation} (\textbf{\#3644 Maximum K to Sort a Permutation --- Diario del 23 de oct})
+  \end{itemize}
+  \item \textbf{Rama \texttt{laptop-videos} (8 videos adicionales):}
+  \begin{itemize}\setlength{\itemsep}{1pt}
+    \item \texttt{\#10} Regular Expression Matching, \texttt{\#11} Container With Most Water, \texttt{\#12} Integer to Roman, \texttt{\#13} Roman to Integer, \texttt{\#14} Longest Common Prefix, \texttt{\#15} 3Sum, \texttt{\#1807} Evaluate the Bracket Pairs of a String.
+    \item \texttt{strings/3863-min-ops-sort-string} (\textbf{\#3863 Minimum Operations to Sort a String --- Diario del 21 de oct}).
+  \end{itemize}
+\end{itemize}
+
+\section*{2. Mapa de los Ejercicios Diarios (9 al 23 de octubre de 2026)}
+
+\begin{footnotesize}
+\begin{tabularx}{\textwidth}{@{}llllXl@{}}
+\toprule
+\textbf{Fecha} & \textbf{\# Problema} & \textbf{Dif.} & \textbf{Secci\'on} & \textbf{Idea Clave (El Truco)} & \textbf{Tiempo / Esp.} \\
+\midrule
+2026-10-09 & \#1541 Balance Paren. & Med & \texttt{strings} & Conteo voraz de \texttt{'('} abiertos y pares \texttt{'))'} & $O(n)$ / $O(1)$ \\
+2026-10-10 & \#2333 Min Squared Diff & Med & \texttt{math} & Cubetas de frecuencias + bajar el tope & $O(n + M)$ / $O(M)$ \\
+2026-10-11 & \#2778 Special Squares & Easy & \texttt{arrays-hashing} & Filtrar divisores $n \bmod i = 0$ en 1 pasada & $O(n)$ / $O(1)$ \\
+2026-10-12 & \#2897 Squares AND/OR & Hard & \texttt{bit-manipulation} & Gravedad de bits por columna (30 bits) & $O(30n)$ / $O(1)$ \\
+2026-10-13 & \#3727 Alt. Squares & Med & \texttt{math} & Ordenar $x^2$: mayores suman, menores restan & $O(n \log n)$ / $O(n)$ \\
+2026-10-14 & \#3723 Digits Squares & Med & \texttt{math} & Convexidad: llenar con \texttt{'9'} de izq. a der. & $O(\text{num})$ / $O(\text{num})$ \\
+2026-10-15 & \#2913 Distinct Sub. I & Easy & \texttt{arrays-hashing} & Conjunto incremental fijando el inicio $i$ & $O(n^2)$ / $O(n)$ \\
+2026-10-16 & \#2916 Distinct Sub. II & Hard & \texttt{trees} & Segment Tree Lazy con $\sum d$ y $\sum d^2$ & $O(n \log n)$ / $O(n)$ \\
+2026-10-17 & \#3551 Swaps Digit Sum & Med & \texttt{arrays-hashing} & Descomposici\'on en ciclos: $\sum (|C|-1)$ & $O(n \log n)$ / $O(n)$ \\
+2026-10-18 & \#1569 Ways Same BST & Hard & \texttt{trees} & Divide y vencer\'as + $\binom{L+R}{L}$ & $O(n^2)$ / $O(n)$ \\
+2026-10-19 & \#2089 Target Indices & Easy & \texttt{binary-search} & Contar menores e iguales sin ordenar & $O(n)$ / $O(1)$ \\
+2026-10-20 & \#3886 Sortable Ints & Hard & \texttt{arrays-hashing} & Divisores de $n$ + $\le 1$ ca\'ida circular & $O(n \log n)$ / $O(n)$ \\
+2026-10-21 & \#3863 Sort String$^\star$ & Med & \texttt{strings} & An\'alisis en $O(n)$: resp. $\in \{0,1,2,3,-1\}$ & $O(n)$ / $O(1)$ \\
+2026-10-22 & \#3942 Sort Perm. & Med & \texttt{arrays-hashing} & Grupo diedral: rotaci\'on directa o invertida & $O(n)$ / $O(1)$ \\
+2026-10-23 & \#3644 Max K Perm.$^\star$ & Med & \texttt{bit-manipulation} & AND bit a bit de bloques fuera de lugar & $O(n)$ / $O(1)$ \\
+\bottomrule
+\end{tabularx}
+\end{footnotesize}
+{\footnotesize $^\star$Nota: El \textbf{\#3863} ya est\'a hecho en la rama \texttt{laptop-videos} y el \textbf{\#3644} ya est\'a en \texttt{main}. Se incluyen aqu\'i con el mismo dise\~no del repositorio para tener las 2 semanas completas.}
+
+\newpage
+
+% ============================================================================
+% DIA 1: 2026-10-09 - #1541
+% ============================================================================
+\section{2026-10-09 \textbar{} \#1541 Minimum Insertions to Balance a Parentheses String}
+\folder{videos/strings/1541-min-insertions-balance-parentheses} \hfill \badge{mcgold}{Medium} $\cdot$ \textbf{Tema:} \texttt{strings} (Stack / Greedy)
+
+\begin{shaded}
+\scene{Scene1\_Hook}{Gancho y met\'afora en Minecraft}
+Cada bloque de apertura \texttt{'('} es un cofre que exige exactamente \textbf{dos llaves consecutivas} \texttt{'))'} a su derecha para cerrarse. Si un cierre viene suelto o sin cofre previo, insertamos la pieza faltante al vuelo.
+
+\scene{Scene2\_Problem}{El problema y ejemplo peque\~no (6 bloques)}
+Dada una cadena $s$ con \texttt{'('} y \texttt{')'}, una cadena est\'a balanceada si cada \texttt{'('} se empareja con dos \texttt{'))'} consecutivos posteriores. Podemos insertar \texttt{'('} o \texttt{')'} en cualquier posici\'on. Buscamos el m\'inimo de inserciones.
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item \textbf{Ejemplo para fila de 6 bloques:} \texttt{s = "))())("} \quad (Menas: \texttt{redstone} para \texttt{')'} y \texttt{diamond} para \texttt{'('}).
+  \item \textbf{Respuesta esperada:} \texttt{3} (insertar \texttt{'('} al inicio para el primer \texttt{'))'} e insertar \texttt{'))'} al final para el \'ultimo \texttt{'('}).
+\end{itemize}
+
+\scene{Scene3\_Brute}{La idea directa (Fuerza bruta) y por qu\'e falla}
+Intentar insertar caracteres en todas las posiciones posibles mediante b\'usqueda en anchura (BFS) o programaci\'on din\'amica de intervalos tipo CYK ($O(n^3)$). Con $n = 10^5$, probar combinaciones o una tabla cuadr\'atica/c\'ubica rompe el pico de inmediato.
+
+\scene{Scene4\_Idea}{El truco (Un solo recorrido con contador de abiertos)}
+No necesitamos explorar ramas: cuando vemos un \texttt{')'}, sabemos de inmediato si tiene a su gemelo \texttt{')'} justo al lado:
+\begin{enumerate}\setlength{\itemsep}{1pt}
+  \item Si llega un \texttt{'('}, sumamos $1$ al contador de abiertos \texttt{open\_left}.
+  \item Si llega un \texttt{')'}, miramos si el siguiente car\'acter tambi\'en es \texttt{')'}. Si s\'i, avanzamos $2$ casillas (ya forman el par \texttt{'))'}); si no, insertamos un \texttt{')'} (\texttt{ans += 1}) y avanzamos $1$ casilla.
+  \item Ya con el par \texttt{'))'} completo, si \texttt{open\_left > 0} gastamos un \texttt{'('} abierto (\texttt{open\_left -= 1}); si \texttt{open\_left == 0}, insertamos un \texttt{'('} antes (\texttt{ans += 1}).
+  \item Al terminar la fila, cada \texttt{'('} que qued\'o sin cerrar en \texttt{open\_left} necesita dos cierres: sumamos \texttt{2 * open\_left}.
+\end{enumerate}
+
+\scene{Scene5\_Walk}{Recorrido paso a paso sobre \texttt{s = "))())("}}
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item \texttt{i = 0..1} (\texttt{"))"}): Hay dos \texttt{')'} seguidos, pero \texttt{open\_left = 0}. Insertamos un \texttt{'('} $\to$ \texttt{ans = 1}, \texttt{open\_left = 0}.
+  \item \texttt{i = 2} (\texttt{"("}): Guardamos un abierto en el cofre $\to$ \texttt{open\_left = 1}.
+  \item \texttt{i = 3..4} (\texttt{"))"}): Par completo; consume el abierto del cofre $\to$ \texttt{open\_left = 0}, \texttt{ans = 1}.
+  \item \texttt{i = 5} (\texttt{"("}): Nuevo abierto $\to$ \texttt{open\_left = 1}.
+  \item \textbf{Fin de la fila:} Queda \texttt{open\_left = 1}, que exige dos cierres \texttt{'))'} $\to$ \texttt{ans = 1 + 2(1) = 3}. \textit{Advancement Made!}
+\end{itemize}
+
+\scene{Scene6\_Complexity}{Complejidad}
+\textbf{Tiempo:} $O(n)$ (una sola pasada por la cadena). \quad \textbf{Espacio:} $O(1)$ (dos contadores enteros).
+\end{shaded}
+
+\scene{Scene7\_Outro}{C\'odigo en Python y lecci\'on}
+\begin{Verbatim}[frame=single,fontsize=\small]
+class Solution:
+    def minInsertions(self, s: str) -> int:
+        ans = open_left = i = 0
+        n = len(s)
+        while i < n:
+            if s[i] == "(":
+                open_left += 1
+                i += 1
+            else:
+                if i + 1 < n and s[i + 1] == ")":
+                    i += 2
+                else:
+                    ans += 1
+                    i += 1
+                if open_left > 0:
+                    open_left -= 1
+                else:
+                    ans += 1
+        return ans + 2 * open_left
+\end{Verbatim}
+\textbf{Lecci\'on:} \textit{``Empareja cada cierre doble al instante y cobra los abiertos pendientes al final.''}
+
+\newpage
+
+% ============================================================================
+% DIA 2: 2026-10-10 - #2333
+% ============================================================================
+\section{2026-10-10 \textbar{} \#2333 Minimum Sum of Squared Difference}
+\folder{videos/math/2333-min-sum-squared-diff} \hfill \badge{mcgold}{Medium} $\cdot$ \textbf{Tema:} \texttt{math} / \texttt{arrays-hashing} (Greedy / Buckets)
+
+\begin{shaded}
+\scene{Scene1\_Hook}{Gancho y met\'afora en Minecraft}
+Tenemos torres de bloques cuya altura es la diferencia $d_i = |\text{nums1}[i] - \text{nums2}[i]|$. Cada golpe de pico rebaja una torre en $1$ bloque, y el costo de cada torre es el \textbf{cuadrado} de su altura.
+
+\scene{Scene2\_Problem}{El problema y ejemplo peque\~no (5 bloques)}
+Dados \texttt{nums1} y \texttt{nums2} de longitud $n$, podemos modificar \texttt{nums1} hasta $k_1$ veces en $\pm 1$ y \texttt{nums2} hasta $k_2$ veces en $\pm 1$. Queremos minimizar $\sum_{i=0}^{n-1} (\text{nums1}[i] - \text{nums2}[i])^2$.
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item \textbf{Ejemplo de 5 bloques:} \texttt{nums1 = [1, 4, 10, 12, 2]}, \texttt{nums2 = [5, 8, 6, 9, 2]}, $k_1 = 1, k_2 = 2$.
+  \item \textbf{Diferencias iniciales:} $d = [4, 4, 4, 3, 0]$ con presupuesto total $k = k_1 + k_2 = 3$.
+  \item \textbf{Respuesta esperada:} \texttt{36} (las tres diferencias de $4$ bajan a $3$, dejando $[3, 3, 3, 3, 0] \to 4 \times 3^2 + 0^2 = 36$).
+\end{itemize}
+
+\scene{Scene3\_Brute}{La idea directa (Max-Heap paso a paso) y por qu\'e falla}
+Meter las diferencias a un Max-Heap y, $k_1 + k_2$ veces, sacar la mayor diferencia $d$, restarle $1$ y volverla a meter. Como $k_1 + k_2$ puede llegar a $2 \times 10^9$, hacer $2 \times 10^9$ extracciones tarda $O(k \log n)$ y da \textit{Time Limit Exceeded}.
+
+\scene{Scene4\_Idea}{El truco (Aplanar las diferencias m\'as altas por cubetas)}
+\begin{enumerate}\setlength{\itemsep}{1pt}
+  \item Subir \texttt{nums1[i]} en $1$ o bajar \texttt{nums2[i]} en $1$ tiene exactamente el mismo efecto: reduce $d_i = |\text{nums1}[i] - \text{nums2}[i]|$ en $1$. Por tanto, solo importa el presupuesto conjunto $k = k_1 + k_2$.
+  \item Bajar una diferencia de $d$ a $d-1$ ahorra $d^2 - (d-1)^2 = 2d - 1$. Siempre conviene rebajar primero la diferencia \textbf{m\'as grande}.
+  \item Como $d_i \le 10^5$, contamos en un arreglo \texttt{cnt[d]} cu\'antas diferencias valen $d$ y recorremos $d$ desde $d_{\max}$ hasta $1$, bajando en un solo paso \texttt{take = min(cnt[d], k)} elementos del escal\'on $d$ al escal\'on $d-1$.
+\end{enumerate}
+
+\scene{Scene5\_Walk}{Recorrido paso a paso sobre $d = [4, 4, 4, 3, 0],\, k = 3$}
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item Conteo en el cofre: \texttt{cnt[4] = 3}, \texttt{cnt[3] = 1}, \texttt{cnt[0] = 1}.
+  \item Escal\'on $d = 4$: hay $3$ bloques y tenemos $k = 3$ golpes. \texttt{take = min(3, 3) = 3}. Los $3$ bajan al escal\'on $3$: ahora \texttt{cnt[4] = 0}, \texttt{cnt[3] = 1 + 3 = 4}, y $k = 0$.
+  \item Como $k = 0$, paramos y sumamos: $4 \times 3^2 + 1 \times 0^2 = 36$. \textit{Advancement Made!}
+\end{itemize}
+
+\scene{Scene6\_Complexity}{Complejidad}
+Sea $M = \max(d_i) \le 10^5$. \textbf{Tiempo:} $O(n + M)$. \quad \textbf{Espacio:} $O(M)$ para las cubetas de frecuencias.
+\end{shaded}
+
+\scene{Scene7\_Outro}{C\'odigo en Python y lecci\'on}
+\begin{Verbatim}[frame=single,fontsize=\small]
+class Solution:
+    def minSumSquareDiff(self, nums1: list[int], nums2: list[int], k1: int, k2: int) -> int:
+        diffs = [abs(a - b) for a, b in zip(nums1, nums2)]
+        mx = max(diffs)
+        if mx == 0:
+            return 0
+        cnt = [0] * (mx + 1)
+        for d in diffs:
+            cnt[d] += 1
+        k = k1 + k2
+        for d in range(mx, 0, -1):
+            if k <= 0:
+                break
+            if cnt[d]:
+                take = min(cnt[d], k)
+                cnt[d] -= take
+                cnt[d - 1] += take
+                k -= take
+        return sum(d * d * cnt[d] for d in range(1, mx + 1))
+\end{Verbatim}
+\textbf{Lecci\'on:} \textit{``Cuando los cuadrados castigan a los grandes, rebaja la cima entera nivel por nivel.''}
+
+\newpage
+
+% ============================================================================
+% DIA 3: 2026-10-11 - #2778
+% ============================================================================
+\section{2026-10-11 \textbar{} \#2778 Sum of Squares of Special Elements}
+\folder{videos/arrays-hashing/2778-sum-squares-special} \hfill \badge{mcgreen}{Easy} $\cdot$ \textbf{Tema:} \texttt{arrays-hashing} / \texttt{math}
+
+\begin{shaded}
+\scene{Scene1\_Hook}{Gancho y met\'afora en Minecraft}
+Una fila de $n$ bloques numerados del $1$ al $n$. Solo los bloques cuya posici\'on divide exactamente a $n$ se iluminan y aportan su cuadrado al nivel de experiencia.
+
+\scene{Scene2\_Problem}{El problema y ejemplo peque\~no (6 bloques)}
+Dado un arreglo \texttt{nums} de longitud $n$ \textbf{indexado desde 1}, un elemento \texttt{nums[i]} es especial si $i$ divide a $n$ ($n \bmod i == 0$). Devolver la suma de los cuadrados de todos los elementos especiales.
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item \textbf{Ejemplo de 6 bloques:} \texttt{nums = [2, 7, 1, 19, 18, 3]} ($n = 6$).
+  \item \textbf{Divisores de $6$:} $i \in \{1, 2, 3, 6\} \implies$ valores $2, 7, 1, 3$.
+  \item \textbf{Respuesta esperada:} $2^2 + 7^2 + 1^2 + 3^2 = 4 + 49 + 1 + 9 = 63$.
+\end{itemize}
+
+\scene{Scene3\_Brute}{La trampa com\'un (Error de indexaci\'on 0-based vs 1-based)}
+El error t\'ipico es usar el \'indice $0$-based de Python directamente (\texttt{n \% 0} lanza \texttt{ZeroDivisionError}, o eval\'ua las casillas corridas un lugar).
+
+\scene{Scene4\_Idea}{El truco (\texttt{enumerate(nums, 1)} o iterar divisores en $\sqrt{n}$)}
+Numeramos los bloques empezando en $1$ con \texttt{enumerate(nums, 1)}. En cada paso preguntamos si \texttt{n \% i == 0}; si se cumple, sumamos \texttt{x * x} al acumulador. (Incluso si $n$ fuera enorme, bastar\'ia iterar $i$ hasta $\lfloor\sqrt{n}\rfloor$ y sumar tanto $i$ como $n // i$).
+
+\scene{Scene5\_Walk}{Recorrido paso a paso sobre \texttt{nums = [2, 7, 1, 19, 18, 3]}}
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item $i = 1$ (valor $2$): $6 \bmod 1 = 0$ $\checkmark$ $\to$ sumamos $2^2 = 4$ (\texttt{total = 4}).
+  \item $i = 2$ (valor $7$): $6 \bmod 2 = 0$ $\checkmark$ $\to$ sumamos $7^2 = 49$ (\texttt{total = 53}).
+  \item $i = 3$ (valor $1$): $6 \bmod 3 = 0$ $\checkmark$ $\to$ sumamos $1^2 = 1$ (\texttt{total = 54}).
+  \item $i = 4$ (valor $19$) e $i = 5$ (valor $18$): $6 \bmod 4 \neq 0$, $6 \bmod 5 \neq 0$ $\times$ $\to$ se saltan.
+  \item $i = 6$ (valor $3$): $6 \bmod 6 = 0$ $\checkmark$ $\to$ sumamos $3^2 = 9$ (\texttt{total = 63}). \textit{Advancement Made!}
+\end{itemize}
+
+\scene{Scene6\_Complexity}{Complejidad}
+\textbf{Tiempo:} $O(n)$ (o $O(\sqrt{n})$ iterando divisores). \quad \textbf{Espacio:} $O(1)$.
+\end{shaded}
+
+\scene{Scene7\_Outro}{C\'odigo en Python y lecci\'on}
+\begin{Verbatim}[frame=single,fontsize=\small]
+class Solution:
+    def sumOfSquares(self, nums: list[int]) -> int:
+        n = len(nums)
+        return sum(x * x for i, x in enumerate(nums, 1) if n % i == 0)
+\end{Verbatim}
+\textbf{Lecci\'on:} \textit{``Empieza a contar desde uno con \texttt{enumerate(nums, 1)} y deja que el m\'odulo filtre los divisores.''}
+
+\newpage
+
+% ============================================================================
+% DIA 4: 2026-10-12 - #2897
+% ============================================================================
+\section{2026-10-12 \textbar{} \#2897 Apply Operations on Array to Maximize Sum of Squares}
+\folder{videos/bit-manipulation/2897-max-sum-squares-and-or} \hfill \badge{mcred}{Hard} $\cdot$ \textbf{Tema:} \texttt{bit-manipulation} (Greedy)
+
+\begin{shaded}
+\scene{Scene1\_Hook}{Gancho y met\'afora en Minecraft}
+Cada n\'umero tiene su columna de l\'amparas de redstone (sus bits). Al aplicar $(a \text{ AND } b,\, a \text{ OR } b)$, las l\'amparas encendidas nunca se destruyen: simplemente \textbf{caen por gravedad} hacia un mismo bloque para volverlo m\'as brillante.
+
+\scene{Scene2\_Problem}{El problema y ejemplo peque\~no (5 bloques)}
+Dado un arreglo \texttt{nums} y un entero $k$, podemos elegir dos \'indices $i, j$ cualquier n\'umero de veces y reemplazar $(\text{nums}[i], \text{nums}[j])$ por $(\text{nums}[i] \text{ AND } \text{nums}[j],\, \text{nums}[i] \text{ OR } \text{nums}[j])$. Al final elegimos $k$ elementos y maximizamos la suma de sus cuadrados m\'odulo $10^9 + 7$.
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item \textbf{Ejemplo de 5 bloques:} \texttt{nums = [2, 6, 5, 8, 1]}, $k = 2$.
+  \item \textbf{En binario (4 bits):} $2=0010_2$, $6=0110_2$, $5=0101_2$, $8=1000_2$, $1=0001_2$.
+  \item \textbf{Respuesta esperada:} \texttt{274} (formamos $15 = 1111_2$ y $7 = 0111_2 \implies 15^2 + 7^2 = 225 + 49 = 274$).
+\end{itemize}
+
+\scene{Scene3\_Brute}{La idea directa (Probar pares de operaciones) y por qu\'e falla}
+Simular pares $(i, j)$ en busca del mejor arreglo final. Con $n = 10^5$, hay $\binom{n}{2} \approx 5 \times 10^9$ pares tan solo en el primer paso.
+
+\scene{Scene4\_Idea}{El truco (Conservaci\'on de bits por columna y apilado voraz)}
+\begin{enumerate}\setlength{\itemsep}{1pt}
+  \item Observa qu\'e hace $(x \text{ AND } y,\, x \text{ OR } y)$ en cada bit $b$: si $x$ e $y$ tienen ambos $1$ o ambos $0$, nada cambia. Si uno tiene $1$ y el otro $0$, el $1$ se mueve a $x \text{ OR } y$ y el $0$ queda en $x \text{ AND } y$.
+  \item Por tanto, \textbf{la cantidad total de unos en cada columna de bit $b$ es invariante}, y podemos transferir bits libremente para concentrarlos en los primeros $k$ n\'umeros.
+  \item Como $(A + 2^b)^2 + (B - 2^b)^2 = A^2 + B^2 + 2^{b+1}(A - B + 2^b) > A^2 + B^2$ para $A \ge B$, siempre conviene concentrar todos los bits posibles en el primer n\'umero, luego los sobrantes en el segundo, y as\'i hasta $k$.
+\end{enumerate}
+
+\scene{Scene5\_Walk}{Recorrido paso a paso sobre \texttt{nums = [2, 6, 5, 8, 1]}, $k = 2$}
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item Contamos cu\'antas l\'amparas hay encendidas por bit $(8, 4, 2, 1)$:
+        \texttt{cnt[3] = 1} (del $8$), \texttt{cnt[2] = 2} (de $6, 5$), \texttt{cnt[1] = 2} (de $2, 6$), \texttt{cnt[0] = 2} (de $5, 1$).
+  \item \textbf{Casilla 1 ($\text{idx} = 0$):} Toma un bit de cada columna con $\texttt{cnt}[b] > 0 \implies 8 + 4 + 2 + 1 = 15$, aporta $15^2 = 225$.
+  \item \textbf{Casilla 2 ($\text{idx} = 1$):} Toma un bit de cada columna con $\texttt{cnt}[b] > 1 \implies 0 + 4 + 2 + 1 = 7$, aporta $7^2 = 49$.
+  \item \textbf{Suma final:} $225 + 49 = 274$. \textit{Advancement Made!}
+\end{itemize}
+
+\scene{Scene6\_Complexity}{Complejidad}
+\textbf{Tiempo:} $O(30 \cdot n)$ (lineal en $n$). \quad \textbf{Espacio:} $O(1)$ (un arreglo fijo de $30$ contadores).
+\end{shaded}
+
+\scene{Scene7\_Outro}{C\'odigo en Python y lecci\'on}
+\begin{Verbatim}[frame=single,fontsize=\small]
+class Solution:
+    def maxSum(self, nums: list[int], k: int) -> int:
+        MOD = 10**9 + 7
+        cnt = [0] * 30
+        for x in nums:
+            for b in range(30):
+                if (x >> b) & 1:
+                    cnt[b] += 1
+        ans = 0
+        for idx in range(k):
+            val = 0
+            for b in range(30):
+                if cnt[b] > idx:
+                    val |= 1 << b
+            ans = (ans + val * val) % MOD
+        return ans
+\end{Verbatim}
+\textbf{Lecci\'on:} \textit{``AND y OR no crean ni destruyen bits: solo dejan caer todos los unos hacia los primeros $k$ bloques.''}
+
+\newpage
+
+% ============================================================================
+% DIA 5: 2026-10-13 - #3727
+% ============================================================================
+\section{2026-10-13 \textbar{} \#3727 Maximum Alternating Sum of Squares}
+\folder{videos/math/3727-max-alternating-sum-squares} \hfill \badge{mcgold}{Medium} $\cdot$ \textbf{Tema:} \texttt{math} (Greedy / Sorting)
+
+\begin{shaded}
+\scene{Scene1\_Hook}{Gancho y met\'afora en Minecraft}
+Una fila de casillas donde las posiciones pares suman esmeraldas ($+x^2$) y las impares quitan redstone ($-x^2$). Para ganar el m\'aximo puntaje, ponemos los cuadrados m\'as grandes donde suman y los m\'as peque\~nos donde restan.
+
+\scene{Scene2\_Problem}{El problema y ejemplo peque\~no (6 bloques)}
+Dado un arreglo entero \texttt{nums} (con positivos y negativos), podemos reordenarlo en cualquier orden para maximizar:
+$$\text{score} = \text{arr}[0]^2 - \text{arr}[1]^2 + \text{arr}[2]^2 - \text{arr}[3]^2 + \dots$$
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item \textbf{Ejemplo de 6 bloques:} \texttt{nums = [1, -4, 2, -3, 5, -2]}.
+  \item \textbf{Cuadrados:} $[1, 16, 4, 9, 25, 4]$.
+  \item \textbf{Respuesta esperada:} \texttt{41} (suman $25 + 16 + 9 = 50$, restan $4 + 4 + 1 = 9 \implies 50 - 9 = 41$).
+\end{itemize}
+
+\scene{Scene3\_Brute}{La idea directa (Probar todas las permutaciones) y por qu\'e falla}
+Probar las $n!$ formas de acomodar los bloques y calcular el puntaje alternante de cada una. Con $n = 6$ ya son $720$ pruebas; con $n = 10^5$ es inviable ($O(n! \cdot n)$).
+
+\scene{Scene4\_Idea}{El truco (Ordenar los cuadrados y partir en $\lfloor n/2 \rfloor$)}
+\begin{enumerate}\setlength{\itemsep}{1pt}
+  \item Al elevar al cuadrado, el signo original no importa: $(-4)^2 = 4^2 = 16$.
+  \item En un arreglo de longitud $n$, hay exactamente $\lfloor n/2 \rfloor$ posiciones con signo $-$ (los \'indices impares $1, 3, 5, \dots$) y $\lceil n/2 \rceil$ posiciones con signo $+$ (los \'indices pares $0, 2, 4, \dots$).
+  \item Ordenamos los cuadrados de menor a mayor: los primeros $m = \lfloor n/2 \rfloor$ van a las posiciones que restan y los restantes $n - m$ van a las posiciones que suman.
+\end{enumerate}
+
+\scene{Scene5\_Walk}{Recorrido paso a paso sobre \texttt{nums = [1, -4, 2, -3, 5, -2]}}
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item Elevamos cada bloque al cuadrado y ordenamos: $\texttt{sq} = [1, 4, 4, 9, 16, 25]$.
+  \item Como $n = 6$, la mitad es $m = 6 // 2 = 3$.
+  \item Mitad izquierda (resta): $\texttt{sq[:3]} = [1, 4, 4] \implies -(1 + 4 + 4) = -9$.
+  \item Mitad derecha (suma): $\texttt{sq[3:]} = [9, 16, 25] \implies +(9 + 16 + 25) = +50$.
+  \item Total: $50 - 9 = 41$. \textit{Advancement Made!}
+\end{itemize}
+
+\scene{Scene6\_Complexity}{Complejidad}
+\textbf{Tiempo:} $O(n \log n)$ por el ordenamiento. \quad \textbf{Espacio:} $O(n)$ para la lista de cuadrados.
+\end{shaded}
+
+\scene{Scene7\_Outro}{C\'odigo en Python y lecci\'on}
+\begin{Verbatim}[frame=single,fontsize=\small]
+class Solution:
+    def maxAlternatingSum(self, nums: list[int]) -> int:
+        sq = sorted(x * x for x in nums)
+        m = len(sq) // 2
+        return sum(sq[m:]) - sum(sq[:m])
+\end{Verbatim}
+\textbf{Lecci\'on:} \textit{``El cuadrado borra los signos: ordena de menor a mayor, resta la primera mitad y suma la segunda.''}
+
+\newpage
+
+% ============================================================================
+% DIA 6: 2026-10-14 - #3723
+% ============================================================================
+\section{2026-10-14 \textbar{} \#3723 Maximize Sum of Squares of Digits}
+\folder{videos/math/3723-max-sum-squares-digits} \hfill \badge{mcgold}{Medium} $\cdot$ \textbf{Tema:} \texttt{math} (Greedy)
+
+\begin{shaded}
+\scene{Scene1\_Hook}{Gancho y met\'afora en Minecraft}
+Tenemos \texttt{num} casillas en el cofre y una suma total de \texttt{sum} puntos para repartir en d\'igitos del $0$ al $9$. Como el puntaje de cada casilla es su d\'igito al cuadrado, ¡un solo $9$ vale m\'as que un $5$ y un $4$ juntos!
+
+\scene{Scene2\_Problem}{El problema y ejemplo peque\~no (5 casillas)}
+Dados dos enteros positivos \texttt{num} (cantidad de d\'igitos) y \texttt{sum} (suma de sus d\'igitos), devolver como cadena el mayor entero positivo de \texttt{num} d\'igitos cuya suma sea \texttt{sum} y que maximice la suma de los cuadrados de sus d\'igitos (o \texttt{""} si no existe).
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item \textbf{Ejemplo de 5 casillas:} \texttt{num = 5}, \texttt{sum = 21}.
+  \item \textbf{Respuesta esperada:} \texttt{"99300"} (puntaje $9^2 + 9^2 + 3^2 + 0^2 + 0^2 = 171$).
+\end{itemize}
+
+\scene{Scene3\_Brute}{La idea directa (Programaci\'on din\'amica por d\'igito) y por qu\'e falla}
+Hacer una tabla DP de estados $(\text{posici\'on}, \text{suma\_restante})$. Con $\text{num} = 2 \times 10^5$ y $\text{sum} = 2 \times 10^6$, el n\'umero de estados es $4 \times 10^{11}$ ($O(\text{num} \cdot \text{sum})$), lo cual agota memoria y tiempo.
+
+\scene{Scene4\_Idea}{El truco (Convexidad de $d^2$ y divisi\'on entera entre 9)}
+\begin{enumerate}\setlength{\itemsep}{1pt}
+  \item Si $\text{sum} > 9 \times \text{num}$ (ni llenando todo con \texttt{'9'} alcanzamos la suma), es imposible y devolvemos \texttt{""}.
+  \item Si tenemos dos d\'igitos $a \ge b$ y pasamos $1$ punto de $b$ hacia $a$, la suma de cuadrados cambia en $(a+1)^2 + (b-1)^2 - (a^2 + b^2) = 2(a - b + 1) > 0$. Es decir, \textbf{concentrar todo lo posible en d\'igitos 9 siempre maximiza la suma de cuadrados}.
+  \item Para que adem\'as el n\'umero sea el mayor posible en valor posicional, ponemos todos los \texttt{'9'} a la izquierda, seguidos del residuo $\text{sum} \bmod 9$, y rellenamos con \texttt{'0'} a la derecha.
+\end{enumerate}
+
+\scene{Scene5\_Walk}{Recorrido paso a paso sobre \texttt{num = 5}, \texttt{sum = 21}}
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item ¿Cabe en 5 casillas? $21 \le 9 \times 5 = 45$ $\checkmark$.
+  \item Dividimos entre $9$: $q = 21 // 9 = 2$ nueves y residuo $r = 21 \bmod 9 = 3$.
+  \item Casillas 0 y 1 reciben \texttt{'9'}; la casilla 2 recibe el residuo \texttt{'3'}; las $5 - 2 - 1 = 2$ casillas restantes reciben \texttt{'0'}.
+  \item Resultado: \texttt{"99300"}. \textit{Advancement Made!}
+\end{itemize}
+
+\scene{Scene6\_Complexity}{Complejidad}
+\textbf{Tiempo:} $O(\text{num})$ para construir la cadena. \quad \textbf{Espacio:} $O(\text{num})$ para la respuesta.
+\end{shaded}
+
+\scene{Scene7\_Outro}{C\'odigo en Python y lecci\'on}
+\begin{Verbatim}[frame=single,fontsize=\small]
+class Solution:
+    def maxSumOfSquares(self, num: int, sum: int) -> str:
+        if sum > 9 * num or sum < 1:
+            return ""
+        q, r = divmod(sum, 9)
+        if q == num:
+            return "9" * num
+        return "9" * q + str(r) + "0" * (num - q - 1)
+\end{Verbatim}
+\textbf{Lecci\'on:} \textit{``Por convexidad, exprime todos los nueves posibles a la izquierda y deja el residuo enseguida.''}
+
+\newpage
+
+% ============================================================================
+% DIA 7: 2026-10-15 - #2913
+% ============================================================================
+\section{2026-10-15 \textbar{} \#2913 Subarrays Distinct Element Sum of Squares I}
+\folder{videos/arrays-hashing/2913-subarrays-distinct-squares-i} \hfill \badge{mcgreen}{Easy} $\cdot$ \textbf{Tema:} \texttt{arrays-hashing}
+
+\begin{shaded}
+\scene{Scene1\_Hook}{Gancho y met\'afora en Minecraft}
+Recorremos todos los tramos de una fila de menas. Para cada punto de partida abrimos un cofre (conjunto de menas vistas) y, a medida que alargamos el tramo hacia la derecha, sumamos el cuadrado de cu\'antas menas distintas hay en el cofre.
+
+\scene{Scene2\_Problem}{El problema y ejemplo peque\~no (5 bloques)}
+Dado un arreglo \texttt{nums} ($n \le 100$), el conteo distinto de un subarreglo \texttt{nums[i..j]} es la cantidad de valores \'unicos que contiene. Devolver la suma de los cuadrados de ese conteo sobre todos los subarreglos.
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item \textbf{Ejemplo de 5 bloques:} \texttt{nums = [2, 1, 2, 3, 2]}.
+  \item \textbf{Respuesta esperada:} \texttt{65}.
+\end{itemize}
+
+\scene{Scene3\_Brute}{La idea directa ($O(n^3)$ reconstruyendo cada subarreglo)}
+Hacer tres ciclos: elegir $i$, elegir $j$, y calcular \texttt{len(set(nums[i:j+1])) ** 2} desde cero cada vez. Eso repite el trabajo de meter los mismos bloques una y otra vez ($O(n^3)$).
+
+\scene{Scene4\_Idea}{El truco (Cofre incremental fijando el extremo izquierdo $i$)}
+Si ya conocemos el conjunto \texttt{seen} de distintos de \texttt{nums[i..j-1]}, para pasar a \texttt{nums[i..j]} solo insertamos \texttt{nums[j]} en \texttt{seen} en $O(1)$ y sumamos \texttt{len(seen) ** 2}. Eso baja el tiempo a $O(n^2)$.
+
+\scene{Scene5\_Walk}{Recorrido paso a paso sobre \texttt{nums = [2, 1, 2, 3, 2]}}
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item $i = 0$: \texttt{seen} crece con $[2, 1, 2, 3, 2] \to$ tama\~nos $1, 2, 2, 3, 3 \to$ cuadrados $1 + 4 + 4 + 9 + 9 = 27$.
+  \item $i = 1$: desde \texttt{[1, 2, 3, 2]} $\to$ tama\~nos $1, 2, 3, 3 \to$ cuadrados $1 + 4 + 9 + 9 = 23$.
+  \item $i = 2$: desde \texttt{[2, 3, 2]} $\to$ tama\~nos $1, 2, 2 \to$ cuadrados $1 + 4 + 4 = 9$.
+  \item $i = 3$: desde \texttt{[3, 2]} $\to$ tama\~nos $1, 2 \to$ cuadrados $1 + 4 = 5$.
+  \item $i = 4$: desde \texttt{[2]} $\to$ tama\~no $1 \to$ cuadrado $1$.
+  \item \textbf{Total:} $27 + 23 + 9 + 5 + 1 = 65$. \textit{Advancement Made!}
+\end{itemize}
+
+\scene{Scene6\_Complexity}{Complejidad}
+\textbf{Tiempo:} $O(n^2)$. \quad \textbf{Espacio:} $O(n)$ para el conjunto \texttt{seen}.
+\end{shaded}
+
+\scene{Scene7\_Outro}{C\'odigo en Python y lecci\'on}
+\begin{Verbatim}[frame=single,fontsize=\small]
+class Solution:
+    def sumCounts(self, nums: list[int]) -> int:
+        ans = 0
+        n = len(nums)
+        for i in range(n):
+            seen = set()
+            for j in range(i, n):
+                seen.add(nums[j])
+                ans += len(seen) ** 2
+        return ans
+\end{Verbatim}
+\textbf{Lecci\'on:} \textit{``No vac\'ies el cofre en cada paso: reutiliza el conjunto al extender el extremo derecho.''}
+
+\newpage
+
+% ============================================================================
+% DIA 8: 2026-10-16 - #2916
+% ============================================================================
+\section{2026-10-16 \textbar{} \#2916 Subarrays Distinct Element Sum of Squares II}
+\folder{videos/trees/2916-subarrays-distinct-squares-ii} \hfill \badge{mcred}{Hard} $\cdot$ \textbf{Tema:} \texttt{trees} (Lazy Segment Tree)
+
+\begin{shaded}
+\scene{Scene1\_Hook}{Gancho y met\'afora en Minecraft}
+Es el hermano mayor del \#2913: ahora la fila tiene hasta $100\,000$ bloques. En vez de extender un tramo a la vez, usamos un \textbf{\'arbol de bloques (Segment Tree)} que actualiza miles de subarreglos de un solo golpe.
+
+\scene{Scene2\_Problem}{El problema y ejemplo peque\~no (5 bloques)}
+Exactamente la misma pregunta que el \#2913 (suma de los cuadrados del conteo de distintos de todos los subarreglos), pero con $n \le 10^5$ y devolviendo el resultado m\'odulo $10^9 + 7$.
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item \textbf{Ejemplo de 5 bloques:} \texttt{nums = [2, 1, 2, 3, 2]} $\to$ \textbf{Respuesta:} \texttt{65}.
+\end{itemize}
+
+\scene{Scene3\_Brute}{Por qu\'e falla la idea de la Parte I ($O(n^2)$)}
+Con $n = 10^5$, hay $\frac{n(n+1)}{2} \approx 5 \times 10^9$ subarreglos. Recorrerlos uno por uno en $O(n^2)$ rompe el pico.
+
+\scene{Scene4\_Idea}{El truco (Barrido por extremo derecho $r$ + Identidad $(d+1)^2 = d^2 + 2d + 1$)}
+\begin{enumerate}\setlength{\itemsep}{1pt}
+  \item Avanzamos el extremo derecho $r$ de $0$ a $n-1$ y mantenemos un arreglo virtual $d[0..r]$, donde $d[l]$ es la cantidad de distintos en $\texttt{nums}[l..r]$.
+  \item Cuando llega $x = \texttt{nums}[r]$, cuya \'ultima aparici\'on previa fue en el \'indice $p = \text{last}[x]$ (o $-1$ si no hab\'ia salido):
+  \begin{itemize}\setlength{\itemsep}{1pt}
+    \item Si el subarreglo empieza en $l \le p$, ya conten\'ia a $x$, as\'i que $d[l]$ \textbf{no cambia}.
+    \item Si empieza en $l \in [p+1..r]$, $x$ es nuevo para \'el, as\'i que $d[l]$ \textbf{aumenta en $+1$}.
+  \end{itemize}
+  \item Para sumar $+v$ a todo un rango $[a..b]$ en un Segment Tree y mantener tanto $S_1 = \sum d[l]$ como $S_2 = \sum d[l]^2$, usamos el binomio al cuadrado en $O(1)$ por nodo:
+  $$S_2' = \sum_{l=a}^{b} (d[l] + v)^2 = S_2 + 2v \cdot S_1 + (b - a + 1) v^2, \qquad S_1' = S_1 + (b - a + 1) v$$
+\end{enumerate}
+
+\scene{Scene5\_Walk}{Recorrido paso a paso sobre \texttt{nums = [2, 1, 2, 3, 2]}}
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item $r=0$ ($x=2, p=-1$): suma $+1$ en $[0..0] \to d=[1] \to S_2 = 1$ (\texttt{ans = 1}).
+  \item $r=1$ ($x=1, p=-1$): suma $+1$ en $[0..1] \to d=[2, 1] \to S_2 = 4+1 = 5$ (\texttt{ans = 6}).
+  \item $r=2$ ($x=2, p=0$): suma $+1$ en $[1..2] \to d=[2, 2, 1] \to S_2 = 4+4+1 = 9$ (\texttt{ans = 15}).
+  \item $r=3$ ($x=3, p=-1$): suma $+1$ en $[0..3] \to d=[3, 3, 2, 1] \to S_2 = 9+9+4+1 = 23$ (\texttt{ans = 38}).
+  \item $r=4$ ($x=2, p=2$): suma $+1$ en $[3..4] \to d=[3, 3, 2, 2, 1] \to S_2 = 9+9+4+4+1 = 27$ (\texttt{ans = 65}).
+\end{itemize}
+
+\scene{Scene6\_Complexity}{Complejidad}
+\textbf{Tiempo:} $O(n \log n)$. \quad \textbf{Espacio:} $O(n)$ para el Segment Tree y el diccionario \texttt{last}.
+\end{shaded}
+
+\scene{Scene7\_Outro}{C\'odigo en Python y lecci\'on}
+\begin{Verbatim}[frame=single,fontsize=\small]
+class Solution:
+    def sumCounts(self, nums: list[int]) -> int:
+        MOD = 10**9 + 7
+        n = len(nums)
+        s1, s2, lz = [0] * (4 * n), [0] * (4 * n), [0] * (4 * n)
+
+        def apply(u, l, r, v):
+            m = r - l + 1
+            s2[u] = (s2[u] + 2 * v * s1[u] + m * v * v) % MOD
+            s1[u] = (s1[u] + m * v) % MOD
+            lz[u] += v
+
+        def update(u, l, r, ql, qr):
+            if ql <= l and r <= qr:
+                apply(u, l, r, 1)
+                return
+            mid = (l + r) // 2
+            if lz[u]:
+                apply(u * 2, l, mid, lz[u])
+                apply(u * 2 + 1, mid + 1, r, lz[u])
+                lz[u] = 0
+            if ql <= mid:
+                update(u * 2, l, mid, ql, qr)
+            if qr > mid:
+                update(u * 2 + 1, mid + 1, r, ql, qr)
+            s1[u] = (s1[u * 2] + s1[u * 2 + 1]) % MOD
+            s2[u] = (s2[u * 2] + s2[u * 2 + 1]) % MOD
+
+        last, ans = {}, 0
+        for r, x in enumerate(nums):
+            update(1, 0, n - 1, last.get(x, -1) + 1, r)
+            last[x] = r
+            ans = (ans + s2[1]) % MOD
+        return ans
+\end{Verbatim}
+\textbf{Lecci\'on:} \textit{``Un elemento nuevo en $r$ solo incrementa los inicios posteriores a su \'ultima aparici\'on; el binomio $(d+1)^2$ actualiza todos sus cuadrados a la vez.''}
+
+\newpage
+
+% ============================================================================
+% DIA 9: 2026-10-17 - #3551
+% ============================================================================
+\section{2026-10-17 \textbar{} \#3551 Minimum Swaps to Sort by Digit Sum}
+\folder{videos/arrays-hashing/3551-min-swaps-digit-sum} \hfill \badge{mcgold}{Medium} $\cdot$ \textbf{Tema:} \texttt{arrays-hashing} (Cycles)
+
+\begin{shaded}
+\scene{Scene1\_Hook}{Gancho y met\'afora en Minecraft}
+Cada bloque lleva su n\'umero y la suma de sus d\'igitos. Para ordenarlos con el menor n\'umero de intercambios (swaps), seguimos las flechas de ``¿qui\'en va en mi lugar?'' formando ciclos cerrados.
+
+\scene{Scene2\_Problem}{El problema y ejemplo peque\~no (6 bloques)}
+Dado un arreglo \texttt{nums} de enteros positivos distintos, ordenarlo en orden creciente seg\'un la suma de sus d\'igitos (y en caso de empate, el n\'umero menor va primero). Devolver el m\'inimo n\'umero de swaps para lograrlo.
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item \textbf{Ejemplo de 6 bloques:} \texttt{nums = [18, 43, 34, 16, 25, 11]}.
+  \item \textbf{Claves $(\text{suma\_d\'igitos}, x)$:} $18 \to (9,18)$, $43 \to (7,43)$, $34 \to (7,34)$, $16 \to (7,16)$, $25 \to (7,25)$, $11 \to (2,11)$.
+  \item \textbf{Orden destino:} $[11, 16, 25, 34, 43, 18]$ $\to$ \textbf{Respuesta:} \texttt{4} swaps.
+\end{itemize}
+
+\scene{Scene3\_Brute}{La idea directa (Selection Sort cuadr\'atico) y por qu\'e falla}
+Buscar en cada posici\'on $i$ el elemento m\'inimo en $\texttt{nums}[i..n-1]$ escaneando el resto del arreglo toma $O(n^2)$ comparaciones, que para $n = 10^5$ tarda demasiado.
+
+\scene{Scene4\_Idea}{El truco (Descomposici\'on en ciclos de una permutaci\'on)}
+\begin{enumerate}\setlength{\itemsep}{1pt}
+  \item Calculamos en $O(n \log n)$ el arreglo \texttt{order}, donde \texttt{order[i]} es el \'indice original del elemento que debe terminar en la posici\'on $i$.
+  \item Vista como un grafo dirigido $i \to \text{order}[i]$, toda permutaci\'on se descompone en \textbf{ciclos disjuntos}.
+  \item Un ciclo de longitud $L$ se resuelve con exactamente $L - 1$ swaps. As\'i, la respuesta es $\sum (L - 1) = n - (\text{n\'umero de ciclos})$.
+\end{enumerate}
+
+\scene{Scene5\_Walk}{Recorrido paso a paso sobre \texttt{nums = [18, 43, 34, 16, 25, 11]}}
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item \'Indices ordenados por clave: $\texttt{order} = [5, 3, 4, 2, 1, 0]$.
+  \item \textbf{Ciclo 1:} $0 \leftrightarrow 5$ (el $18$ y el $11$ intercambian lugares): longitud $L = 2 \implies 2 - 1 = 1$ swap.
+  \item \textbf{Ciclo 2:} $1 \to 3 \to 2 \to 4 \to 1$ ($43, 16, 34, 25$): longitud $L = 4 \implies 4 - 1 = 3$ swaps.
+  \item \textbf{Total:} $1 + 3 = 4$ swaps. \textit{Advancement Made!}
+\end{itemize}
+
+\scene{Scene6\_Complexity}{Complejidad}
+\textbf{Tiempo:} $O(n \log n)$ para ordenar las claves y $O(n)$ para recorrer los ciclos. \quad \textbf{Espacio:} $O(n)$.
+\end{shaded}
+
+\scene{Scene7\_Outro}{C\'odigo en Python y lecci\'on}
+\begin{Verbatim}[frame=single,fontsize=\small]
+class Solution:
+    def minSwaps(self, nums: list[int]) -> int:
+        def dsum(x: int) -> int:
+            s = 0
+            while x:
+                s += x % 10
+                x //= 10
+            return s
+
+        n = len(nums)
+        order = sorted(range(n), key=lambda i: (dsum(nums[i]), nums[i]))
+        vis = [False] * n
+        swaps = 0
+        for i in range(n):
+            if vis[i] or order[i] == i:
+                continue
+            cycle = 0
+            cur = i
+            while not vis[cur]:
+                vis[cur] = True
+                cur = order[cur]
+                cycle += 1
+            swaps += cycle - 1
+        return swaps
+\end{Verbatim}
+\textbf{Lecci\'on:} \textit{``Cada ciclo de longitud $L$ se arregla en $L-1$ swaps; cuenta los ciclos y tendr\'as el m\'inimo.''}
+
+\newpage
+
+% ============================================================================
+% DIA 10: 2026-10-18 - #1569
+% ============================================================================
+\section{2026-10-18 \textbar{} \#1569 Number of Ways to Reorder Array to Get Same BST}
+\folder{videos/trees/1569-ways-to-reorder-bst} \hfill \badge{mcred}{Hard} $\cdot$ \textbf{Tema:} \texttt{trees} / \texttt{math} (Combinatorics)
+
+\begin{shaded}
+\scene{Scene1\_Hook}{Gancho y met\'afora en Minecraft}
+Insertamos bloques uno por uno para construir un \'Arbol Binario de B\'usqueda (BST). El primer bloque siempre es la ra\'iz, pero los bloques del lado izquierdo y los del lado derecho pueden entrelazarse en el cofre sin cambiar la forma del \'arbol.
+
+\scene{Scene2\_Problem}{El problema y ejemplo peque\~no (5 bloques)}
+Dada una permutaci\'on \texttt{nums} de $1..n$, encontrar cu\'antas reordenaciones distintas de \texttt{nums} producen exactamente el mismo BST al insertarse secuencialmente, m\'odulo $10^9 + 7$ (sin contar el arreglo original).
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item \textbf{Ejemplo de 5 bloques:} \texttt{nums = [3, 4, 5, 1, 2]} (Ra\'iz $3$; izquierda $[1, 2]$; derecha $[4, 5]$).
+  \item \textbf{Respuesta esperada:} \texttt{5} reordenaciones adicionales ($\binom{4}{2} \times 1 \times 1 - 1 = 6 - 1 = 5$).
+\end{itemize}
+
+\scene{Scene3\_Brute}{La idea directa (Generar permutaciones y armar el BST) y por qu\'e falla}
+Probar las $n!$ permutaciones y comparar sus \'arboles toma $O(n! \cdot n \log n)$. Con $n = 1000$, es astron\'omico.
+
+\scene{Scene4\_Idea}{El truco (Divide y vencer\'as + Entrelazado combinatorio $\binom{L+R}{L}$)}
+\begin{enumerate}\setlength{\itemsep}{1pt}
+  \item El primer elemento $r = \texttt{nums}[0]$ \textbf{debe} ir en la posici\'on $0$ para que sea la ra\'iz.
+  \item Separamos el resto manteniendo su orden relativo: $\texttt{left} = [x \in \texttt{nums} : x < r]$ de tama\~no $L$, y $\texttt{right} = [x \in \texttt{nums} : x > r]$ de tama\~no $R$.
+  \item Como todo elemento menor que $r$ cae a la izquierda de la ra\'iz y todo elemento mayor cae a la derecha, las inserciones de \texttt{left} y de \texttt{right} son completamente independientes entre s\'i.
+  \item De las $L + R$ casillas despu\'es de la ra\'iz, podemos elegir cualesquiera $L$ casillas para colocar la secuencia \texttt{left} de $\binom{L + R}{L}$ maneras, y multiplicamos recursivamente por $\text{ways}(\texttt{left}) \times \text{ways}(\texttt{right})$. Al final restamos $1$ por el arreglo original.
+\end{enumerate}
+
+\scene{Scene5\_Walk}{Recorrido paso a paso sobre \texttt{nums = [3, 4, 5, 1, 2]}}
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item Ra\'iz fija: $r = 3$. Subsecuencia izquierda: $\texttt{left} = [1, 2]$ ($L = 2$). Subsecuencia derecha: $\texttt{right} = [4, 5]$ ($R = 2$).
+  \item En $\texttt{left} = [1, 2]$, el $1$ debe ir antes del $2 \implies \text{ways}([1, 2]) = 1$.
+  \item En $\texttt{right} = [4, 5]$, el $4$ debe ir antes del $5 \implies \text{ways}([4, 5]) = 1$.
+  \item Formas de entrelazar $2$ izquierdos y $2$ derechos en $4$ casillas: $\binom{2+2}{2} = \binom{4}{2} = 6$.
+  \item Restamos el arreglo original: $6 - 1 = 5$. \textit{Advancement Made!}
+\end{itemize}
+
+\scene{Scene6\_Complexity}{Complejidad}
+\textbf{Tiempo:} $O(n^2)$ (en cada nodo filtramos a sus descendientes). \quad \textbf{Espacio:} $O(n)$ para las listas de la recursi\'on.
+\end{shaded}
+
+\scene{Scene7\_Outro}{C\'odigo en Python y lecci\'on}
+\begin{Verbatim}[frame=single,fontsize=\small]
+from math import comb
+
+class Solution:
+    def numOfWays(self, nums: list[int]) -> int:
+        MOD = 10**9 + 7
+
+        def dfs(arr: list[int]) -> int:
+            if len(arr) <= 2:
+                return 1
+            root = arr[0]
+            left = [x for x in arr if x < root]
+            right = [x for x in arr if x > root]
+            ways = comb(len(left) + len(right), len(left)) % MOD
+            return ways * dfs(left) % MOD * dfs(right) % MOD
+
+        return (dfs(nums) - 1) % MOD
+\end{Verbatim}
+\textbf{Lecci\'on:} \textit{``Fija la ra\'iz primero y entrelaza los sub\'arboles izquierdo y derecho con $\binom{L+R}{L}$.''}
+
+\newpage
+
+% ============================================================================
+% DIA 11: 2026-10-19 - #2089
+% ============================================================================
+\section{2026-10-19 \textbar{} \#2089 Find Target Indices After Sorting Array}
+\folder{videos/binary-search/2089-find-target-indices} \hfill \badge{mcgreen}{Easy} $\cdot$ \textbf{Tema:} \texttt{binary-search} / \texttt{arrays-hashing}
+
+\begin{shaded}
+\scene{Scene1\_Hook}{Gancho y met\'afora en Minecraft}
+Queremos saber en qu\'e casillas quedar\'an los bloques iguales al \texttt{target} si ordenamos la fila. Pero en lugar de ordenar toda la fila, ¡basta contar cu\'antos bloques son m\'as peque\~nos que el \texttt{target}!
+
+\scene{Scene2\_Problem}{El problema y ejemplo peque\~no (6 bloques)}
+Dado un arreglo \texttt{nums} y un entero \texttt{target}, devolver la lista ordenada de \'indices donde $\texttt{nums}[i] == \texttt{target}$ despu\'es de ordenar \texttt{nums} en orden no decreciente.
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item \textbf{Ejemplo de 6 bloques:} \texttt{nums = [5, 2, 1, 2, 3, 2]}, \texttt{target = 2}.
+  \item \textbf{Respuesta esperada:} \texttt{[1, 2, 3]} (al ordenar queda $[1, \mathbf{2}, \mathbf{2}, \mathbf{2}, 3, 5]$).
+\end{itemize}
+
+\scene{Scene3\_Brute}{La idea directa (Ordenar todo el arreglo en $O(n \log n)$)}
+Llamar a \texttt{nums.sort()} y luego recorrer el arreglo buscando dónde quedó \texttt{target}. Funciona, pero gasta $O(n \log n)$ ordenando elementos mayores que \texttt{target} cuyo orden entre sí no nos importa en absoluto.
+
+\scene{Scene4\_Idea}{El truco (Contar menores e iguales en una sola pasada $O(n)$)}
+\begin{enumerate}\setlength{\itemsep}{1pt}
+  \item En el arreglo ordenado, todos los elementos estrictamente menores que \texttt{target} ocupar\'an las primeras \texttt{less} casillas: los \'indices $0, 1, \dots, \texttt{less} - 1$.
+  \item Justo despu\'es ir\'an todas las copias de \texttt{target}. Si hay \texttt{equal} copias de \texttt{target}, ocupar\'an exactamente los \'indices desde \texttt{less} hasta $\texttt{less} + \texttt{equal} - 1$.
+\end{enumerate}
+
+\scene{Scene5\_Walk}{Recorrido paso a paso sobre \texttt{nums = [5, 2, 1, 2, 3, 2]}, \texttt{target = 2}}
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item Recorremos la fila una vez:
+  \begin{itemize}\setlength{\itemsep}{1pt}
+    \item Menores que $2$: solo el bloque $1 \implies \texttt{less} = 1$.
+    \item Iguales a $2$: tres bloques $\implies \texttt{equal} = 3$.
+  \end{itemize}
+  \item Devolvemos \texttt{list(range(1, 1 + 3))} = \texttt{[1, 2, 3]}. \textit{Advancement Made!}
+\end{itemize}
+
+\scene{Scene6\_Complexity}{Complejidad}
+\textbf{Tiempo:} $O(n)$. \quad \textbf{Espacio auxiliar:} $O(1)$ (sin contar la lista de salida).
+\end{shaded}
+
+\scene{Scene7\_Outro}{C\'odigo en Python y lecci\'on}
+\begin{Verbatim}[frame=single,fontsize=\small]
+class Solution:
+    def targetIndices(self, nums: list[int], target: int) -> list[int]:
+        less = 0
+        equal = 0
+        for x in nums:
+            if x < target:
+                less += 1
+            elif x == target:
+                equal += 1
+        return list(range(less, less + equal))
+\end{Verbatim}
+\textbf{Lecci\'on:} \textit{``Para saber tu lugar en la fila ordenada, solo cuenta cu\'antos van delante de ti.''}
+
+\newpage
+
+% ============================================================================
+% DIA 12: 2026-10-20 - #3886
+% ============================================================================
+\section{2026-10-20 \textbar{} \#3886 Sum of Sortable Integers}
+\folder{videos/arrays-hashing/3886-sum-of-sortable-integers} \hfill \badge{mcred}{Hard} $\cdot$ \textbf{Tema:} \texttt{arrays-hashing} / \texttt{math}
+
+\begin{shaded}
+\scene{Scene1\_Hook}{Gancho y met\'afora en Minecraft}
+Partimos la fila de $n$ bloques en tramos iguales de tama\~no $k$ y podemos girar cada tramo como un carrusel circular. Queremos sumar todos los tama\~nos $k$ que logran dejar toda la fila ordenada.
+
+\scene{Scene2\_Problem}{El problema y ejemplo peque\~no (6 bloques)}
+Dado un arreglo \texttt{nums} de longitud $n$, un divisor $k$ de $n$ es \textit{sortable} si al partir \texttt{nums} en subarreglos consecutivos de longitud $k$ y rotar c\'iclicamente cada uno de forma independiente, todo el arreglo queda en orden no decreciente. Devolver la suma de todos los $k$ v\'alidos.
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item \textbf{Ejemplo de 6 bloques:} \texttt{nums = [2, 3, 1, 5, 6, 4]} ($n = 6$, divisores $k \in \{1, 2, 3, 6\}$).
+  \item \textbf{Respuesta esperada:} \texttt{3} (solo $k = 3$ funciona: $[2,3,1] \to [1,2,3]$ y $[5,6,4] \to [4,5,6]$).
+\end{itemize}
+
+\scene{Scene3\_Brute}{La idea directa (Rotar cada bloque $k$ veces) y por qu\'e falla}
+Para cada divisor $k$, probar las $k$ rotaciones de cada bloque cuesta $O(k^2)$ por bloque, es decir $O(n \cdot k)$ por divisor. Si $k = n = 10^5$, un solo divisor toma $10^{10}$ operaciones.
+
+\scene{Scene4\_Idea}{El truco (A lo sumo 1 ca\'ida circular por bloque + sumas de prefijos)}
+\begin{enumerate}\setlength{\itemsep}{1pt}
+  \item Un bloque $B = \texttt{nums}[s..e]$ puede ordenarse rotando c\'iclicamente \textbf{si y solo si} tiene a lo sumo un descenso al recorrerlo en c\'irculo:
+  \begin{itemize}\setlength{\itemsep}{1pt}
+    \item \textbf{Caso 0 ca\'idas internas} ($\texttt{pref}[e] - \texttt{pref}[s] == 0$): ya est\'a ordenado; su m\'inimo es $\texttt{nums}[s]$ y su m\'aximo es $\texttt{nums}[e]$.
+    \item \textbf{Caso 1 ca\'ida interna} ($\texttt{pref}[e] - \texttt{pref}[s] == 1$) \textbf{y adem\'as} $\texttt{nums}[e] \le \texttt{nums}[s]$: si la \'unica ca\'ida ocurri\'o en el \'indice $p$ (donde $\texttt{nums}[p] > \texttt{nums}[p+1]$), al rotar el bloque su m\'inimo es $\texttt{nums}[p+1]$ y su m\'aximo es $\texttt{nums}[p]$.
+  \end{itemize}
+  \item Adem\'as, entre bloques consecutivos debe cumplirse $\max(\text{bloque anterior}) \le \min(\text{bloque actual})$.
+  \item Precalculando \texttt{pref} (conteo acumulado de ca\'idas) y \texttt{last\_drop} (\'indice de la \'ultima ca\'ida), revisamos cada bloque en $O(1)$, y todos los divisores de $n$ toman en total $\sum_{k \mid n} \frac{n}{k} = O(n \log n)$.
+\end{enumerate}
+
+\scene{Scene5\_Walk}{Recorrido paso a paso sobre \texttt{nums = [2, 3, 1, 5, 6, 4]}}
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item Ca\'idas internas (\texttt{nums[i] > nums[i+1]}): en $i=1$ ($3 > 1$) y en $i=4$ ($6 > 4$).
+  \item $k = 1$: bloques de $1$ elemento; el bloque $1$ vale $3$ y el bloque $2$ vale $1$ ($3 > 1$) $\times$.
+  \item $k = 2$: bloques $[2,3], [1,5], [6,4]$; el primero tiene $\max = 3 > \min([1,5]) = 1$ $\times$.
+  \item $k = 3$: bloque $[2,3,1]$ tiene $1$ ca\'ida en $p=1$ y $1 \le 2 \implies (\min,\max) = (1,3)$; bloque $[5,6,4]$ tiene $1$ ca\'ida en $p=4$ y $4 \le 5 \implies (\min,\max) = (4,6)$; adem\'as $3 \le 4$ $\checkmark$.
+  \item $k = 6$: el bloque entero tiene $2$ ca\'idas internas $\times$. \textbf{Respuesta:} $k = 3$. \textit{Advancement Made!}
+\end{itemize}
+
+\scene{Scene6\_Complexity}{Complejidad}
+\textbf{Tiempo:} $O(n \log n)$ (suma arm\'onica sobre los divisores de $n$). \quad \textbf{Espacio:} $O(n)$.
+\end{shaded}
+
+\scene{Scene7\_Outro}{C\'odigo en Python y lecci\'on}
+\begin{Verbatim}[frame=single,fontsize=\small]
+class Solution:
+    def sortableIntegers(self, nums: list[int]) -> int:
+        n = len(nums)
+        pref = [0] * n
+        last_drop = [-1] * n
+        for i in range(n - 1):
+            drop = 1 if nums[i] > nums[i + 1] else 0
+            pref[i + 1] = pref[i] + drop
+            last_drop[i + 1] = i if drop else last_drop[i]
+
+        def check(k: int) -> bool:
+            prev_max = -1
+            for s in range(0, n, k):
+                e = s + k - 1
+                drops = pref[e] - pref[s]
+                if drops == 0:
+                    b_min, b_max = nums[s], nums[e]
+                elif drops == 1 and nums[e] <= nums[s]:
+                    p = last_drop[e]
+                    b_min, b_max = nums[p + 1], nums[p]
+                else:
+                    return False
+                if prev_max > b_min:
+                    return False
+                prev_max = b_max
+            return True
+
+        return sum(k for k in range(1, n + 1) if n % k == 0 and check(k))
+\end{Verbatim}
+\textbf{Lecci\'on:} \textit{``Un tramo giratorio se ordena si y solo si tiene a lo sumo una ca\'ida circular.''}
+
+\newpage
+
+% ============================================================================
+% DIA 13: 2026-10-21 - #3863
+% ============================================================================
+\section{2026-10-21 \textbar{} \#3863 Minimum Operations to Sort a String}
+\folder{videos/strings/3863-min-ops-sort-string} \hfill \badge{mcgold}{Medium} $\cdot$ \textbf{Tema:} \texttt{strings} (Greedy --- \textit{Ya hecho en \texttt{laptop-videos}})
+
+\begin{shaded}
+\scene{Scene1\_Hook}{Gancho y met\'afora en Minecraft}
+En un paso podemos elegir cualquier tramo de la fila ---\textbf{excepto la fila entera}--- y ordenarlo. Parece un problema de b\'usqueda, pero la respuesta \textbf{nunca pasa de 3}.
+
+\scene{Scene2\_Problem}{El problema y ejemplo del video (4 bloques)}
+Dada una cadena $s$, en una operaci\'on podemos elegir cualquier subcadena propia (longitud $< n$) y ordenarla alfab\'eticamente. Devolver el m\'inimo de operaciones para ordenar $s$, o $-1$ si es imposible.
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item \textbf{Ejemplo del video (\texttt{laptop-videos}):} \texttt{s = "dbca"} (Menas: \texttt{d}$\to$\texttt{diamond}, \texttt{b}$\to$\texttt{lapis}, \texttt{c}$\to$\texttt{coal}, \texttt{a}$\to$\texttt{iron}).
+  \item \textbf{Respuesta esperada:} \texttt{3}.
+\end{itemize}
+
+\scene{Scene3\_Brute}{La idea directa (BFS probando cada subcadena) y por qu\'e falla}
+Probar en anchura ordenar cada una de las $\approx n^2/2$ subcadenas propias en cada nivel. Con $n = 10^5$, el \'arbol de b\'usqueda explota de inmediato.
+
+\scene{Scene4\_Idea}{El truco (Clasificaci\'on exhaustiva en $\{0, -1, 1, 2, 3\}$ usando $\min(s)$ y $\max(s)$)}
+\begin{enumerate}\setlength{\itemsep}{1pt}
+  \item \textbf{0 operaciones:} Si $s$ ya est\'a ordenada.
+  \item \textbf{$-1$ (imposible):} Si $n = 2$ y est\'a desordenada (toda subcadena propia mide $1$, as\'i que ordenarla no hace nada).
+  \item \textbf{1 operaci\'on:} Si la letra menor \texttt{mn = min(s)} ya est\'a en $s[0]$ (ordenamos $s[1:]$) o la letra mayor \texttt{mx = max(s)} ya est\'a en $s[-1]$ (ordenamos $s[:-1]$).
+  \item \textbf{2 operaciones:} Si \texttt{mn} aparece en alg\'un lugar de $s[:-1]$ (ordenamos $s[:-1]$ para llevar \texttt{mn} al inicio, y luego ordenamos $s[1:]$) o si \texttt{mx} aparece en $s[1:]$.
+  \item \textbf{3 operaciones:} En el \'unico caso restante (\texttt{mn} solo aparece al final y \texttt{mx} solo aparece al principio, como en \texttt{"dbca"}), ordenamos $s[:-1]$ para sacar a \texttt{mx} del inicio, luego $s[1:]$ para poner a \texttt{mx} al final y a \texttt{mn} adentro, y finalmente $s[:-1]$.
+\end{enumerate}
+
+\scene{Scene5\_Walk}{Recorrido paso a paso sobre \texttt{s = "dbca"}}
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item ¿Ya ordenada? No. ¿Mide $2$? No ($n = 4$). $\texttt{mn} = \texttt{'a'},\, \texttt{mx} = \texttt{'d'}$.
+  \item ¿Est\'a \texttt{'a'} al inicio o \texttt{'d'} al final? No $\implies$ no basta $1$ operaci\'on.
+  \item ¿Aparece \texttt{'a'} en \texttt{"dbc"} o \texttt{'d'} en \texttt{"bca"}? No $\implies$ no bastan $2$ operaciones.
+  \item \textbf{Las 3 operaciones:} \texttt{"dbc" + "a"} $\to$ \texttt{"bcda"} $\to$ \texttt{"b" + "cda"} $\to$ \texttt{"bacd"} $\to$ \texttt{"bac" + "d"} $\to$ \texttt{"abcd"}. \textit{Advancement Made!}
+\end{itemize}
+
+\scene{Scene6\_Complexity}{Complejidad}
+\textbf{Tiempo:} $O(n)$. \quad \textbf{Espacio:} $O(1)$ (verificando orden con un barrido lineal).
+\end{shaded}
+
+\scene{Scene7\_Outro}{C\'odigo en Python y lecci\'on}
+\begin{Verbatim}[frame=single,fontsize=\small]
+class Solution:
+    def minOperations(self, s: str) -> int:
+        if all(s[i] <= s[i + 1] for i in range(len(s) - 1)):
+            return 0
+        if len(s) <= 2:
+            return -1
+        mn, mx = min(s), max(s)
+        if s[0] == mn or s[-1] == mx:
+            return 1
+        if mn in s[:-1] or mx in s[1:]:
+            return 2
+        return 3
+\end{Verbatim}
+\textbf{Lecci\'on:} \textit{``A veces el mejor algoritmo es una demostraci\'on: solo el m\'inimo y el m\'aximo deciden entre 0, 1, 2 y 3.''}
+
+\newpage
+
+% ============================================================================
+% DIA 14: 2026-10-22 - #3942
+% ============================================================================
+\section{2026-10-22 \textbar{} \#3942 Minimum Operations to Sort a Permutation}
+\folder{videos/arrays-hashing/3942-min-ops-sort-permutation} \hfill \badge{mcgold}{Medium} $\cdot$ \textbf{Tema:} \texttt{arrays-hashing} (Cyclic / Reversal)
+
+\begin{shaded}
+\scene{Scene1\_Hook}{Gancho y met\'afora en Minecraft}
+Tenemos una permutaci\'on de bloques del $0$ al $n-1$ y solo dos palancas: \textbf{rotar un paso a la izquierda} o \textbf{voltear toda la fila al rev\'es}. ¿Cu\'antos movimientos faltan para dejarla ordenada?
+
+\scene{Scene2\_Problem}{El problema y ejemplo peque\~no (5 bloques)}
+Dada una permutaci\'on \texttt{nums} de $0..n-1$, en cada operaci\'on podemos: (1) invertir todo el arreglo (\texttt{Reverse}), o (2) pasar el primer elemento al final (\texttt{Rotate Left by One}). Devolver el m\'inimo de operaciones para llegar a $[0, 1, \dots, n-1]$, o $-1$ si es imposible.
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item \textbf{Ejemplo de 5 bloques:} \texttt{nums = [2, 3, 4, 0, 1]} ($n = 5$, el $0$ est\'a en el \'indice $p = 3$).
+  \item \textbf{Respuesta esperada:} \texttt{3} (en vez de rotar $3$ veces a la izquierda, o adem\'as empatando con $p = 3$; y para \texttt{[1, 0, 4, 3, 2]} con $p = 1$, rotar $2$ veces a $[4,3,2,1,0]$ e invertir en $1$ paso da $3$).
+\end{itemize}
+
+\scene{Scene3\_Brute}{La idea directa (BFS clonando arreglos) y por qu\'e falla}
+Hacer un BFS guardando arreglos de tama\~no $n$ visitados. Aunque solo hay $2n$ estados alcanzables, copiar e invertir arreglos de longitud $n = 10^5$ en cada paso toma $O(n^2)$ tiempo y memoria.
+
+\scene{Scene4\_Idea}{El truco (Geometr\'ia del grupo diedral: solo importan 2 orientaciones del bloque 0)}
+\begin{enumerate}\setlength{\itemsep}{1pt}
+  \item Rotar e invertir nunca alteran la vecindad circular: el arreglo solo tiene soluci\'on si a partir del \'indice $p$ donde est\'a el $0$ sube circularmente ($\texttt{nums}[(p+i)\bmod n] == i$) o baja circularmente ($\texttt{nums}[(p-i)\bmod n] == i$). Si ninguna se cumple, devolvemos $-1$.
+  \item \textbf{Si sube circularmente:}
+  \begin{itemize}\setlength{\itemsep}{1pt}
+    \item Camino A (solo rotar a la izq.): toma $p$ rotaciones.
+    \item Camino B (invertir $\to$ rotar $\to$ invertir): al invertir, la orientaci\'on se voltea; rotamos $(n - p) \bmod n$ veces y volvemos a invertir $\implies$ costo $(n - p) \bmod n + 2$.
+  \end{itemize}
+  \item \textbf{Si baja circularmente (est\'a invertido):}
+  \begin{itemize}\setlength{\itemsep}{1pt}
+    \item Camino C (rotar primero, invertir al final): llevamos el $0$ al \'indice $n-1$ con $(p + 1) \bmod n$ rotaciones a la izquierda y aplicamos $1$ inversi\'on $\implies$ costo $((p + 1) \bmod n) + 1$.
+    \item Camino D (invertir primero, rotar despu\'es): invertimos ($1$ paso, el $0$ pasa a $n - 1 - p$) y hacemos $n - 1 - p$ rotaciones $\implies$ costo $n - p$.
+  \end{itemize}
+\end{enumerate}
+
+\scene{Scene5\_Walk}{Recorrido paso a paso sobre \texttt{nums = [1, 0, 4, 3, 2]} ($n = 5$)}
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item El bloque $0$ est\'a en $p = 1$. Verificamos $\texttt{nums}[(1 - i) \bmod 5] == i$: para $i=0,1,2,3,4$ da $0, 1, 2, 3, 4$ $\checkmark$ (orientaci\'on invertida).
+  \item Camino C (rotar y luego invertir): $((1 + 1) \bmod 5) + 1 = 3$ operaciones.
+  \item Camino D (invertir y luego rotar): $5 - 1 = 4$ operaciones.
+  \item M\'inimo: $\min(3, 4) = 3$. \textit{Advancement Made!}
+\end{itemize}
+
+\scene{Scene6\_Complexity}{Complejidad}
+\textbf{Tiempo:} $O(n)$. \quad \textbf{Espacio:} $O(1)$.
+\end{shaded}
+
+\scene{Scene7\_Outro}{C\'odigo en Python y lecci\'on}
+\begin{Verbatim}[frame=single,fontsize=\small]
+class Solution:
+    def minOperations(self, nums: list[int]) -> int:
+        n = len(nums)
+        if n <= 1:
+            return 0
+        p = nums.index(0)
+        ans = float("inf")
+        if all(nums[(p + i) % n] == i for i in range(n)):
+            ans = min(ans, p, (n - p) % n + 2)
+        if all(nums[(p - i) % n] == i for i in range(n)):
+            ans = min(ans, (p + 1) % n + 1, n - p)
+        return -1 if ans == float("inf") else ans
+\end{Verbatim}
+\textbf{Lecci\'on:} \textit{``Dos inversiones seguidas se cancelan: toda ruta \'optima usa a lo sumo una o dos inversiones.''}
+
+\newpage
+
+% ============================================================================
+% DIA 15: 2026-10-23 - #3644
+% ============================================================================
+\section{2026-10-23 \textbar{} \#3644 Maximum K to Sort a Permutation}
+\folder{videos/bit-manipulation/3644-max-k-sort-permutation} \hfill \badge{mcgold}{Medium} $\cdot$ \textbf{Tema:} \texttt{bit-manipulation} (\textit{Ya hecho en \texttt{main}})
+
+\begin{shaded}
+\scene{Scene1\_Hook}{Gancho y met\'afora en Minecraft}
+Siete bloques de mena del $0$ al $6$ revueltos, cada uno con tres l\'amparas de redstone debajo mostrando sus bits. Solo podemos intercambiar dos bloques cuando su \texttt{AND} bit a bit es exactamente $k$.
+
+\scene{Scene2\_Problem}{El problema y ejemplo del video (7 bloques)}
+Dada una permutaci\'on \texttt{nums} de $0..n-1$, podemos intercambiar $\texttt{nums}[i]$ y $\texttt{nums}[j]$ solo si $(\texttt{nums}[i] \text{ AND } \texttt{nums}[j]) == k$. Devolver el m\'aximo $k$ que permite ordenar todo el arreglo (o $0$ si ya est\'a ordenado).
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item \textbf{Ejemplo del video (\texttt{main}):} \texttt{nums = [0, 3, 2, 5, 4, 1, 6]}.
+  \item \textbf{Bloques fuera de lugar ($\texttt{nums}[i] \neq i$):} $3$ ($011_2$), $5$ ($101_2$) y $1$ ($001_2$).
+  \item \textbf{Respuesta esperada:} $k = 3 \text{ AND } 5 \text{ AND } 1 = 1$.
+\end{itemize}
+
+\scene{Scene3\_Brute}{La idea directa (Probar cada $k$ y cada par de bloques) y por qu\'e falla}
+Probar cada valor de $k$ desde $n-1$ hacia abajo y para cada uno revisar los $\binom{n}{2}$ pares para armar componentes conexas cuesta $O(n^3)$. En el ejemplo de $7$ bloques ya son $6 \times 21 = 126$ chequeos y el pico se rompe.
+
+\scene{Scene4\_Idea}{El truco (El AND acumulado de los bloques fuera de lugar)}
+\begin{enumerate}\setlength{\itemsep}{1pt}
+  \item Todo bloque fuera de casa ($\texttt{nums}[i] \neq i$) \textbf{tiene que moverse}, as\'i que debe participar en al menos un swap.
+  \item Para que un bloque $x$ participe en un swap $x \text{ AND } y = k$, todos los bits encendidos de $k$ deben estar encendidos en $x$ (es decir, $k$ es subconjunto de los bits de $x$).
+  \item Por tanto, $k$ debe caber dentro de \textbf{todos} los bloques descolocados. El mayor $k$ que cumple eso es el \texttt{AND} bit a bit de todos los $x$ con $\texttt{nums}[i] \neq i$ (y siempre es alcanzable usando al propio bloque $k$ como pivote).
+\end{enumerate}
+
+\scene{Scene5\_Walk}{Recorrido paso a paso sobre \texttt{nums = [0, 3, 2, 5, 4, 1, 6]}}
+\begin{itemize}\setlength{\itemsep}{1pt}
+  \item El panel de l\'amparas arranca totalmente encendido ($\texttt{ans} = -1$, todos los bits en $1$).
+  \item $i=0$ ($0$): en casa, se salta.
+  \item $i=1$ ($3 = 011_2$): fuera de lugar $\implies \texttt{ans} = 011_2 = 3$ (se apaga la l\'ampara de $4$).
+  \item $i=2$ ($2$): en casa, se salta.
+  \item $i=3$ ($5 = 101_2$): fuera de lugar $\implies \texttt{ans} = 011_2 \text{ AND } 101_2 = 001_2 = 1$ (se apaga la l\'ampara de $2$).
+  \item $i=4$ ($4$): en casa. $i=5$ ($1 = 001_2$): fuera de lugar $\implies \texttt{ans} = 001_2 \text{ AND } 001_2 = 1$.
+  \item $i=6$ ($6$): en casa. \textbf{Respuesta:} $k = 1$. \textit{Advancement Made!}
+\end{itemize}
+
+\scene{Scene6\_Complexity}{Complejidad}
+\textbf{Tiempo:} $O(n)$ (una pasada y un \texttt{AND} por bloque). \quad \textbf{Espacio:} $O(1)$.
+\end{shaded}
+
+\scene{Scene7\_Outro}{C\'odigo en Python y lecci\'on}
+\begin{Verbatim}[frame=single,fontsize=\small]
+class Solution:
+    def sortPermutation(self, nums: list[int]) -> int:
+        ans = -1
+        for i, x in enumerate(nums):
+            if x != i:
+                ans &= x
+        return max(ans, 0)
+\end{Verbatim}
+\textbf{Lecci\'on:} \textit{``Solo los bloques fuera de lugar deciden $k$: su AND com\'un es la respuesta.''}
+
+\end{document}

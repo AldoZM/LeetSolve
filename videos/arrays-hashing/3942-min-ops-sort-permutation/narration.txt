@@ -1,0 +1,21 @@
+subtitles:
+- Minimum Operations to Sort a Permutation, Minecraft edition. LeetCode problem thirty nine forty two, with only two levers.
+- Six ore blocks, numbered zero to five. We want them in order, but we only get two levers.
+- The first lever reverses the whole row. The second one rotates it left, moving the first block to the end.
+- Find the fewest pulls that sort the row, or return minus one if it can't be done. Here, the answer is three.
+- The direct idea is a breadth first search over every row we can reach.
+- Each pull copies the whole row, and there are up to two n different rows to visit.
+- That's n squared work. With a hundred thousand blocks, it's ten billion steps, and the pickaxe breaks.
+- Here's the trick. Reversing and rotating never break the circle. Neighbors always stay neighbors.
+- So the row must be the sorted circle, read forwards or backwards. If not, the answer is minus one.
+- And then there are only four plans worth trying. We just count the cost of each one.
+- Let's walk it. First we find block zero. It sits at index five.
+- Reading the circle forwards from zero, we get zero, one, two, three, four, five. The circle holds forwards, so we compare the two forward plans.
+- Plan one is to just rotate. Zero needs five pulls to reach the front.
+- Plan two flips first. Reverse, and zero lands at the front, but the row runs backwards.
+- Rotate once, and the row reads five down to zero. Reverse again, and it's sorted.
+- Advancement made. Three pulls beat five. The answer is three.
+- We read the row once to find zero and check the circle. That's linear time.
+- And we only keep a few numbers, so the extra space is constant.
+- Find zero, check both directions, and take the cheapest plan.
+- When the moves keep the shape, you don't search, you count. That's the big lesson of this problem.

@@ -1,0 +1,228 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import { THREE, prog, easeInOut, easeOut, easeOutBack, lerp, V, bezier, pose, mixPose } from '/vendor/lib/stage.js';
+import { MC, loadTheme, makeWorld, makeTerrain, makeBlock, makeFrame, makeSign, pixelSprite, makeOrb, makeClouds } from '/vendor/tema/mc.js';
+import { loadMobs, planLife, makeLife, setTime } from '/vendor/tema/vida.js';
+
+const walk = await (await fetch('/walk.json')).json();
+// One clip for the whole video: times are absolute. The walk happens in [W0, W1]; the rest is a slow roam that
+// ends where it starts, so the video still loops.
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const seg = (i) => subs[i].start_s;
+const TOTAL = subs[subs.length - 1].end_s;
+const W0 = seg(walk.first), W1 = subs[walk.last].end_s;
+const at = (spec) => seg(spec[0]) + spec[1];
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'planks', 'leaves', 'log_side', 'log_top',
+                              ...walk.ores.map((o) => `${o}_ore`)]);
+
+const N = walk.nums.length;
+const T = { find: at(walk.find), found: at(walk.found), reads: walk.reads.map(at), holds: at(walk.holds),
+            compare: at(walk.compare), plan1: at(walk.plan1_t), plan1Cost: at(walk.plan1_cost), plan2: at(walk.plan2_t),
+            sorted: at(walk.sorted), toast: at(walk.toast), beat: at(walk.beat) };
+const MOVE = 0.8;
+const moves = walk.moves.map((m) => ({ ...m, T: at(m.t) }));
+const rows = [walk.nums, ...walk.moves.map((m) => m.after)];
+const oreOf = Object.fromEntries(walk.nums.map((v, i) => [v, walk.ores[i]]));
+
+const world = makeWorld({ fov: 40, offset: 0.34, fog: [55, 120] });
+const { scene } = world;
+// Stepped hills west of spawn (see mundos/lugares.json); the plot reaches the camera so no dirt wall shows in front
+const terrain = await makeTerrain('/vendor/tema/mundos/west-hills.json', { turn: 1.9635, plot: [-12, 12, -2, 20], clear: [-10, 10, 7, 24] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+// Dawn on the hills: farm animals grazing between the steps
+const LIFE = [{ kind: 'cow', count: 2, graze: 1 }, { kind: 'sheep', count: 2, graze: 1 }, { kind: 'pig', count: 2 },
+              { kind: 'chicken', count: 2 }];
+await loadMobs(imgs, LIFE.map((g) => g.kind));
+const dark = await setTime(world, 'dawn', { terrain, clouds, imgs });
+const life = makeLife(imgs, terrain, planLife(terrain, LIFE, { seed: 3942 }), TOTAL, dark);
+scene.add(life.g);
+// Everything of the walk lives in its own group, hidden outside the walk
+const stage = new THREE.Group();
+scene.add(stage);
+
+const SP = 1.2;
+const bx = (i) => (i - (N - 1) / 2) * SP;
+const G0 = terrain.groundAt(0, 0);
+// One block per value; where it stands is worked out from the rows before and after each pull
+const blocks = Object.fromEntries(walk.nums.map((v) => {
+  const b = makeBlock(imgs, `${oreOf[v]}_ore`, { label: v });
+  stage.add(b.g);
+  return [v, b];
+}));
+const idx = walk.nums.map((_, i) => {
+  const s = pixelSprite(String(i), MC.gray, 0.5);
+  s.position.set(bx(i), G0 + 1.38, 0);  // above the block, so it never covers a face
+  stage.add(s);
+  return s;
+});
+
+function placeOf(v, t) {
+  // [x, lift, z] of value v at time t
+  let k = 0;
+  while (k < moves.length && t >= moves[k].T + MOVE) k++;
+  const from = bx(rows[k].indexOf(v));
+  if (k === moves.length || t < moves[k].T) return [from, 0, 0];
+  const to = bx(rows[k + 1].indexOf(v));
+  const f = easeInOut(prog(t, moves[k].T, moves[k].T + MOVE));
+  const jump = moves[k].kind === 'reverse' ? 0.35 + 0.22 * Math.abs(to - from)
+    : (rows[k].indexOf(v) === 0 ? 2.2 : 0.12);
+  // In a reversal the two halves cross: blocks going right pass behind, blocks going left in front
+  const side = moves[k].kind === 'reverse' ? -0.75 * Math.sign(to - from) : 0;
+  return [lerp(from, to, f), jump * Math.sin(Math.PI * f), side * Math.sin(Math.PI * f)];
+}
+
+// The game's block outline on the block being looked at
+const frame = makeFrame();
+stage.add(frame);
+const goldFrames = walk.nums.map(() => { const f = makeFrame(1.06, 0.045, MC.gold); stage.add(f); return f; });
+
+// The wrap of the circle: a dotted arc from the last slot back over the row to the first one
+const DOTS = 22;
+const dotMat = new THREE.MeshBasicMaterial({ color: MC.yellow, toneMapped: false, transparent: true });
+const dots = Array.from({ length: DOTS }, (_, k) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.12), dotMat);
+  const u = k / (DOTS - 1);
+  m.position.copy(bezier(V(bx(N - 1), G0 + 1.15, 0), V(0, G0 + 3.0, -0.6), V(bx(0), G0 + 1.15, 0), u));
+  stage.add(m);
+  return m;
+});
+
+// Plan one: five left arrows from zero's slot to the front
+const arrows = Array.from({ length: walk.plan1 }, (_, k) => {
+  const s = pixelSprite('<', MC.yellow, 0.55);
+  s.position.set(bx(walk.p - 1 - k) + 0.35, G0 + 1.55, 0);
+  stage.add(s);
+  return s;
+});
+
+// Two signs count the pulls of each plan
+// On the grass, without posts, so they stay under the row in the frame
+const signAt = (x) => V(x, G0 + 0.5, 3.4);
+const plan1Signs = [['plan 1', '?'], ['plan 1', `${walk.plan1} pulls`]].map((l) => { const s = makeSign(imgs, l, { w: 1.7, h: 0.85, post: false }); stage.add(s); return s; });
+const plan2Signs = [['plan 2', '?'], ...moves.map((_, k) => ['plan 2', `${k + 1} pull${k ? 's' : ''}`])]
+  .map((l) => { const s = makeSign(imgs, l, { w: 1.7, h: 0.85, post: false }); stage.add(s); return s; });
+
+// Experience orbs over the sorted row
+let seed = 3942;
+const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+const orbs = Array.from({ length: 24 }, (_, k) => {
+  const o = makeOrb(imgs, 0.32, [1, 2, 4, 5, 6][k % 5]);
+  o.userData = { from: k % N, vx: (rnd() - 0.5) * 2.4, vy: 2.6 + rnd() * 2.0, vz: (rnd() - 0.4) * 1.6, delay: rnd() * 0.35 };
+  stage.add(o);
+  return o;
+});
+stage.traverse((o) => { if (o.isSprite) o.renderOrder = 10; });
+
+function frameX(t) {
+  // Scans the row for zero, then follows the reading of the circle
+  let x = lerp(bx(0), bx(walk.p), easeInOut(prog(t, T.find, T.found)));
+  T.reads.forEach((r, v) => { x = lerp(x, bx(rows[0].indexOf(v)), easeInOut(prog(t, r - 0.2, r))); });
+  return x;
+}
+
+function renderAt(t) {
+  // Walk camera: wide front view with a slow drift, a small push in at the answer
+  const push = easeInOut(prog(t, T.toast - 0.3, T.toast + 0.8));
+  const sway = 0.5 * Math.sin(t * 0.35);
+  const walkPose = pose(V(sway, lerp(6.6, 6.3, push), lerp(15.0, 14.3, push)), V(sway * 0.4, 1.6, 0.0));
+  // Roam camera: one slow loop over the meadow for the whole video
+  const a = 2 * Math.PI * t / TOTAL;
+  const roamPose = pose(V(6 * Math.sin(a), 3.4 + 0.8 * Math.sin(2 * a), 13 + 2.5 * Math.cos(a)), V(3 * Math.sin(a), 4.2, -30));
+  const k = easeInOut(prog(t, W0 - 1.6, W0 - 0.1)) * (1 - easeInOut(prog(t, W1 + 0.1, W1 + 1.6)));
+  const cam = mixPose(roamPose, walkPose, k);
+  world.look(cam.pos, cam.look);
+  // The walk keeps its content high in the frame (the overlay uses the bottom); the roam shows more sky
+  world.camera.setViewOffset(world.W, world.H, 0, world.H * lerp(0.12, 0.34, k), world.W, world.H);
+  clouds.position.x = 4 * Math.sin(a);
+  life.update(t);
+  stage.visible = t < W1;
+
+  // Blocks: they drop in at the start of the walk, then follow the pulls of plan two
+  walk.nums.forEach((v, i) => {
+    const b = blocks[v];
+    const d = prog(t, W0 + 0.12 * i, W0 + 0.12 * i + 0.55);
+    const fall = d < 1 ? (1 - d) * (1 - d) * 4.5 : 0;
+    const [x, lift, z] = placeOf(v, t);
+    let glow = 0;
+    const r = T.reads[v];
+    if (t >= r - 0.1 && t < T.holds + 0.6) glow = 0.12 + 0.2 * Math.sin(Math.PI * prog(t, r - 0.1, r + 0.4));
+    if (t >= T.holds && t < T.holds + 0.6) glow = Math.max(glow, 0.35 * Math.sin(Math.PI * prog(t, T.holds, T.holds + 0.6)));
+    const win = prog(t, T.sorted, T.sorted + 0.4);
+    glow = Math.max(glow, 0.3 * win + 0.12 * Math.sin(t * 6) * win);
+    b.g.position.set(x, G0 + 0.5 + fall + lift, z);
+    b.g.visible = d > 0;
+    b.set({ glow, opacity: d > 0 ? 1 : 0 });
+    goldFrames[i].visible = win > 0.01;
+    goldFrames[i].position.copy(b.g.position);
+    goldFrames[i].userData.mat.opacity = win;
+    // Indices matter for finding zero; they leave when the signs come in
+    idx[i].material.opacity = prog(t, W0 + 0.6 + 0.1 * i, W0 + 1.0 + 0.1 * i) * (1 - prog(t, T.compare - 0.3, T.compare));
+    const big = i === walk.p ? Math.sin(Math.PI * prog(t, T.found, T.found + 0.7)) : 0;
+    idx[i].setSize(1 + 0.6 * big);
+    idx[i].material.color.set(big > 0.05 ? MC.yellow : 0xffffff);
+  });
+
+  // Selection frame: finding zero and reading the circle
+  frame.visible = t >= T.find && t < T.holds + 0.2;
+  frame.position.set(frameX(t), G0 + 0.5, 0);
+
+  // The wrap of the circle draws itself when the reading jumps from the last slot to the first one
+  const w = prog(t, T.reads[1] - 0.5, T.reads[1] + 0.2) * (1 - prog(t, T.plan1 - 0.3, T.plan1));
+  dots.forEach((m, j) => { m.visible = j < Math.round(w * DOTS) && w > 0; });
+  dotMat.opacity = 0.9;
+
+  // Plan one: zero's five pulls to the front, shown and then put away
+  arrows.forEach((s, j) => {
+    const a2 = prog(t, T.plan1Cost + 0.15 * j, T.plan1Cost + 0.15 * j + 0.2) * (1 - prog(t, T.plan2 - 0.4, T.plan2));
+    s.visible = a2 > 0.01;
+    s.material.opacity = a2;
+  });
+
+  // Signs: plan one gets its count, plan two counts its pulls as they happen
+  const sIn = easeOutBack(prog(t, T.compare, T.compare + 0.5));
+  const p1 = t >= T.plan1Cost ? 1 : 0;
+  plan1Signs.forEach((s, j) => {
+    s.visible = sIn > 0.001 && j === p1;
+    s.scale.setScalar(Math.max(sIn, 1e-4));
+    s.position.copy(signAt(-1.9));
+  });
+  let done = 0;
+  for (const m of moves) if (t >= m.T + MOVE * 0.5) done++;
+  const beat = Math.sin(Math.PI * prog(t, T.beat, T.beat + 0.6));
+  plan2Signs.forEach((s, j) => {
+    s.visible = sIn > 0.001 && j === done;
+    s.scale.setScalar(Math.max(sIn, 1e-4) * (1 + 0.18 * beat));
+    s.position.copy(signAt(1.9));
+  });
+
+  // Orbs: a short ballistic burst from the sorted row
+  for (const o of orbs) {
+    const { from, vx, vy, vz, delay } = o.userData;
+    const u = t - (T.toast + delay);
+    o.visible = u > 0 && u < 1.6;
+    if (!o.visible) continue;
+    const y = G0 + 1.35 + vy * u - 4.5 * u * u;
+    o.position.set(bx(from) + vx * u, Math.max(y, G0 + 0.1), vz * u);
+    o.tint(t + delay);
+    o.material.opacity = 1 - prog(u, 1.2, 1.6);
+  }
+
+  world.draw(t, TOTAL, 0, 0);
+}
+
+window.renderAt = renderAt;
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>
