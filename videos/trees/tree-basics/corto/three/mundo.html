@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import { THREE, lerp, V, pose } from '/vendor/lib/stage.js';
+import { loadTheme, makeWorld, makeTerrain, makeClouds } from '/vendor/tema/mc.js';
+import { loadMobs, planLife, makeLife, setTime } from '/vendor/tema/vida.js';
+
+// The teaser has no 3D walk: the same place as the full guide, with its mobs, behind every scene.
+// One slow camera loop that ends where it starts, so the video loops.
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const TOTAL = subs[subs.length - 1].end_s;
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'planks', 'leaves', 'log_side', 'log_top']);
+
+const world = makeWorld({ fov: 40, offset: 0.12, fog: [55, 120] });
+const { scene, camera } = world;
+const terrain = await makeTerrain('/vendor/tema/mundos/birch-grove.json', { turn: 0.7854, plot: [-12, 12, -2, 20], clear: [-10, 10, 7, 24] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+const LIFE = [{ kind: 'sheep', count: 3, graze: 1 }, { kind: 'cow', count: 2, graze: 1 }, { kind: 'chicken', count: 3 },
+              { kind: 'wolf', count: 1 }];
+await loadMobs(imgs, LIFE.map((g) => g.kind));
+const light = await setTime(world, 'day', { terrain, clouds, imgs });
+const life = makeLife(imgs, terrain, planLife(terrain, LIFE, { seed: 77 }), TOTAL, light);
+scene.add(life.g);
+
+function renderAt(t) {
+  const a = 2 * Math.PI * t / TOTAL;
+  const roam = pose(V(6 * Math.sin(a), 3.4 + 0.8 * Math.sin(2 * a), 13 + 2.5 * Math.cos(a)), V(3 * Math.sin(a), 4.2, -30));
+  world.look(roam.pos, roam.look);
+  camera.setViewOffset(world.W, world.H, 0, world.H * 0.12, world.W, world.H);
+  clouds.position.x = 4 * Math.sin(a);
+  life.update(t);
+  world.draw(t, TOTAL, 0, 0);
+}
+
+window.renderAt = renderAt;
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

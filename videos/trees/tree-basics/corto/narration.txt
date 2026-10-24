@@ -1,0 +1,14 @@
+subtitles:
+- Every tree problem on LeetCode is the same five lines of code. Here's the picture behind them.
+- Take the shears, and cut the rod between eight and three.
+- What falls is three, with one and six. That's a complete tree on its own, and three is its root.
+- Every child is the root of its own subtree. A tree is a block, plus a left tree, plus a right tree.
+- Now recursion, where most people get lost. This function adds up every value in the tree.
+- Stand on one block, and follow three rules.
+- Rule one. If the node is None, return zero. Every barrier sends back a zero.
+- Rule two. Trust your two links. Ask the left subtree for its sum, then the right one.
+- Rule three. Combine, and send it up. Three plus one plus six is ten, and ten goes up to the root.
+- The right side sends up thirty seven. Eight adds itself, and the whole tree comes to fifty five.
+- Change only the last line, and you solve a different problem.
+- Return one plus the bigger side, and you get the maximum depth. That's LeetCode one oh four.
+- The full guide, with traversals, queues and search trees, is on the channel.

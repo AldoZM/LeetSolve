@@ -1,0 +1,4 @@
+{"tema": "minecraft-original", "formato": "9:16", "comun": ["../comun.py"],
+ "groups": [["Scene1_Hook", [0]], ["Scene2_Cut", [1, 2, 3]], ["Scene3_Recursion", [4, 5, 6, 7, 8, 9]],
+            ["Scene4_Secret", [10, 11]], ["Scene5_Outro", [12]]],
+ "fondo": {"page": "three/mundo.html", "sharp": []}}

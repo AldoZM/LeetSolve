@@ -52,6 +52,13 @@ Detalles aprendidos en el #297:
   - Se activa con `"formato": "9:16"` en `video.json`. Sin esa clave, el video sale en 3:4 como antes.
   - `makeWorld` mantiene igual la franja central: las páginas 3D no cambian. Si una página convierte coordenadas de Manim a 3D (`unproject`), debe multiplicar la y por `world.ndcY` (como `slotPoint` en #102 y #297).
 - Narración en inglés con la voz madura clonada (ver "Voz humana con IA"; antes, `af_heart` de Kokoro). Duración: la que pida la explicación, siempre menos de 3 minutos y sin estirarla para llenarlos (Aldo, 2026-10-23). Los videos anteriores duran de 85 a 120 s.
+- **Formato horizontal 16:9 (desde 2026-10-24, para videos largos de YouTube):** `"formato": "16:9"` en `video.json`.
+  - Las escenas son de 1920 × 1080, con un cuadro de 16 × 9 unidades (x de -8 a 8, y de -4.5 a 4.5). Cada unidad mide 120 px, como en el vertical. Los encabezados van en `TOP_Y = 3.95`.
+  - El mundo 3D se renderiza también a 1920 × 1080.
+  - Lo que se diseñó para el vertical se ve chico en 16:9: árboles con bloques de 0.95 a 1.2, texto de 44 a 60 y código de 7.4 a 7.8 de ancho.
+  - En las partes 3D, el contenido va en los dos tercios de la izquierda y el texto en una columna a la derecha (x de 2.3 a 7.8).
+  - Ejemplo: `trees/tree-basics/largo`.
+- **Un video en dos formatos:** dos carpetas hermanas (`largo/` y `corto/`) y un `comun.py` en la carpeta de arriba, que `video.json` agrega con `"comun": ["../comun.py"]`. Las líneas de narración idénticas reutilizan la voz si se copia el `.tts-cache/` del largo al corto.
 - La narración no menciona fechas relativas ("today", "yesterday", "daily challenge"): el video debe servir en cualquier fecha. Ver `INSTRUCCIONES_IA.md`, 3.3.
 - Mientras se resuelve el ejercicio, el código se muestra a la par y una barra resalta la línea que se está ejecutando.
 - Loop: el último cuadro es igual al primero. La portada (`cover()`) se dibuja igual en `Scene1_Hook` y al final de `Scene7_Outro`.

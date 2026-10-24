@@ -4,6 +4,39 @@ Registro de lo que se hizo en cada sesión, de la más reciente a la más antigu
 
 ## 2026-10-24
 
+### Guía de árboles en dos formatos (`videos/trees/tree-basics/`), sin terminar
+
+- AGY escribió el guion visual `GUION_VISUAL_ARBOLES.md`. En la revisión:
+  - Los datos estaban bien (recorridos y búsqueda verificados a mano).
+  - Era demasiado largo para un Short (5 a 7 min).
+  - El resumen del #124 estaba mal.
+  - El código estaba en español.
+  - Faltaba el gancho.
+  - Varios objetos eran inventados.
+- Aldo pidió dos formatos:
+  - Uno **horizontal (16:9) para YouTube**, completo.
+  - Uno **vertical (9:16)** como gancho, con partes del largo, que invite a ver el video completo.
+- Nuevo en el pipeline:
+  - `"formato": "16:9"` en `video.json`: escenas de 1920 × 1080 con cuadro de 16 × 9 (120 px por unidad, igual que el vertical) y el mundo 3D del mismo tamaño. `TOP_Y = 3.95`.
+  - `"comun": ["../comun.py"]` pega código compartido antes de `scenes.py`. Lo usan los dos formatos: el árbol, `Tree2D`, `TokenLine`, `words_at` y `orb_num`.
+  - `mc.js`: color `MC.pink`.
+  - `extraer.py`, objetos reales del juego: `shears`, `lead`, `hopper`, `oak_sapling` y `compass`.
+  - `extraer.py`, sonidos: `shear` (trasquilar) y `lead_tie` (rienda).
+  - Lugar nuevo `birch-grove` (era `mac-10`, MacEntorno), de día, con ovejas, vacas, gallinas y un lobo.
+- **Largo** (`largo/`, 63 líneas, 6:23):
+  - Voz generada (sin silencios de más de 0.45 s), linter sin problemas en 11 escenas y escenas de Manim renderizadas.
+  - Tres partes en 3D nítido:
+    - La anatomía: el árbol de menas se arma y un glosario se llena a la derecha.
+    - El DFS: un orbe amarrado con la rienda rodea el árbol y repite los recorridos preorden, inorden y postorden al ritmo de la voz.
+    - El árbol de búsqueda: el 6 cae por la tolva y el árbol se vuelve escalera.
+  - Para que el árbol resalte sobre el bosque, la niebla se acerca en esas partes.
+  - Revisado con hojas de cuadros y corregido: todo estaba chico para 16:9, había etiquetas fuera del cuadro y el subárbol se caía de la pantalla.
+- **Corto** (`corto/`, 13 líneas, unos 74 s):
+  - Hechos: narración, `video.json`, `scenes.py` y `three/mundo.html` (paseo con mobs).
+  - Falta la voz: 8 de sus líneas son iguales a las del largo y ya están en su `.tts-cache` (copiado).
+- Las dos `descripcion.txt` están escritas (100 y 97 caracteres).
+- **Se detuvo a petición de Aldo**, en la composición. En esta Mac ya están el clip 3D completo (`largo/media/three/fondo.mp4`) y la composición de las escenas 1 a 4. Los siguientes pasos están en `videos/trees/tree-basics/PARA_AGY.md`.
+
 ### `descripcion.txt` en todos los videos
 
 - Aldo pidió que todos los videos tengan su descripción. Se escribió `descripcion.txt` en los 18 que no la tenían (#1 a #9, #16 a #19, #60, #102, #124, #297 y #2089), con el mismo formato y el título exacto de LeetCode. Ahora los 22 la tienen.
@@ -288,6 +321,7 @@ Registro de lo que se hizo en cada sesión, de la más reciente a la más antigu
 
 ## Pendientes
 
+- **Guía de árboles (`videos/trees/tree-basics/`):** terminar el largo (16:9) y hacer el corto (9:16). Pasos en `videos/trees/tree-basics/PARA_AGY.md`.
 - **Nether (siguiente paso, idea de Aldo):** agregar lugares del Nether para tener más variedad en el mundo. `mundo.py` ya conoce la carpeta `dimensions/minecraft/the_nether` (el zip la trae); falta: que `export` lea esa dimensión, las texturas propias (netherrack, basalto, soul sand, lava, hongos, nether wart blocks), el cielo/niebla del Nether en `setTime` (sin sol ni nubes, niebla roja) y mobs del Nether (piglins, hoglins, ghasts, strider) en `vida.js`. La lava y los bloques brillantes necesitan luz propia. Luego buscar lugares con el escáner (sin heightmaps de superficie útiles: hay techo de bedrock, así que hay que buscar el piso por columnas).
 - **Videos del plan de AGY que faltan** (uno a la vez): #2089 (listo para renderizar), #1569, #3551, #2916, #2913, #3723, #3727, #2897, #2778, #2333 y #1541. #3863 ya está en la rama `laptop-videos`. El plan con el contenido de cada uno está en `DIARIOS_2_SEMANAS.tex`/`.pdf` (de AGY); revisar con fuerza bruta cada código antes de usarlo y corregir lo que se vio en la revisión (narración, código largo, ejemplos).
 - Subir `MacEntorno` comprimido a `mundos/MacEntorno.zip` (sin `players/`) para poder volver a exportar sus lugares en otra PC.

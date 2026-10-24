@@ -1,0 +1,64 @@
+subtitles:
+- Trees confuse a lot of programmers. By the end of this video, every tree problem will look like the same five lines of code.
+- So far we've kept things in a row. Each block only knows the one before it and the one after it.
+- But a lot of real data doesn't line up. A folder holds more folders. One choice opens more choices.
+- Here's a project folder. Inside it, code and assets. And inside assets, textures and sounds.
+- One thing splits into several. That's a tree. We draw it upside down, with the root on top and the leaves at the bottom.
+- Let's build the tree we'll use for the whole video. Seven ore blocks, joined by wooden rods.
+- The top block, eight, is the root. It's the only way in. Hold the root, and you can reach every block.
+- Each rod joins a parent to a child. Three has two children, one on its left and one on its right.
+- This is a binary tree. Every block has at most two children, a left one and a right one.
+- The golden rule. A block can have many children, but only one parent. And no rod ever loops back up.
+- So from the root, there's exactly one path to any block.
+- Blocks with no children are leaves. One, six, and thirteen.
+- And here's the part people skip. Under every missing child, there's nothing. In Python, that's None.
+- We'll mark every None with a barrier. Remember these barriers. They're where the code stops.
+- Each row is a level. The depth of a block is how many rods you go down from the root. Fourteen has depth two.
+- The height of the tree counts the rods on the longest way down. From eight to thirteen, that's three.
+- Now the most important idea of all. Take the shears, and cut the rod between eight and three.
+- What falls is three, with one and six. That's a complete tree on its own, and three is its root.
+- Cut again, and one alone, with its two barriers, is a tree too. Just a tiny one.
+- Every child is the root of its own subtree. A tree is a block, plus a left tree, plus a right tree.
+- So how do we visit every block? At eight the path splits in two, and we can't take both sides at once.
+- The first way is depth first. Tie a lead to the root, and always go left first, as deep as you can.
+- Eight, three, one. Below one there are only barriers, so the lead pulls us back up to three, and we go right, to six.
+- Three is done, so we climb back to eight, and take the right side. Ten, fourteen, thirteen.
+- Look at the path around the tree. It passes every block three times. On the way down, underneath, and on the way back up.
+- Write a block the first time you pass it, and you get preorder. Eight, three, one, six, ten, fourteen, thirteen.
+- Write it as you pass underneath, between its two sides, and you get inorder. One, three, six, eight, ten, thirteen, fourteen.
+- Write it on the way back up, after both children, and you get postorder. One, six, three, thirteen, fourteen, ten, eight.
+- Same walk, three moments. Preorder acts before the children. Postorder waits for their answers.
+- The second way is breadth first. Instead of diving down, we sweep the tree one level at a time.
+- Eight. Then three and ten. Then one, six, and fourteen. And finally thirteen.
+- But three and ten live on different branches. How do we know whose turn it is? With a queue. A line, inside a chest.
+- Eight goes in. When it comes out, its children, three and ten, join the back of the line.
+- Three comes out, and adds one and six. Ten comes out, and adds fourteen.
+- Then one, six, fourteen, and thirteen. Just by waiting in line, the blocks come out level by level.
+- Now let's add one rule. Everything on a block's left is smaller, and everything on its right is bigger.
+- Our tree already follows it. That makes it a binary search tree.
+- Each block works like a hopper. Drop a number in, and it sends it left or right.
+- Let's look for six. Six is smaller than eight, so it goes left, and the whole right side goes dark. Six can't be there.
+- Six is bigger than three, so it goes right. And there it is. Three checks, instead of seven.
+- When the tree is balanced, every check throws away about half of what's left. That's log n.
+- But insert the same numbers already sorted, and each block lands to the right of the last one.
+- You get a staircase, seven levels deep. It's a row again, and a search costs n.
+- Now let's turn the picture into code. A node is a small class.
+- It has a value, and two links, left and right. When a node is born, both links point to None.
+- So a new node is a block with two barriers. It doesn't know about any tree yet.
+- To build the tree, we connect the links. The root is a node with eight.
+- Root dot left becomes three, and root dot right becomes ten.
+- Root dot left dot left is one. Every dot is one step down a rod.
+- Now recursion, where most people get lost. This function adds up every value in the tree.
+- Don't try to follow every branch at once. Stand on one block, and follow three rules.
+- Rule one. If the node is None, return zero. Every barrier sends back a zero.
+- Rule two. Trust your two links. Ask the left subtree for its sum, then the right one.
+- Three asks one, and gets one back. It asks six, and gets six.
+- Rule three. Combine, and send it up. Three plus one plus six is ten, and ten goes up to the root.
+- The right side sends up thirty seven. Eight adds itself, and the whole tree comes to fifty five.
+- And here's the secret. Change only the last line, and you solve a different problem.
+- Return one plus left plus right, and you count the blocks.
+- Return one plus the bigger side, and you get the maximum depth. That's LeetCode one oh four.
+- Swap the recursion for a queue, and you get the levels. That's problem one oh two.
+- Write the barriers in preorder, and you can save the whole tree. That's problem two ninety seven.
+- A tree stops being hard the day you stop looking at every block at once.
+- You're only ever standing on one block, with two rods going down.

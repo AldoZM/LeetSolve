@@ -24,6 +24,8 @@ BLOCKS = {  # output name -> texture inside the jar
     'redstone_lamp': 'block/redstone_lamp', 'redstone_lamp_on': 'block/redstone_lamp_on',  # bits (#3644)
     'lever': 'block/lever',  # the two moves (#3942)
     'clock': 'item/clock_00',  # dates (#2409)
+    'shears': 'item/shears', 'lead': 'item/lead', 'hopper': 'item/hopper',  # cut a subtree, DFS rope, BST funnel
+    'oak_sapling': 'block/oak_sapling', 'compass': 'item/compass_16',  # tree basics
 }
 GUI = {
     'generic_54': 'gui/container/generic_54', 'hotbar': 'gui/sprites/hud/hotbar',
@@ -40,6 +42,7 @@ SOUNDS = {
     **{f'wood_dig{k}': f'dig/wood{k}' for k in range(1, 5)},
     **{f'book_flip{k}': f'item/book/open_flip{k}' for k in range(1, 4)}, 'book_put': 'item/book/close_put1',
     **{f'villager_no{k}': f'mob/villager/no{k}' for k in range(1, 4)},
+    'shear': 'mob/sheep/shear', 'lead_tie': 'entity/leashknot/leash1',  # tree basics: shears and lead
 }
 # Mobs walking around the 3D background (vida.js), plus the moon for night scenes
 MOBS = {

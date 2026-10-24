@@ -5,7 +5,7 @@ import { THREE, prog, V } from '/vendor/lib/stage.js';
 export const SKY_TOP = 0x6B98F5;
 export const SKY_BOTTOM = 0xB8D2FF;
 export const MC = { white: 0xFFFFFF, gray: 0xAAAAAA, yellow: 0xFFFF55, gold: 0xFFAA00, green: 0x55FF55, aqua: 0x55FFFF,
-                    red: 0xFF5555, black: 0x000000 };
+                    red: 0xFF5555, pink: 0xFF55FF, black: 0x000000 };
 
 // Face shading like the game: top brightest, sides darker. BoxGeometry face order: +x, -x, +y, -y, +z, -z
 const SHADE = [0.62, 0.62, 1.0, 0.5, 0.8, 0.8];

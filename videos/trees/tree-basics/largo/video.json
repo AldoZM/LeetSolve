@@ -1,0 +1,7 @@
+{"tema": "minecraft-original", "formato": "16:9", "comun": ["../comun.py"],
+ "groups": [["Scene01_Hook", [0]], ["Scene02_Why", [1, 2, 3, 4]], ["Scene03_Anatomy", [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]],
+            ["Scene04_Subtree", [16, 17, 18, 19]], ["Scene05_DFS", [20, 21, 22, 23, 24, 25, 26, 27, 28]],
+            ["Scene06_BFS", [29, 30, 31, 32, 33, 34]], ["Scene07_BST", [35, 36, 37, 38, 39, 40, 41, 42]],
+            ["Scene08_Node", [43, 44, 45, 46, 47, 48]], ["Scene09_Recursion", [49, 50, 51, 52, 53, 54, 55]],
+            ["Scene10_Secret", [56, 57, 58, 59, 60]], ["Scene11_Outro", [61, 62]]],
+ "fondo": {"page": "three/mundo.html", "sharp": ["Scene03_Anatomy", "Scene05_DFS", "Scene07_BST"]}}

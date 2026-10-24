@@ -1,0 +1,446 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+import { THREE, prog, easeInOut, easeOut, easeOutBack, lerp, V, bezier, pose, mixPose } from '/vendor/lib/stage.js';
+import { MC, loadTheme, makeWorld, makeTerrain, makeBlock, makeFrame, pixelSprite, makeOrb, makeClouds, tex } from '/vendor/tema/mc.js';
+import { loadMobs, planLife, makeLife, setTime } from '/vendor/tema/vida.js';
+
+const walk = await (await fetch('/walk.json')).json();
+// One clip for the whole 16:9 video: times are absolute. Three sharp sections (anatomy, depth first, search tree)
+// show the tree; the rest is a slow roam that ends where it starts, so the video still loops.
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const seg = (i) => subs[i].start_s;
+const TOTAL = subs[subs.length - 1].end_s;
+const at = (spec) => seg(spec[0]) + spec[1];
+const A = Object.fromEntries(Object.entries(walk.anatomy).map(([k, v]) => [k, Array.isArray(v) && Array.isArray(v[0]) ? v.map(at) : Array.isArray(v) ? at(v) : v]));
+const D = walk.dfs, B = Object.fromEntries(Object.entries(walk.bst).map(([k, v]) => [k, Array.isArray(v) ? at(v) : v]));
+const span = (s) => [seg(s.first), subs[s.last].end_s];
+const SECTIONS = [span(walk.anatomy), span(walk.dfs), span(walk.bst)];
+const [A0, A1] = SECTIONS[0], [D0, D1] = SECTIONS[1], [B0, B1] = SECTIONS[2];
+const bump = (t, a, d) => Math.sin(Math.PI * prog(t, a, a + d));
+
+const toks = walk.toks;
+const values = toks.filter((k) => k.tok !== '#');
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'planks', 'leaves', 'log_side', 'log_top', 'barrier', 'hopper',
+                              'lead', ...values.map((k) => `${k.ore}_ore`)]);
+
+const world = makeWorld({ fov: 40, offset: 0.12, fog: [60, 130] });
+// Closer fog in the sharp sections: the grove behind fades a little and the tree stands out
+const { scene, camera } = world;
+const FOG = [60, 130];
+// Birch grove with flowers on dirt terraces, in the MacEntorno world (see mundos/lugares.json)
+const terrain = await makeTerrain('/vendor/tema/mundos/birch-grove.json', { turn: 0.7854, plot: [-12, 12, -2, 20], clear: [-10, 10, 7, 24] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+const LIFE = [{ kind: 'sheep', count: 3, graze: 1 }, { kind: 'cow', count: 2, graze: 1 }, { kind: 'chicken', count: 3 },
+              { kind: 'wolf', count: 1 }];
+await loadMobs(imgs, LIFE.map((g) => g.kind));
+const light = await setTime(world, 'day', { terrain, clouds, imgs });
+const life = makeLife(imgs, terrain, planLife(terrain, LIFE, { seed: 77 }), TOTAL, light);
+scene.add(life.g);
+const stage = new THREE.Group();
+scene.add(stage);
+
+// The tree hangs in the plane z = 0, left of center (the overlay's glossary takes the right third)
+const G0 = terrain.groundAt(0, 0);
+const OX = -2.5, SX = 1.1, DY = 1.3, Y0 = G0 + 0.7 + 4 * DY;
+const spot = (k) => V(OX + toks[k].x * SX, Y0 - toks[k].lvl * DY, 0);
+const kOf = Object.fromEntries(toks.map((k, i) => [k.value, i]).filter(([v]) => v !== undefined));
+const pos = (v) => spot(kOf[v]);
+const PRE = [8, 3, 1, 6, 10, 14, 13], SORTED = [1, 3, 6, 8, 10, 13, 14];
+const order = Object.fromEntries(PRE.map((v, k) => [v, k]));
+
+// ---------- blocks, rods, barriers
+const blocks = Object.fromEntries(values.map((k) => { const b = makeBlock(imgs, `${k.ore}_ore`, { label: k.value }); stage.add(b.g); return [k.value, b]; }));
+const rodGeo = new THREE.BoxGeometry(0.16, 0.16, 1);
+rodGeo.translate(0, 0, 0.5);
+function makeRod(color = null, map = 'planks') {
+  const mat = color === null ? new THREE.MeshBasicMaterial({ map: tex(imgs, map), transparent: true })
+                             : new THREE.MeshBasicMaterial({ color, transparent: true });
+  mat.color.setScalar(color === null ? 0.8 : 1);
+  if (color !== null) mat.color.set(color);
+  const r = new THREE.Mesh(rodGeo, mat);
+  stage.add(r);
+  r.span = (a, b, f = 1, op = 1) => {
+    // Rod from a toward b, grown to fraction f
+    r.visible = f > 0.01 && op > 0.01;
+    if (!r.visible) return;
+    r.position.copy(a);
+    r.lookAt(b);
+    r.scale.set(1, 1, Math.max(a.distanceTo(b) * f, 1e-4));
+    mat.opacity = op;
+  };
+  r.mat = mat;
+  return r;
+}
+// Rods to every value (wood) and to every empty child (dark red, like the 2D trees)
+const rods = toks.map((k) => (k.parent === null ? null : k.tok === '#' ? makeRod(0x3a1010) : makeRod()));
+const barrierSprite = (size) => {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex(imgs, 'barrier'), transparent: true, depthWrite: false }));
+  s.scale.set(size, size, 1);
+  stage.add(s);
+  return s;
+};
+const barriers = toks.map((k) => (k.tok === '#' ? barrierSprite(0.62) : null));
+const nullIdx = toks.map((k, i) => (k.tok === '#' ? i : -1)).filter((i) => i >= 0);
+const sprite = (text, color, h) => { const s = pixelSprite(text, color, h); stage.add(s); return s; };
+const frame = (color, size = 1.08) => { const f = makeFrame(size, 0.05, color); stage.add(f); return f; };
+
+// ---------- anatomy extras
+const rootTag = sprite('ROOT', MC.gold, 0.42);
+const rootFrame = frame(MC.gold);
+const lTag = sprite('L', MC.aqua, 0.62), rTag = sprite('R', MC.gold, 0.62);
+const loopRod = makeRod(0xff5555);
+const loopX = sprite('X', MC.red, 0.9);
+const leafFrames = Object.fromEntries([1, 6, 13].map((v) => [v, frame(MC.green)]));
+const levelMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.2, depthWrite: false });
+const levels = [0, 1, 2, 3].map((l) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(9.6, 0.03, 1.8), levelMat.clone());
+  m.position.set(OX + 0.3, Y0 - l * DY - 0.62, 0);
+  stage.add(m);
+  return { m, tag: sprite(String(l), MC.white, 0.42) };
+});
+const depthTag = sprite('depth 2', MC.pink, 0.5);
+const ruler = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1, 0.1), new THREE.MeshBasicMaterial({ color: MC.yellow, transparent: true }));
+ruler.geometry.translate(0, -0.5, 0);
+stage.add(ruler);
+const heightTag = sprite('height 3', MC.yellow, 0.42);
+const RULER_X = OX + 4.45;
+
+// ---------- depth first: the orb on a lead, the rope it leaves, and the marks of each moment
+const tourPos = walk.tour.map(([kind, v]) => {
+  const p = pos(v);
+  if (kind === 'pre') return p.clone().add(V(-0.72, 0.18, 0));
+  if (kind === 'in') return p.clone().add(V(0, -0.74, 0));
+  if (kind === 'post') return p.clone().add(V(0.72, 0.18, 0));
+  // A bump into an empty child: down to just above its barrier
+  const child = toks.findIndex((k, i) => k.parent === kOf[v] && k.tok === '#' && (kind === 'nullL' ? k.x < toks[kOf[v]].x : k.x > toks[kOf[v]].x));
+  return spot(child).add(V(0, 0.42, 0));
+});
+const curve = new THREE.CatmullRomCurve3(tourPos, false, 'centripetal');
+const NT = tourPos.length - 1;
+const ROPE = 520;
+const rope = new THREE.InstancedMesh(new THREE.BoxGeometry(0.075, 0.075, 0.075),
+                                     new THREE.MeshBasicMaterial({ color: 0x8a5a2b, transparent: true }), ROPE);
+{
+  const m = new THREE.Matrix4();
+  for (let i = 0; i < ROPE; i++) { const p = curve.getPoint(i / (ROPE - 1)); rope.setMatrixAt(i, m.makeTranslation(p.x, p.y, p.z + 0.05)); }
+}
+stage.add(rope);
+const knot = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex(imgs, 'lead'), transparent: true, depthWrite: false }));
+knot.scale.set(0.55, 0.55, 1);
+stage.add(knot);
+const walker = makeOrb(imgs, 0.55, 5);
+stage.add(walker);
+const MOMENT = { pre: MC.aqua, in: MC.gold, post: MC.pink };
+const markGeo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+const markOf = (color) => { const m = new THREE.Mesh(markGeo, new THREE.MeshBasicMaterial({ color, transparent: true })); stage.add(m); return m; };
+const demo = ['pre', 'in', 'post'].map((k) => markOf(MOMENT[k]));
+const passMarks = D.passes.map((p) => p.marks.map(() => markOf(MOMENT[p.kind])));
+const pass1 = D.pass1.map(([k, s]) => [k, at(s)]);
+const passes = D.passes.map((p) => ({ ...p, keys: p.keys.map(([k, s]) => [k, at(s)]), marks: p.marks.map(([k, s]) => [k, at(s)]) }));
+
+function tourIndex(t, keys) {
+  // Fractional stop index at time t: linear between the anchored stops
+  if (t <= keys[0][1]) return keys[0][0];
+  for (let j = 1; j < keys.length; j++) {
+    const [k1, t1] = keys[j], [k0, t0] = keys[j - 1];
+    if (t < t1) return lerp(k0, k1, easeInOut(prog(t, t0, t1)) * 0.35 + prog(t, t0, t1) * 0.65);
+  }
+  return keys[keys.length - 1][0];
+}
+
+// ---------- search tree: hopper, the probe block, the staircase
+const hopper = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex(imgs, 'hopper'), transparent: true, depthWrite: false }));
+stage.add(hopper);
+const probe = makeBlock(imgs, 'redstone_ore', { size: 0.55, label: 6 });
+stage.add(probe.g);
+const sideFrames = [3, 1, 6, 10, 14, 13].map((v) => ({ v, f: frame([3, 1, 6].includes(v) ? MC.aqua : MC.gold, 1.06) }));
+const lessTag = sprite('< 8', MC.aqua, 0.62), moreTag = sprite('> 8', MC.gold, 0.62);
+const foundFrame = frame(MC.green, 1.12);
+const chainRods = SORTED.slice(1).map(() => makeRod());
+const stair = (v) => V(OX + 0.2 - 3.3 + 1.1 * SORTED.indexOf(v), Y0 - 0.85 * SORTED.indexOf(v), 0);
+
+let seed = 77;
+const rnd = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+const orbs = Array.from({ length: 20 }, (_, n) => {
+  const o = makeOrb(imgs, 0.32, [1, 2, 4, 5, 6][n % 5]);
+  o.userData = { vx: (rnd() - 0.5) * 2.4, vy: 2.2 + rnd() * 2.0, vz: (rnd() - 0.3) * 1.8, delay: rnd() * 0.35 };
+  stage.add(o);
+  return o;
+});
+stage.traverse((o) => { if (o.isSprite) o.renderOrder = 10; });
+
+// ---------- per-section drawing
+function hideAll() { stage.children.forEach((o) => { o.visible = false; }); }
+
+function drawTree(t, { dropT = null, rodT = null, nulls = 1, dim = () => 0, glow = () => 0, where = pos, treeRods = 1 }) {
+  for (const k of values) {
+    const v = k.value, b = blocks[v];
+    const d = dropT === null ? 1 : prog(t, dropT + 0.18 * order[v], dropT + 0.18 * order[v] + 0.5);
+    const p = where(v);
+    b.g.position.set(p.x, p.y + (1 - easeOut(d)) * 4, p.z);
+    b.set({ glow: glow(v) - dim(v), opacity: d > 0 ? 1 : 0 });
+  }
+  toks.forEach((k, i) => {
+    const r = rods[i];
+    if (!r) return;
+    const a = where(toks[k.parent].value);
+    if (k.tok === '#') {
+      const nb = barriers[i];
+      const life = typeof nulls === 'function' ? nulls(i) : nulls;
+      r.span(a, spot(i), life, 0.6 * life);
+      nb.visible = life > 0.01;
+      nb.position.copy(spot(i));
+      nb.scale.setScalar(0.62 * Math.max(easeOutBack(Math.min(life, 1)), 1e-4));
+      return;
+    }
+    const g = rodT === null ? 1 : easeOut(prog(t, rodT + 0.1 * order[k.value], rodT + 0.1 * order[k.value] + 0.4));
+    r.span(a, where(k.value), g, treeRods);
+    r.mat.color.setScalar(0.8);
+  });
+}
+
+function anatomy(t) {
+  const rodGlow = (v, c) => { const r = rods[kOf[v]]; if (r) r.mat.color.set(c); };
+  const lit = (v) => {
+    // Glows: the reach wave from the root, and the one path to 13
+    const lvl = toks[kOf[v]].lvl;
+    let g = 0.4 * bump(t, A.reach + 0.28 * lvl, 0.6);
+    const pathK = [8, 10, 14, 13].indexOf(v);
+    if (pathK >= 0) g += 0.35 * bump(t, A.path + 0.35 * pathK, 1.2);
+    if (v === 8) g += 0.3 * bump(t, A.root - 0.1, 0.8);
+    return g;
+  };
+  const nullLife = (i) => prog(t, A.none + 0.12 * nullIdx.indexOf(i), A.none + 0.12 * nullIdx.indexOf(i) + 0.3)
+    * (1 + 0.35 * bump(t, A.remember, 0.6));
+  drawTree(t, { dropT: A.drop, rodT: A.rods, nulls: nullLife, glow: lit });
+
+  // Rod highlights: parent to child, then 3's two children, then the one path, then the depth of 14
+  const warm = (v, a, d, color) => { if (t >= a && t < a + d) rodGlow(v, color); };
+  warm(3, A.parent, 1.4, 0xffe08a);
+  warm(1, A.children, 1.4, 0xffe08a);
+  warm(6, A.children, 1.4, 0xffe08a);
+  [10, 14, 13].forEach((v, k) => warm(v, A.path + 0.35 * (k + 1), 1.6, 0xffff55));
+  if (t >= A.fourteen && t < A.height) { rodGlow(10, 0xff77ff); rodGlow(14, 0xff77ff); }
+
+  const fadeAll = 1 - prog(t, A1 - 0.5, A1);
+  const p8 = pos(8);
+  rootFrame.visible = t >= A.root && fadeAll > 0.01;
+  rootFrame.position.copy(p8);
+  rootFrame.userData.mat.opacity = 0.9 * prog(t, A.root, A.root + 0.3) * fadeAll;
+  rootTag.visible = rootFrame.visible;
+  rootTag.position.copy(p8).add(V(0, 0.95, 0));
+  rootTag.setSize(easeOutBack(prog(t, A.root, A.root + 0.4)) * fadeAll);
+
+  const lr = prog(t, A.lr, A.lr + 0.3) * (1 - prog(t, A.rule, A.rule + 0.3));
+  lTag.visible = rTag.visible = lr > 0.01;
+  lTag.position.copy(pos(3).lerp(pos(1), 0.5)).add(V(-0.45, 0.1, 0.3));
+  rTag.position.copy(pos(3).lerp(pos(6), 0.5)).add(V(0.45, 0.1, 0.3));
+  lTag.setSize(lr); rTag.setSize(lr);
+
+  // The golden rule: a rod from 13 back up to 3 tries to close a loop and breaks
+  const grow = easeInOut(prog(t, A.loop, A.loop + 0.7));
+  const brk = prog(t, A.loops, A.loops + 0.5);
+  loopRod.span(pos(13).add(V(0, 0, 0.3)), pos(3).add(V(0, 0, 0.3)), grow, 1 - brk);
+  loopX.visible = brk > 0 && brk < 1 || (t >= A.loops && t < A.loops + 1.2);
+  loopX.position.copy(pos(13).lerp(pos(3), 0.5)).add(V(0, 0, 0.6));
+  loopX.setSize(Math.sin(Math.PI * prog(t, A.loops, A.loops + 1.2)));
+
+  [1, 6, 13].forEach((v, k) => {
+    const f = leafFrames[v], o = prog(t, A.leaves[k] - 0.05, A.leaves[k] + 0.25) * fadeAll;
+    f.visible = o > 0.01;
+    f.position.copy(pos(v));
+    f.userData.mat.opacity = 0.9 * o;
+  });
+
+  levels.forEach(({ m, tag }, l) => {
+    const o = prog(t, A.levels + 0.2 * l, A.levels + 0.2 * l + 0.4) * fadeAll;
+    m.visible = tag.visible = o > 0.01;
+    m.material.opacity = 0.2 * o;
+    tag.position.set(OX - 4.55, Y0 - l * DY, 0);
+    tag.setSize(o);
+  });
+  const dt = prog(t, A.fourteen, A.fourteen + 0.3) * (1 - prog(t, A.height, A.height + 0.3));
+  depthTag.visible = dt > 0.01;
+  depthTag.position.copy(pos(14)).add(V(0.15, 0.85, 0.3));
+  depthTag.setSize(dt);
+
+  const rh = easeInOut(prog(t, A.height, A.height + 1.0)) * fadeAll;
+  ruler.visible = rh > 0.01;
+  ruler.position.set(RULER_X, Y0, 0);
+  ruler.scale.set(1, Math.max(3 * DY * rh, 1e-4), 1);
+  ruler.material.opacity = fadeAll;
+  const ht = prog(t, A.three - 0.1, A.three + 0.3) * fadeAll;
+  heightTag.visible = ht > 0.01;
+  heightTag.position.set(RULER_X - 0.1, Y0 + 0.75, 0);
+  heightTag.setSize(easeOutBack(ht));
+}
+
+function dfs(t) {
+  drawTree(t, {
+    glow: (v) => {
+      let g = 0;
+      if (v === 3 || v === 10) g += 0.3 * bump(t, at(D.splits) - 0.1, 0.9);
+      for (const p of passes) p.marks.forEach(([k, tm]) => { if (walk.tour[k][1] === v) g += 0.35 * bump(t, tm - 0.05, 0.45); });
+      return g;
+    },
+  });
+  [3, 10].forEach((v) => { if (t >= at(D.splits) - 0.1 && t < at(D.splits) + 0.8) rods[kOf[v]].mat.color.set(0xffff55); });
+
+  // Which pass is running: the first walk, a still rope during line 24, or one of the three replays
+  const tLead = at(D.lead);
+  let idx = 0, ropeTo = 0, ropeOp = 0.95;
+  const p1End = pass1[pass1.length - 1][1];
+  const r0 = passes[0].keys[0][1];
+  if (t < p1End + 0.3) { idx = tourIndex(t, pass1); ropeTo = idx; }
+  else if (t < r0) { idx = NT; ropeTo = NT; }
+  else {
+    const p = passes.filter((q) => t >= q.keys[0][1]).pop();
+    idx = tourIndex(t, p.keys);
+    ropeTo = NT;
+    ropeOp = 0.45;
+  }
+  const on = prog(t, tLead - 0.1, tLead + 0.3) * (1 - prog(t, D1 - 0.5, D1));
+  const flash = 0.5 * bump(t, at(D.path), 1.4);
+  rope.visible = on > 0.01;
+  rope.count = Math.max(1, Math.round(ROPE * Math.min(ropeTo / NT, 1)));
+  rope.material.opacity = Math.min(1, ropeOp + flash) * on;
+  rope.material.color.setRGB(0.54 + flash * 0.5, 0.35 + flash * 0.5, 0.17 + flash * 0.2);
+  knot.visible = on > 0.01;
+  knot.position.copy(pos(8)).add(V(0, 0.72, 0.1));
+  knot.scale.setScalar(0.55 * easeOutBack(prog(t, tLead - 0.1, tLead + 0.3)));
+  walker.visible = on > 0.01;
+  walker.position.copy(curve.getPoint(Math.min(idx / NT, 1)));
+  walker.position.z += 0.25;
+  walker.tint(t);
+
+  // Line 24: the three moments of block 3
+  const mo = D.moments.map(at);
+  ['pre', 'in', 'post'].forEach((kind, j) => {
+    const m = demo[j];
+    const o = prog(t, mo[j] - 0.1, mo[j] + 0.2) * (1 - prog(t, r0 - 0.4, r0));
+    m.visible = o > 0.01;
+    m.position.copy(tourPos[walk.tour.findIndex(([k, v]) => k === kind && v === 3)]).add(V(0, 0, 0.3));
+    m.scale.setScalar(Math.max(easeOutBack(o) * 1.4, 1e-4));
+  });
+  // Replays: a mark on each moment as its number is said, kept until the end of that line
+  passes.forEach((p, j) => {
+    const lineEnd = subs[25 + j].end_s;
+    p.marks.forEach(([k, tm], n) => {
+      const m = passMarks[j][n];
+      const o = prog(t, tm - 0.05, tm + 0.15) * (1 - prog(t, lineEnd - 0.3, lineEnd));
+      m.visible = o > 0.01;
+      m.position.copy(tourPos[k]).add(V(0, 0, 0.3));
+      m.scale.setScalar(Math.max(easeOutBack(o), 1e-4));
+    });
+  });
+}
+
+function bst(t) {
+  const morph = easeInOut(prog(t, B.sorted + 0.4, B.lands + 0.4));
+  const where = (v) => pos(v).lerp(stair(v), morph);
+  const dark = (v) => {
+    let d = 0;
+    if ([10, 14, 13].includes(v)) d += 0.75 * prog(t, B.dark, B.dark + 0.3);
+    if (v === 1) d += 0.75 * prog(t, B.goright + 0.2, B.goright + 0.5);
+    return d * (1 - prog(t, B.half, B.half + 0.4));
+  };
+  const lit = (v) => {
+    let g = v === 6 ? 0.45 * prog(t, B.found, B.found + 0.2) * (1 - prog(t, B.half, B.half + 0.4)) : 0;
+    const s = SORTED.indexOf(v);
+    g += 0.45 * bump(t, B.costs + 0.22 * s, 0.4);
+    return g;
+  };
+  drawTree(t, { nulls: 0, dim: dark, glow: lit, where, treeRods: 1 - morph });
+  // Rods of the staircase replace the tree's
+  chainRods.forEach((r, k) => { r.span(stair(SORTED[k]), stair(SORTED[k + 1]), morph, morph); r.mat.color.setScalar(0.8); });
+  toks.forEach((k, i) => { if (rods[i] && k.tok !== '#') rods[i].mat.color.setScalar(0.8 * (1 - 0.7 * dark(k.value))); });
+
+  // The rule: aqua frames on the left side of 8, gold on the right
+  sideFrames.forEach(({ v, f }) => {
+    const a = [3, 1, 6].includes(v) ? B.left : B.right;
+    const o = prog(t, a - 0.05, a + 0.3) * (1 - prog(t, B.hopper - 0.2, B.hopper + 0.2));
+    f.visible = o > 0.01;
+    f.position.copy(pos(v));
+    f.userData.mat.opacity = 0.9 * o;
+  });
+  const lo = prog(t, B.left, B.left + 0.3) * (1 - prog(t, B.hopper - 0.2, B.hopper + 0.2));
+  const mo = prog(t, B.right, B.right + 0.3) * (1 - prog(t, B.hopper - 0.2, B.hopper + 0.2));
+  lessTag.visible = lo > 0.01; moreTag.visible = mo > 0.01;
+  lessTag.position.copy(pos(3)).add(V(-1.0, 0.75, 0.3)); lessTag.setSize(lo);
+  moreTag.position.copy(pos(10)).add(V(1.0, 0.75, 0.3)); moreTag.setSize(mo);
+
+  // Hopper over the root, the probe falling through it and sorted left or right at every block
+  const hop = easeOutBack(prog(t, B.hopper, B.hopper + 0.4)) * (1 - prog(t, B.half, B.half + 0.4));
+  const p8 = pos(8), above = (v) => pos(v).add(V(0, 0.82, 0));
+  hopper.visible = hop > 0.01;
+  hopper.position.copy(p8).add(V(0, 1.45, 0));
+  hopper.scale.setScalar(Math.max(1.1 * hop, 1e-4));
+  const top = p8.clone().add(V(0, 1.7, 0));
+  let pp = top;
+  const fall = easeOut(prog(t, B.drop, B.drop + 0.5));
+  pp = top.clone().lerp(above(8), fall);
+  const l = easeInOut(prog(t, B.goleft, B.goleft + 0.7));
+  if (l > 0) pp = bezier(above(8), above(8).lerp(above(3), 0.5).add(V(0, 0.8, 0)), above(3), l);
+  const r = easeInOut(prog(t, B.goright, B.goright + 0.7));
+  if (r > 0) pp = bezier(above(3), above(3).lerp(above(6), 0.5).add(V(0, 0.8, 0)), above(6), r);
+  const sink = prog(t, B.found - 0.3, B.found);
+  pp = pp.clone().lerp(pos(6).add(V(0, 0, 0.55)), sink);
+  probe.g.position.copy(pp);
+  probe.g.scale.setScalar(Math.max(1 - 0.6 * sink, 1e-4));
+  probe.set({ opacity: t >= B.drop && t < B.found + 0.05 ? 1 : 0 });
+  foundFrame.visible = t >= B.found && t < B.half + 0.3;
+  foundFrame.position.copy(pos(6));
+  foundFrame.userData.mat.opacity = 0.95 * (1 - prog(t, B.half, B.half + 0.3));
+  for (const o of orbs) {
+    const { vx, vy, vz, delay } = o.userData;
+    const u = t - (B.found + delay);
+    o.visible = u > 0 && u < 1.5;
+    if (!o.visible) continue;
+    const p = pos(6);
+    o.position.set(p.x + vx * u, Math.max(p.y + vy * u - 4.5 * u * u, G0 + 0.1), vz * u);
+    o.tint(t + delay);
+    o.material.opacity = 1 - prog(u, 1.1, 1.5);
+  }
+}
+
+function renderAt(t) {
+  // Section camera: the whole tree on the left two thirds with a slow sway; roam camera: one loop over the hill
+  const sway = 0.35 * Math.sin(t * 0.3);
+  const near = pose(V(sway, G0 + 4.0, 11.6), V(sway * 0.4, G0 + 3.9, 0));
+  const a = 2 * Math.PI * t / TOTAL;
+  const roam = pose(V(6 * Math.sin(a), 3.4 + 0.8 * Math.sin(2 * a), 13 + 2.5 * Math.cos(a)), V(3 * Math.sin(a), 4.2, -30));
+  let k = 0;
+  for (const [s0, s1] of SECTIONS) k = Math.max(k, easeInOut(prog(t, s0 - 1.6, s0 - 0.1)) * (1 - easeInOut(prog(t, s1 + 0.1, s1 + 1.6))));
+  const cam = mixPose(roam, near, k);
+  scene.fog.near = lerp(FOG[0], 16, k);
+  scene.fog.far = lerp(FOG[1], 62, k);
+  world.look(cam.pos, cam.look);
+  camera.setViewOffset(world.W, world.H, 0, world.H * lerp(0.12, 0.0, k), world.W, world.H);
+  camera.updateMatrixWorld();
+  clouds.position.x = 4 * Math.sin(a);
+  life.update(t);
+
+  hideAll();
+  if (t >= A0 - 1.6 && t < A1 + 0.1) anatomy(t);
+  else if (t >= D0 - 1.6 && t < D1 + 0.1) dfs(t);
+  else if (t >= B0 - 1.6 && t < B1 + 0.1) bst(t);
+  stage.visible = true;
+  world.draw(t, TOTAL, 0, 0);
+}
+
+window.renderAt = renderAt;
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

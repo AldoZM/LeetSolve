@@ -2,6 +2,8 @@
 # Needs video.json: {"groups": [["Scene1_Hook", [0]], ...], "three": {"scene": "Scene5_Walk", "page": "three/walk.html"}}
 # or, for one 3D world behind the whole video: "fondo": {"page": "three/mundo.html", "sharp": ["Scene5_Walk"]}
 #   ("formato": "9:16" with "fondo" gives a 1080 x 1920 video; the scenes stay 1080 x 1440 in the middle)
+#   ("formato": "16:9" gives a 1920 x 1080 video for regular YouTube: scenes and 3D world are both 1920 x 1080)
+#   ("comun": ["../comun.py"] adds shared code before scenes.py, for two formats of one video)
 #   (every scene renders transparent over its slice of that clip; scenes not listed in "sharp" get the world blurred)
 # Usage: python build.py [script] [lint] [render [Scene ...]] [three] [composite] [sync [Scene ...]] [mux]   (no args = all)
 import json, os, subprocess, sys
@@ -13,7 +15,6 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 TOOLS = os.environ.get('MANIM_SKILL_TOOLS', os.path.expanduser('~/.manim-skill-src/skills/manim-skill/tools'))
 RENDER3D = os.path.join(HERE, 'three', 'render.mjs')  # needs `npm ci` in herramientas/three
 LIB3D = os.path.join(HERE, 'three')  # stage.js, served as /vendor/lib/
-OUT = 'media/videos/script/1440p30'
 
 cfg = json.load(open('video.json'))
 groups = cfg['groups']
@@ -24,8 +25,11 @@ TEMA = os.path.join(HERE, 'temas', cfg['tema']) if cfg.get('tema') else None
 names = [g[0] for g in groups]
 # "formato": "9:16" makes a 1080 x 1920 video: the 3D world is rendered taller and every 1080 x 1440 scene sits centered on it
 TALL = cfg.get('formato') == '9:16'
-SIZE3D = ['--width', '1080', '--height', '1920'] if TALL else []
+# "formato": "16:9" makes a 1920 x 1080 video: scenes use a 16 x 9 frame (same 120 px per unit) and the world is as wide
+WIDE = cfg.get('formato') == '16:9'
+SIZE3D = ['--width', '1080', '--height', '1920'] if TALL else ['--width', '1920', '--height', '1080'] if WIDE else []
 TOP = 240 if TALL else 0
+OUT = f"media/videos/script/{1080 if WIDE else 1440}p30"
 
 
 def run(cmd, **kw):
@@ -51,6 +55,14 @@ def count_frames(path):
     return int(r.stdout.strip())
 
 
+# Wide frame for "formato": "16:9": x runs from -8 to 8 and y from -4.5 to 4.5; headers sit at TOP_Y
+WIDE_CONFIG = '''
+config.pixel_width, config.pixel_height = 1920, 1080
+config.frame_width, config.frame_height = 16, 9
+TOP_Y = 3.95
+'''
+
+
 def step_script():
     body = open('scenes.py', encoding='utf-8').read()
     pre = open(os.path.join(HERE, 'prelude.py'), encoding='utf-8').read()
@@ -65,6 +77,10 @@ def step_script():
         pre += f'\nTEMA_DIR = {TEMA.replace(os.sep, "/")!r}\n' + tema
     if fondo:
         pre += '\nFONDO = True\n'
+    if WIDE:
+        pre += WIDE_CONFIG
+    for path in cfg.get('comun', []):
+        pre += '\n' + open(path, encoding='utf-8').read()
     open('script.py', 'w', encoding='utf-8').write(pre + '\n' + body)
 
 
