@@ -2,6 +2,13 @@
 
 Registro de lo que se hizo en cada sesión, de la más reciente a la más antigua. El cómo trabajar está en `GUIA.md`.
 
+## 2026-10-24
+
+### `descripcion.txt` en todos los videos
+
+- Aldo pidió que todos los videos tengan su descripción. Se escribió `descripcion.txt` en los 18 que no la tenían (#1 a #9, #16 a #19, #60, #102, #124, #297 y #2089), con el mismo formato y el título exacto de LeetCode. Ahora los 22 la tienen.
+- Todas miden 100 caracteres o menos (límite de Shorts). A #3, #297 y #2089 se les quitó `#coding` para caber; #17 queda justo en 100.
+
 ## 2026-10-23
 
 ### Entorno en la Mac (MacBook Air M2, 8 GB)
@@ -77,7 +84,7 @@ Registro de lo que se hizo en cada sesión, de la más reciente a la más antigu
 - Hechos: narración (99.5 s, voz madura generada), `make_walk.py`, `video.json`, `scenes.py` (linter sin problemas) y `three/mundo.html` revisado con cuadros sueltos. Lugar `birch-flowers` (MacEntorno), de día.
 - El 3D se rehizo: las pilas de bloques detrás de la fila se salían del cuadro y se perdían entre los árboles; ahora los bloques contados suben en su lugar con marco aqua (menores) o dorado (iguales) y al final bajan al frente en orden.
 - Errores de la sesión, para no repetir: indexar listas sacadas de grupos de la escena rompe el linter (error #12; se usa `take(lista, índices)`), y un ayudante llamado `pick` chocaba con la variable local `pick` (el pico): el linter no lo ve y el render real fallaría. El `sed` de macOS no entiende `\b`: para reemplazos con límites de palabra usar Python.
-- **Falta:** el render (se detuvo a petición de Aldo para cerrar la sesión). Retomar con `python ../../../herramientas/build.py script lint render three composite sync mux` desde la carpeta, renombrar a `Find Target Indices After Sorting Array #2089.mp4`, copiar a `export/`, escribir `descripcion.txt` y revisar con hojas de cuadros.
+- **Falta:** el render (se detuvo a petición de Aldo para cerrar la sesión). Retomar con `python ../../../herramientas/build.py script lint render three composite sync mux` desde la carpeta, renombrar a `Find Target Indices After Sorting Array #2089.mp4`, copiar a `export/` y revisar con hojas de cuadros (su `descripcion.txt` ya está escrita).
 
 ### Reglas nuevas de Aldo
 
