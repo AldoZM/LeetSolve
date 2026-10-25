@@ -207,8 +207,23 @@ def step_mux():
             # Fades in and out so the video still loops without a jump in the music
             total = json.load(open('timestamps.json'))['total_duration_s']
             k = len(cues)
-            ins += ['-i', os.path.join(TEMA, 'music', f"{musica['pista']}.ogg")]
-            parts.append(f"[{k + 2}:a]aresample=44100,aformat=channel_layouts=mono,atrim=0:{total},afade=t=in:d=2,"
+            # "pista" can be a list: tracks play one after another with a 4 s crossfade, for videos longer than one track
+            pistas = musica['pista'] if isinstance(musica['pista'], list) else [musica['pista']]
+            last = 'm0'
+            for j, p in enumerate(pistas):
+                path = os.path.join(TEMA, 'music', f'{p}.ogg')
+                ins += ['-i', path]
+                # Trailing silence trimmed (Sweden ends with ~8 s) so the crossfade leaves no gap
+                tail = ',areverse,silenceremove=start_periods=1:start_threshold=-60dB,areverse' if j < len(pistas) - 1 else ''
+                # C418 tracks differ by up to 7 dB: each one is matched to Subwoofer Lullaby's mean level (-34.8 dB)
+                det = subprocess.run(['ffmpeg', '-i', path, '-af', 'aformat=channel_layouts=mono,volumedetect', '-f', 'null', '-'],
+                                     capture_output=True, text=True).stderr
+                gain = -34.8 - float(det.split('mean_volume: ')[1].split(' dB')[0])
+                parts.append(f'[{k + 2 + j}:a]aresample=44100,aformat=channel_layouts=mono{tail},volume={gain:.1f}dB[m{j}]')
+                if j:
+                    parts.append(f'[{last}][m{j}]acrossfade=d=4[c{j}]')
+                    last = f'c{j}'
+            parts.append(f"[{last}]atrim=0:{total},afade=t=in:d=2,"
                          f"afade=t=out:st={total - 3}:d=3,volume={musica.get('volumen', 0.45)}[s{k}]")
             mix += f'[s{k}]'
         n = len(cues) + (1 if musica else 0)
@@ -218,7 +233,7 @@ def step_mux():
         run(['ffmpeg', '-v', 'error', '-y', '-i', 'video_silent.mp4', '-i', 'voiceover.mp3', *ins, '-filter_complex',
              graph, '-map', '0:v:0', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k',
              '-movflags', '+faststart', 'video.mp4'])
-        print(len(cues), 'sound effects mixed' + (f", music {musica['pista']}" if musica else ''))
+        print(len(cues), 'sound effects mixed' + (f", music {', '.join(pistas)}" if musica else ''))
     v = subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', 'video.mp4'],
                        capture_output=True, text=True).stdout.strip()
     print('video.mp4 duration', v, 'audio', json.load(open('timestamps.json'))['total_duration_s'])

@@ -2,6 +2,18 @@
 
 Registro de lo que se hizo en cada sesión, de la más reciente a la más antigua. El cómo trabajar está en `GUIA.md`.
 
+## 2026-10-25 (PC de Windows)
+
+- Aldo aprobó la muestra `shorts/02-dfs`.
+- Aldo avisó que la voz falla en algunos videos (falta saber cuáles y qué tipo de falla): revisar la voz con cuidado antes de entregar.
+- **Música de fondo obligatoria** en todos los videos y shorts (regla de Aldo). `build.py` acepta una lista en `"pista"` (cruce de 4 s y sin el silencio final de cada canción). Short 02-dfs: Subwoofer Lullaby (la eligió Aldo; aprobado). Largo: Subwoofer Lullaby y luego Mice on Venus (Aldo pidió varias canciones). `build.py` iguala el volumen de cada canción a Subwoofer Lullaby; `extraer.py` copia 10 canciones de C418. `extraer.py` ahora copia `sweden`. Solo se corrió `build.py mux`.
+- En `export/`: el largo y el short con música, `How Trees Really Work - thumbnail.jpg` (primer cuadro, 1280 × 720) y `descripciones-arboles.md` (título, descripción con capítulos y emojis, y el texto del short en menos de 100 caracteres).
+- Errores que Aldo encontró con capturas en el largo (y corregidos también en `corto/`, que comparte el código):
+  - En la caída del subárbol del 3, las varas quedaban encima de los bloques (el `VGroup` movido con `.animate` listaba las varas al final).
+  - En la recursión, el 10 y el 37 se quedaban sobre el bloque 8 al final (y el 1 y el 6 sobre el 3). Ahora se hunden en el bloque, y cuando esperan a un lado van a 1.2 unidades.
+  - Se rehicieron solo `Scene04_Subtree` y `Scene09_Recursion` (`script render composite sync mux` de esas escenas). Revisado con cuadros. Ambos errores van en la lista de `GUIA.md` (1 y 17).
+- Subir a Drive: la conexión de Drive no acepta archivos tan grandes (417 MB y 71 MB); Aldo los arrastra a `DevSteve/export`.
+
 ## 2026-10-24 (noche, PC de Windows)
 
 ### El largo de la guía de árboles, terminado

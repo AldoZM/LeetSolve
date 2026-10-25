@@ -298,7 +298,8 @@ class Scene04_Subtree(Base):
         cut = tree.edges[3]
         mid = cut.get_center()
         shears = pixel_art("shears", 1.3).move_to(mid + np.array([1.8, 1.4, 0]))
-        sub = VGroup(tree.blocks[3], tree.blocks[1], tree.blocks[6], tree.edges[1], tree.edges[6])
+        # Rods first: .animate redraws the group in this order, and rods listed last covered the numbers
+        sub = VGroup(tree.edges[1], tree.edges[6], tree.blocks[3], tree.blocks[1], tree.blocks[6])
         drop = np.array([4.6, 1.0, 0]) - tree.blocks[3].get_center()
 
         self.seg(16)
@@ -808,11 +809,11 @@ class Scene09_Recursion(Base):
         self.until(at(53, "gets one") - 0.2)
         self.sfx("orb", 0.3)
         self.beat(FadeOut(ask_l), FadeIn(got1, scale=0.5), rt=0.2)
-        self.beat(got1.animate.move_to(tree.at[3] + np.array([-0.95, -0.55, 0])), rt=0.5)
+        self.beat(got1.animate.move_to(tree.at[3] + np.array([-1.2, -0.55, 0])), rt=0.5)
         self.until(at(53, "gets six") - 0.2)
         self.sfx("orb", 0.3)
         self.beat(FadeOut(ask_r), FadeIn(got6, scale=0.5), rt=0.2)
-        self.beat(got6.animate.move_to(tree.at[3] + np.array([0.95, -0.55, 0])), rt=0.5)
+        self.beat(got6.animate.move_to(tree.at[3] + np.array([1.2, -0.55, 0])), rt=0.5)
         self.close_seg()
 
         # Rule 3: 3 + 1 + 6 = 10 goes up to the root
@@ -825,11 +826,13 @@ class Scene09_Recursion(Base):
         self.seg(54)
         self.beat(Transform(bar, line_bar(code, 5, 5, MC_GREEN)), FadeIn(rules[2], shift=UP * 0.2), rt=0.4)
         self.until(at(54, "Three plus") - 0.1)
-        self.beat(FadeIn(sum3, shift=UP * 0.2), got1.animate.move_to(tree.at[3]), got6.animate.move_to(tree.at[3]), rt=0.5)
+        # Values sink into the block and vanish; parked on its center they covered the number
+        self.beat(FadeIn(sum3, shift=UP * 0.2), FadeOut(got1, target_position=tree.at[3], scale=0.3),
+                  FadeOut(got6, target_position=tree.at[3], scale=0.3), rt=0.5)
         self.until(at(54, "ten goes up") - 0.2)
         self.sfx("orb", 0.35)
-        self.beat(FadeOut(got1), FadeOut(got6), FadeIn(up10, scale=0.5), FadeOut(me), rt=0.3)
-        self.beat(up10.animate.move_to(tree.at[8] + np.array([-0.95, 0.15, 0])), rt=0.7)
+        self.beat(FadeIn(up10, scale=0.5), FadeOut(me), rt=0.3)
+        self.beat(up10.animate.move_to(tree.at[8] + np.array([-1.2, 0.15, 0])), rt=0.7)
         self.close_seg()
 
         up37 = orb_num(37, MC_GREEN).move_to(tree.at[10])
@@ -845,14 +848,15 @@ class Scene09_Recursion(Base):
         self.until(at(55, "thirty seven") - 0.3)
         self.sfx("orb", 0.35)
         self.beat(FadeIn(up37, scale=0.5), rt=0.2)
-        self.beat(up37.animate.move_to(tree.at[8] + np.array([0.95, 0.15, 0])), rt=0.7)
+        self.beat(up37.animate.move_to(tree.at[8] + np.array([1.2, 0.15, 0])), rt=0.7)
         self.until(at(55, "Eight adds") - 0.1)
         self.beat(Transform(sum3, sum8), rt=0.4)
         self.until(at(55, "and the whole") - 0.1)
         self.sfx("challenge", 0.32)
         for d in (0.1, 0.3, 0.5):
             self.sfx("orb", 0.25, delay=d)
-        self.beat(t.animate.shift(RIGHT * 8), up10.animate.move_to(tree.at[8]), up37.animate.move_to(tree.at[8]),
+        self.beat(t.animate.shift(RIGHT * 8), FadeOut(up10, target_position=tree.at[8], scale=0.3),
+                  FadeOut(up37, target_position=tree.at[8], scale=0.3),
                   pulse(tree.blocks[8], 1.3), rt=0.6)
         self.clear_all()
         self.close_seg()

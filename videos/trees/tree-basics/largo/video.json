@@ -4,4 +4,5 @@
             ["Scene06_BFS", [29, 30, 31, 32, 33, 34]], ["Scene07_BST", [35, 36, 37, 38, 39, 40, 41, 42]],
             ["Scene08_Node", [43, 44, 45, 46, 47, 48]], ["Scene09_Recursion", [49, 50, 51, 52, 53, 54, 55]],
             ["Scene10_Secret", [56, 57, 58, 59, 60]], ["Scene11_Outro", [61, 62]]],
- "fondo": {"page": "three/mundo.html", "sharp": ["Scene03_Anatomy", "Scene05_DFS", "Scene07_BST"]}}
+ "fondo": {"page": "three/mundo.html", "sharp": ["Scene03_Anatomy", "Scene05_DFS", "Scene07_BST"]},
+ "musica": {"pista": ["subwoofer_lullaby", "mice_on_venus"], "volumen": 0.45}}

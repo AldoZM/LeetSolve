@@ -41,7 +41,8 @@ class Scene2_Cut(Base):
         cut = tree.edges[3]
         mid = cut.get_center()
         shears = pixel_art("shears", 1.0).move_to(mid + np.array([1.4, 1.2, 0]))
-        sub = VGroup(tree.blocks[3], tree.blocks[1], tree.blocks[6], tree.edges[1], tree.edges[6])
+        # Rods first: .animate redraws the group in this order, and rods listed last covered the numbers
+        sub = VGroup(tree.edges[1], tree.edges[6], tree.blocks[3], tree.blocks[1], tree.blocks[6])
         drop = np.array([-1.9, -2.6, 0]) - tree.blocks[3].get_center()
 
         self.seg(1)
@@ -163,11 +164,12 @@ class Scene3_Recursion(Base):
         box = Rectangle(width=total.width + 0.5, height=total.height + 0.35, fill_color="#000000", fill_opacity=0.65,
                         stroke_width=0).move_to(total)
         sum3 = VGroup(box, total)
-        self.beat(FadeOut(rule[0]), FadeIn(sum3, shift=UP * 0.2), got1.animate.move_to(tree.at[3]),
-                  got6.animate.move_to(tree.at[3]), rt=0.5)
+        # Values sink into the block and vanish; parked on its center they covered the number
+        self.beat(FadeOut(rule[0]), FadeIn(sum3, shift=UP * 0.2), FadeOut(got1, target_position=tree.at[3], scale=0.3),
+                  FadeOut(got6, target_position=tree.at[3], scale=0.3), rt=0.5)
         self.until(at(8, "ten goes up") - 0.2)
         self.sfx("orb", 0.35)
-        self.beat(FadeOut(got1), FadeOut(got6), FadeIn(up10, scale=0.5), FadeOut(me), rt=0.3)
+        self.beat(FadeIn(up10, scale=0.5), FadeOut(me), rt=0.3)
         self.beat(up10.animate.move_to(tree.at[8] + np.array([-0.85, 0.15, 0])), rt=0.7)
         self.close_seg()
 
@@ -192,7 +194,8 @@ class Scene3_Recursion(Base):
         self.sfx("challenge", 0.32)
         for d in (0.1, 0.3, 0.5):
             self.sfx("orb", 0.25, delay=d)
-        self.beat(t.animate.shift(LEFT * 7), FadeOut(h), up10.animate.move_to(tree.at[8]), up37.animate.move_to(tree.at[8]),
+        self.beat(t.animate.shift(LEFT * 7), FadeOut(h), FadeOut(up10, target_position=tree.at[8], scale=0.3),
+                  FadeOut(up37, target_position=tree.at[8], scale=0.3),
                   pulse(tree.blocks[8], 1.3), rt=0.6)
         self.clear_all()
         self.close_seg()

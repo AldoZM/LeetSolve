@@ -55,7 +55,8 @@ MOBS = {
 # Block models drawn as 2D icons by model_icon() in tema.py: the model json and every texture it uses go to models/<name>/
 MODELS = {'lever': 'block/lever', 'lever_on': 'block/lever_on'}
 # Background music (video.json "musica"); C418's tracks get copyright claims on YouTube, see GUIA.md
-MUSIC = {'subwoofer_lullaby': 'music/game/subwoofer_lullaby'}
+MUSIC = {n: f'music/game/{n}' for n in ('subwoofer_lullaby', 'sweden', 'mice_on_venus', 'haggstrom', 'wet_hands', 'danny',
+                                         'clark', 'minecraft', 'dry_hands', 'living_mice')}
 
 
 def newest_version():

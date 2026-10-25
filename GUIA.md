@@ -30,7 +30,7 @@ Los videos nuevos se hacen con el **estilo Minecraft con assets del juego y su m
    - Elegir la hora y los mobs del lugar (ver "Vida en el fondo").
    - Cambiar la parte del recorrido (objetos y eventos) según el algoritmo. La mezcla de cámaras (`W0`, `W1`) y la cámara de paseo (`roamPose`) se quedan igual; `walkPose` se ajusta para que el contenido quepa entre los píxeles 130 y 735.
 8. `python ../../../herramientas/build.py`, hojas de cuadros con `sheet.py`, revisar el loop y abrir el visor.
-9. Si Aldo pide música: agregar `"musica"` a `video.json` y correr solo `build.py mux`.
+9. Música de fondo (obligatoria desde 2026-10-25, regla de Aldo): `"musica"` en `video.json`. Si se agrega a un video ya hecho, basta `build.py mux`.
 
 Detalles aprendidos en el #297:
 - Para resaltar pixel art (bloques, objetos, barreras), usar un pulso de escala; `Indicate` con color lo pinta de un solo color. En texto, `Indicate` sí sirve.
@@ -367,18 +367,21 @@ Un tema cambia el estilo sin tocar el flujo. Vive en `herramientas/temas/<tema>/
 
 ## Música de fondo
 
-- Opcional, en `video.json`: `"musica": {"pista": "subwoofer_lullaby", "volumen": 0.45}`. El archivo sale de `music/<pista>.ogg` del tema; `extraer.py` lo copia del juego (diccionario `MUSIC`, con la ruta del índice de assets, por ejemplo `music/game/subwoofer_lullaby`).
+- **Obligatoria en todos los videos y shorts (Aldo, 2026-10-25).** En `video.json`: `"musica": {"pista": "subwoofer_lullaby", "volumen": 0.45}`. El archivo sale de `music/<pista>.ogg` del tema; `extraer.py` lo copia del juego (diccionario `MUSIC`, con la ruta del índice de assets, por ejemplo `music/game/subwoofer_lullaby`).
 - `build.py` la recorta a la duración del video, con 2 s de entrada y 3 s de salida suaves (así el loop no salta), y la mezcla sin bajar la voz.
 - Con `volumen` 0.45, Subwoofer Lullaby queda unos 16 dB debajo de la voz.
+- Si el video dura más que una canción, `"pista"` puede ser una lista: se tocan en orden con un cruce de 4 s, y a todas menos la última se les quita el silencio final (Sweden termina con unos 8 s). El largo de árboles usa `["subwoofer_lullaby", "mice_on_venus"]`; el short 02-dfs, solo `subwoofer_lullaby` (la que eligió Aldo).
+- `build.py` iguala cada pista a la media de Subwoofer Lullaby (-34.8 dB) con `volumedetect`; entre canciones de C418 hay hasta 7 dB de diferencia. `volumen` se aplica después.
+- Pistas que copia `extraer.py`: subwoofer_lullaby (209 s), sweden (230 s, con una pausa propia de 10 s a los 127 s), mice_on_venus (281 s), haggstrom (191 s), wet_hands (90 s), danny (255 s), clark (202 s), minecraft (261 s), dry_hands (68 s) y living_mice (188 s).
 - La música está en `.gitignore` (`music/`).
-- **Riesgo al publicar:** las canciones de C418 (Subwoofer Lullaby, Sweden, Wet Hands...) reciben reclamos de derechos de autor en YouTube; no entran en los permisos de Mojang para videos. Se usa solo cuando Aldo lo pide, y antes de publicar se le recuerda.
+- **Riesgo al publicar:** las canciones de C418 (Subwoofer Lullaby, Sweden, Wet Hands...) reciben reclamos de derechos de autor en YouTube; no entran en los permisos de Mojang para videos. Aldo ya lo sabe y aun así la quiere en todos los videos.
 - Primer video con música: `trees/0297-serialize-tree` (Subwoofer Lullaby, a petición de Aldo).
 
 ## Errores ya cometidos (no repetir)
 
 Aldo los encontró en el #297 o salieron en su revisión. Antes de entregar un video, revisar esta lista uno por uno en las hojas de cuadros.
 
-1. **Varillas encima de los bloques.** Si las líneas de un árbol se animan después de que los bloques ya están en escena, quedan por encima. Solución: `self.add(edges, *blocks)` antes de `Create(edges)` (las líneas primero, los bloques al frente).
+1. **Varillas encima de los bloques.** Si las líneas de un árbol se animan después de que los bloques ya están en escena, quedan por encima. Solución: `self.add(edges, *blocks)` antes de `Create(edges)` (las líneas primero, los bloques al frente). Lo mismo al mover un grupo con `.animate`: Manim lo vuelve a dibujar en el orden del `VGroup`, así que las varas van primero (`VGroup(edges..., blocks...)`). Pasó en la caída del subárbol del largo de árboles (2026-10-25).
 2. **Pixel art pintado de un color.** `Indicate(..., color=...)` sobre bloques, objetos o barreras los vuelve un cuadro sólido. Solución: un pulso de escala (`m.animate(rate_func=there_and_back).scale(1.15)`). `Indicate` solo en texto.
 3. **Íconos 3D tapados por el terreno.** Los sprites (barreras, orbes) desaparecen cuando el terreno queda detrás. Solución: `stage.traverse((o) => { if (o.isSprite) o.renderOrder = 10; })`.
 4. **Comas que parecen puntos.** Cada pieza de texto se centra por sus píxeles y la coma sube. Solución: piezas con caja de altura de línea completa (`glyphs` en el #297) y `arrange(RIGHT, buff=0)`.
@@ -394,6 +397,7 @@ Aldo los encontró en el #297 o salieron en su revisión. Antes de entregar un v
 14. **Narración que no coincide con el dibujo.** En el #6 la narración decía "most of that grid stays empty" y en la cuadrícula de 3 × 7 solo faltan 7 de 21. Se corrigió a "a third".
 15. **La fuente del juego no tiene todo.** No hay `³`, `≠` ni `✓`, y `..` se ve como un punto. Usar `^3`, `!=`, `ok` y palabras ("from 0 to 5").
 16. **Silencios muertos al clonar voces lentas con TTS de IA (`Qwen3-TTS`).** Si el audio de referencia tiene pausas de ~1 s entre frases (como pasó en `04_madura_sensual.mp3`), el LLM imita esas pausas y llega a meter silencios de más de 5 s a mitad de una línea (en la línea 2 del #4 metió 5.75 s de silencio antes de `"That's eleven"`). Solución: pasar tanto el audio de referencia como cada clip generado por `silenceremove` de `ffmpeg` (máximo `0.20–0.22 s` por pausa más `0.08 s` de cola con `apad`), como hace `tts_qwen_clone.py`, y verificar con `silencedetect` que no quede ningún silencio mayor a `0.45 s`.
+17. **Valores encima de los bloques.** Un orbe con número (`orb_num`) que viaja al centro de un bloque y se queda ahí tapa el número del bloque. Al sumar, que se hunda y desaparezca: `FadeOut(v, target_position=bloque, scale=0.3)`. Cuando espera a un lado, dejar al menos 1.2 unidades del centro de un bloque de 0.95 (con 0.95 tocaba el borde). Pasó en la recursión del largo de árboles (2026-10-25).
 
 ## Lista de revisión antes de entregar
 
