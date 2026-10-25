@@ -1,0 +1,453 @@
+{
+  "total_duration_s": 48.253,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Trees confuse a lot of programmers. By the end of this video, every tree problem will look like the same five lines of code.",
+      "start_s": -124.285,
+      "end_s": -117.124,
+      "duration_s": 7.161
+    },
+    {
+      "index": 1,
+      "text": "So far we've kept things in a row. Each block only knows the one before it and the one after it.",
+      "start_s": -117.124,
+      "end_s": -111.127,
+      "duration_s": 5.997
+    },
+    {
+      "index": 2,
+      "text": "But a lot of real data doesn't line up. A folder holds more folders. One choice opens more choices.",
+      "start_s": -111.127,
+      "end_s": -104.456,
+      "duration_s": 6.672
+    },
+    {
+      "index": 3,
+      "text": "Here's a project folder. Inside it, code and assets. And inside assets, textures and sounds.",
+      "start_s": -104.456,
+      "end_s": -97.707,
+      "duration_s": 6.749
+    },
+    {
+      "index": 4,
+      "text": "One thing splits into several. That's a tree. We draw it upside down, with the root on top and the leaves at the bottom.",
+      "start_s": -97.707,
+      "end_s": -90.809,
+      "duration_s": 6.898
+    },
+    {
+      "index": 5,
+      "text": "Let's build the tree we'll use for the whole video. Seven ore blocks, joined by wooden rods.",
+      "start_s": -90.809,
+      "end_s": -85.651,
+      "duration_s": 5.158
+    },
+    {
+      "index": 6,
+      "text": "The top block, eight, is the root. It's the only way in. Hold the root, and you can reach every block.",
+      "start_s": -85.651,
+      "end_s": -78.792,
+      "duration_s": 6.859
+    },
+    {
+      "index": 7,
+      "text": "Each rod joins a parent to a child. Three has two children, one on its left and one on its right.",
+      "start_s": -78.792,
+      "end_s": -71.822,
+      "duration_s": 6.97
+    },
+    {
+      "index": 8,
+      "text": "This is a binary tree. Every block has at most two children, a left one and a right one.",
+      "start_s": -71.822,
+      "end_s": -65.733,
+      "duration_s": 6.09
+    },
+    {
+      "index": 9,
+      "text": "The golden rule. A block can have many children, but only one parent. And no rod ever loops back up.",
+      "start_s": -65.733,
+      "end_s": -58.774,
+      "duration_s": 6.959
+    },
+    {
+      "index": 10,
+      "text": "So from the root, there's exactly one path to any block.",
+      "start_s": -58.774,
+      "end_s": -54.187,
+      "duration_s": 4.586
+    },
+    {
+      "index": 11,
+      "text": "Blocks with no children are leaves. One, six, and thirteen.",
+      "start_s": -54.187,
+      "end_s": -49.38,
+      "duration_s": 4.807
+    },
+    {
+      "index": 12,
+      "text": "And here's the part people skip. Under every missing child, there's nothing. In Python, that's None.",
+      "start_s": -49.38,
+      "end_s": -42.89,
+      "duration_s": 6.49
+    },
+    {
+      "index": 13,
+      "text": "We'll mark every None with a barrier. Remember these barriers. They're where the code stops.",
+      "start_s": -42.89,
+      "end_s": -37.399,
+      "duration_s": 5.491
+    },
+    {
+      "index": 14,
+      "text": "Each row is a level. The depth of a block is how many rods you go down from the root. Fourteen has depth two.",
+      "start_s": -37.399,
+      "end_s": -30.688,
+      "duration_s": 6.711
+    },
+    {
+      "index": 15,
+      "text": "The height of the tree counts the rods on the longest way down. From eight to thirteen, that's three.",
+      "start_s": -30.688,
+      "end_s": -24.575,
+      "duration_s": 6.112
+    },
+    {
+      "index": 16,
+      "text": "Now the most important idea of all. Take the shears, and cut the rod between eight and three.",
+      "start_s": -24.575,
+      "end_s": -18.437,
+      "duration_s": 6.138
+    },
+    {
+      "index": 17,
+      "text": "What falls is three, with one and six. That's a complete tree on its own, and three is its root.",
+      "start_s": -18.437,
+      "end_s": -11.652,
+      "duration_s": 6.786
+    },
+    {
+      "index": 18,
+      "text": "Cut again, and one alone, with its two barriers, is a tree too. Just a tiny one.",
+      "start_s": -11.652,
+      "end_s": -6.36,
+      "duration_s": 5.292
+    },
+    {
+      "index": 19,
+      "text": "Every child is the root of its own subtree. A tree is a block, plus a left tree, plus a right tree.",
+      "start_s": -6.36,
+      "end_s": 0.0,
+      "duration_s": 6.36
+    },
+    {
+      "index": 20,
+      "text": "So how do we visit every block? At eight the path splits in two, and we can't take both sides at once.",
+      "start_s": 0.0,
+      "end_s": 7.17,
+      "duration_s": 7.171
+    },
+    {
+      "index": 21,
+      "text": "The first way is depth first. Tie a lead to the root, and always go left first, as deep as you can.",
+      "start_s": 7.17,
+      "end_s": 14.652,
+      "duration_s": 7.482
+    },
+    {
+      "index": 22,
+      "text": "Eight, three, one. Below one there are only barriers, so the lead pulls us back up to three, and we go right, to six.",
+      "start_s": 14.652,
+      "end_s": 22.781,
+      "duration_s": 8.129
+    },
+    {
+      "index": 23,
+      "text": "Three is done, so we climb back to eight, and take the right side. Ten, fourteen, thirteen.",
+      "start_s": 22.781,
+      "end_s": 29.427,
+      "duration_s": 6.646
+    },
+    {
+      "index": 24,
+      "text": "Look at the path around the tree. It passes every block three times. On the way down, underneath, and on the way back up.",
+      "start_s": 29.427,
+      "end_s": 36.756,
+      "duration_s": 7.329
+    },
+    {
+      "index": 25,
+      "text": "Write a block the first time you pass it, and you get preorder. Eight, three, one, six, ten, fourteen, thirteen.",
+      "start_s": 36.756,
+      "end_s": 44.753,
+      "duration_s": 7.997
+    },
+    {
+      "index": 26,
+      "text": "Write it as you pass underneath, between its two sides, and you get inorder. One, three, six, eight, ten, thirteen, fourteen.",
+      "start_s": 44.753,
+      "end_s": 53.827,
+      "duration_s": 9.074
+    },
+    {
+      "index": 27,
+      "text": "Write it on the way back up, after both children, and you get postorder. One, six, three, thirteen, fourteen, ten, eight.",
+      "start_s": 53.827,
+      "end_s": 62.434,
+      "duration_s": 8.607
+    },
+    {
+      "index": 28,
+      "text": "Same walk, three moments. Preorder acts before the children. Postorder waits for their answers.",
+      "start_s": 62.434,
+      "end_s": 69.039,
+      "duration_s": 6.605
+    },
+    {
+      "index": 29,
+      "text": "The second way is breadth first. Instead of diving down, we sweep the tree one level at a time.",
+      "start_s": 69.039,
+      "end_s": 75.228,
+      "duration_s": 6.189
+    },
+    {
+      "index": 30,
+      "text": "Eight. Then three and ten. Then one, six, and fourteen. And finally thirteen.",
+      "start_s": 75.228,
+      "end_s": 81.142,
+      "duration_s": 5.914
+    },
+    {
+      "index": 31,
+      "text": "But three and ten live on different branches. How do we know whose turn it is? With a queue. A line, inside a chest.",
+      "start_s": 81.142,
+      "end_s": 88.403,
+      "duration_s": 7.261
+    },
+    {
+      "index": 32,
+      "text": "Eight goes in. When it comes out, its children, three and ten, join the back of the line.",
+      "start_s": 88.403,
+      "end_s": 93.544,
+      "duration_s": 5.141
+    },
+    {
+      "index": 33,
+      "text": "Three comes out, and adds one and six. Ten comes out, and adds fourteen.",
+      "start_s": 93.544,
+      "end_s": 99.701,
+      "duration_s": 6.157
+    },
+    {
+      "index": 34,
+      "text": "Then one, six, fourteen, and thirteen. Just by waiting in line, the blocks come out level by level.",
+      "start_s": 99.701,
+      "end_s": 107.154,
+      "duration_s": 7.453
+    },
+    {
+      "index": 35,
+      "text": "Now let's add one rule. Everything on a block's left is smaller, and everything on its right is bigger.",
+      "start_s": 107.154,
+      "end_s": 113.636,
+      "duration_s": 6.482
+    },
+    {
+      "index": 36,
+      "text": "Our tree already follows it. That makes it a binary search tree.",
+      "start_s": 113.636,
+      "end_s": 117.671,
+      "duration_s": 4.035
+    },
+    {
+      "index": 37,
+      "text": "Each block works like a hopper. Drop a number in, and it sends it left or right.",
+      "start_s": 117.671,
+      "end_s": 122.435,
+      "duration_s": 4.764
+    },
+    {
+      "index": 38,
+      "text": "Let's look for six. Six is smaller than eight, so it goes left, and the whole right side goes dark. Six can't be there.",
+      "start_s": 122.435,
+      "end_s": 130.816,
+      "duration_s": 8.381
+    },
+    {
+      "index": 39,
+      "text": "Six is bigger than three, so it goes right. And there it is. Three checks, instead of seven.",
+      "start_s": 130.816,
+      "end_s": 136.732,
+      "duration_s": 5.916
+    },
+    {
+      "index": 40,
+      "text": "When the tree is balanced, every check throws away about half of what's left. That's log n.",
+      "start_s": 136.732,
+      "end_s": 142.174,
+      "duration_s": 5.441
+    },
+    {
+      "index": 41,
+      "text": "But insert the same numbers already sorted, and each block lands to the right of the last one.",
+      "start_s": 142.174,
+      "end_s": 147.506,
+      "duration_s": 5.332
+    },
+    {
+      "index": 42,
+      "text": "You get a staircase, seven levels deep. It's a row again, and a search costs n.",
+      "start_s": 147.506,
+      "end_s": 152.812,
+      "duration_s": 5.306
+    },
+    {
+      "index": 43,
+      "text": "Now let's turn the picture into code. A node is a small class.",
+      "start_s": 152.812,
+      "end_s": 156.5,
+      "duration_s": 3.688
+    },
+    {
+      "index": 44,
+      "text": "It has a value, and two links, left and right. When a node is born, both links point to None.",
+      "start_s": 156.5,
+      "end_s": 163.45,
+      "duration_s": 6.949
+    },
+    {
+      "index": 45,
+      "text": "So a new node is a block with two barriers. It doesn't know about any tree yet.",
+      "start_s": 163.45,
+      "end_s": 168.448,
+      "duration_s": 4.998
+    },
+    {
+      "index": 46,
+      "text": "To build the tree, we connect the links. The root is a node with eight.",
+      "start_s": 168.448,
+      "end_s": 172.771,
+      "duration_s": 4.323
+    },
+    {
+      "index": 47,
+      "text": "Root dot left becomes three, and root dot right becomes ten.",
+      "start_s": 172.771,
+      "end_s": 177.059,
+      "duration_s": 4.288
+    },
+    {
+      "index": 48,
+      "text": "Root dot left dot left is one. Every dot is one step down a rod.",
+      "start_s": 177.059,
+      "end_s": 183.141,
+      "duration_s": 6.082
+    },
+    {
+      "index": 49,
+      "text": "Now recursion, where most people get lost. This function adds up every value in the tree.",
+      "start_s": 183.141,
+      "end_s": 188.687,
+      "duration_s": 5.546
+    },
+    {
+      "index": 50,
+      "text": "Don't try to follow every branch at once. Stand on one block, and follow three rules.",
+      "start_s": 188.687,
+      "end_s": 194.612,
+      "duration_s": 5.925
+    },
+    {
+      "index": 51,
+      "text": "Rule one. If the node is None, return zero. Every barrier sends back a zero.",
+      "start_s": 194.612,
+      "end_s": 200.116,
+      "duration_s": 5.504
+    },
+    {
+      "index": 52,
+      "text": "Rule two. Trust your two links. Ask the left subtree for its sum, then the right one.",
+      "start_s": 200.116,
+      "end_s": 206.16,
+      "duration_s": 6.043
+    },
+    {
+      "index": 53,
+      "text": "Three asks one, and gets one back. It asks six, and gets six.",
+      "start_s": 206.16,
+      "end_s": 211.351,
+      "duration_s": 5.191
+    },
+    {
+      "index": 54,
+      "text": "Rule three. Combine, and send it up. Three plus one plus six is ten, and ten goes up to the root.",
+      "start_s": 211.351,
+      "end_s": 217.878,
+      "duration_s": 6.527
+    },
+    {
+      "index": 55,
+      "text": "The right side sends up thirty seven. Eight adds itself, and the whole tree comes to fifty five.",
+      "start_s": 217.878,
+      "end_s": 223.795,
+      "duration_s": 5.917
+    },
+    {
+      "index": 56,
+      "text": "And here's the secret. Change only the last line, and you solve a different problem.",
+      "start_s": 223.795,
+      "end_s": 228.957,
+      "duration_s": 5.162
+    },
+    {
+      "index": 57,
+      "text": "Return one plus left plus right, and you count the blocks.",
+      "start_s": 228.957,
+      "end_s": 232.929,
+      "duration_s": 3.972
+    },
+    {
+      "index": 58,
+      "text": "Return one plus the bigger side, and you get the maximum depth. That's LeetCode one oh four.",
+      "start_s": 232.929,
+      "end_s": 239.237,
+      "duration_s": 6.308
+    },
+    {
+      "index": 59,
+      "text": "Swap the recursion for a queue, and you get the levels. That's problem one oh two.",
+      "start_s": 239.237,
+      "end_s": 244.76,
+      "duration_s": 5.523
+    },
+    {
+      "index": 60,
+      "text": "Write the barriers in preorder, and you can save the whole tree. That's problem two ninety seven.",
+      "start_s": 244.76,
+      "end_s": 249.997,
+      "duration_s": 5.237
+    },
+    {
+      "index": 61,
+      "text": "A tree stops being hard the day you stop looking at every block at once.",
+      "start_s": 249.997,
+      "end_s": 254.393,
+      "duration_s": 4.396
+    },
+    {
+      "index": 62,
+      "text": "You're only ever standing on one block, with two rods going down.",
+      "start_s": 254.393,
+      "end_s": 259.006,
+      "duration_s": 4.613
+    },
+    {
+      "index": 63,
+      "text": "",
+      "start_s": 44.753,
+      "end_s": 48.253,
+      "duration_s": 3.5
+    }
+  ]
+}

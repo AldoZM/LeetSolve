@@ -2,6 +2,42 @@
 
 Registro de lo que se hizo en cada sesión, de la más reciente a la más antigua. El cómo trabajar está en `GUIA.md`.
 
+## 2026-10-24 (noche, PC de Windows)
+
+### El largo de la guía de árboles, terminado
+
+- La PC de Windows trajo de Google Drive la copia de `tree-basics` (zip de 1.67 GB, íntegro). El código era idéntico al de git (solo cambiaban los finales de línea); se copiaron `largo/media/`, `largo/voiceover.mp3` y las dos `.tts-cache/`.
+- `fondo.mp4` (11 499 cuadros) y las escenas 1 a 4 ya compuestas estaban completas. Se corrió `build.py script composite Scene05_DFS … Scene11_Outro sync mux` (sin `lint`, como dice `PARA_AGY.md`).
+- En Windows faltaban los sonidos `shear` y `lead_tie`: `extraer.py 26.3` (la misma versión de la Mac). También faltaban 20 texturas de lugares de MacEntorno en `mundos/tex/`: se copiaron del jar con el comando de "Problemas conocidos".
+- Resultado: 383.3 s (audio 383.291 s), 151 efectos. Hojas de cuadros revisadas en 16:9 (con un script propio de 640 × 360; `sheet.py` hace mosaicos verticales).
+- Corrección de Aldo: en la escena del árbol de búsqueda, "balanced: O(log n)" y "staircase: O(n)" no tenían caja y un mob pasaba detrás del "O(n)". Nuevo ayudante `boxed(row)` en `largo/scenes.py` (la misma caja de `entry`); se rehízo solo `Scene07_BST`.
+- El número de nivel "2" de la anatomía parecía tapado en la hoja reducida, pero en tamaño completo se lee: no se cambió (habría que renderizar todo el 3D).
+- Loop: diferencia media 1.86 entre el primer y el último cuadro; el mapa muestra solo bordes (compresión), dos ovejas un cuadro adelante y el pulso del splash. La portada es la misma.
+- Exportado como `How Trees Really Work.mp4` en `largo/` y en `export/`. El `.gitignore` ahora ignora los `.mp4` de `tree-basics` (no llevan `#`), `script.py` y `hoja*.png`.
+- Falta que Aldo lo vea en movimiento y escuche la mezcla.
+
+### Shorts verticales que llevan al largo (`videos/trees/tree-basics/shorts/`)
+
+- Aldo quiere cortar el largo en varios Shorts 9:16 para enganchar y mandar al video completo. Se compararon tres formas con cuadros reales (recorte directo, cuadro 16:9 en medio con fondo borroso, escenas nuevas en 9:16) y eligió **escenas nuevas en 9:16**: en las otras dos el texto se corta o no se lee en el celular.
+- Reglas de Aldo para estos shorts:
+  - **Sin voz nueva:** se usa la voz del largo, cortada en el tramo de cada short.
+  - **Se cortan a la mitad de la explicación**, justo antes de la revelación.
+  - **Al final, todo se oscurece y aparece un letrero de Minecraft** que dice que el video completo está en YouTube. La voz no lo dice.
+  - **Una entrada ligera, sin esperar:** la portada aparece desde el cuadro 0 mientras la voz ya está narrando (3 s de portada sola era mucho).
+- Los cinco cortes aprobados:
+  1. Tijeras: líneas 12 a 18 (~43 s), corta antes de "Every child is the root of its own subtree".
+  2. DFS: líneas 20 a 25 (~45 s), corta después del preorden. **Hecho como muestra** (`shorts/02-dfs`).
+  3. Por niveles: líneas 29 a 31 (~19 s), termina en "How do we know whose turn it is?". La línea 31 sigue con "With a queue…": hay que cortar el audio a mitad de línea.
+  4. Árbol de búsqueda: líneas 35 a 41 (~40 s), corta antes de la escalera.
+  5. Recursión y el secreto: líneas 49 a 57 (~50 s), corta después de contar los bloques.
+- El `corto/` que ya existía (tráiler de 74 s con voz nueva) queda aparte.
+- Cómo se arma un short (ver "Shorts recortados de un video largo" en `GUIA.md`):
+  - `shorts/make_short.py FIRST LAST [CARD_S]` escribe `timestamps.json` con las 63 líneas del largo desplazadas (la línea FIRST empieza en 0) más una línea vacía de 3.5 s para el letrero, corta `voiceover.mp3` del largo con `atrim` y copia `walk.json`. Así `at()`, `words_at()` y `walk.json` funcionan sin cambios.
+  - `three/mundo.html`: copia de la parte del largo que toca, con el árbol ya armado, cámara para 9:16 (`CAM = {y: 4.25, z: 17.5, lookY: 2.45}`, niebla `[26, 80]`) y un plano negro pegado a la cámara que oscurece todo el cuadro en el letrero (la capa de Manim solo cubre la franja central).
+  - `scenes.py`: la escena del tramo y `Scene2_Full` (redibuja el último estado, lo desvanece, cae el letrero `wood_sign` y aparece "How Trees Really Work"). La portada (`intro_cover`) va en la mitad de abajo, debajo del árbol, y se va en "At eight".
+- Muestra `02-dfs`: 48.27 s (audio 48.253 s), 21 efectos, linter limpio, hojas revisadas. Falta que Aldo lo vea y lo escuche.
+- Errores de la sesión, para no repetir: el linter marca "Check incomplete" si una escena no llama `self.seg()` (la del letrero usa `self.seg(CARD)` con texto vacío); la portada encimada sobre las barreras del 13 (revisar el cuadro 0).
+
 ## 2026-10-24
 
 ### Guía de árboles en dos formatos (`videos/trees/tree-basics/`), sin terminar
@@ -321,7 +357,8 @@ Registro de lo que se hizo en cada sesión, de la más reciente a la más antigu
 
 ## Pendientes
 
-- **Guía de árboles (`videos/trees/tree-basics/`):** terminar el largo (16:9) y hacer el corto (9:16). Pasos en `videos/trees/tree-basics/PARA_AGY.md`.
+- **Guía de árboles (`videos/trees/tree-basics/`):** el largo está terminado (falta que Aldo lo vea y lo escuche). Siguiente: que Aldo apruebe la muestra `shorts/02-dfs` y hacer los otros 4 shorts (1, 3, 4 y 5). El tráiler `corto/` sigue sin voz. Estado en `videos/trees/tree-basics/PARA_AGY.md`.
+- Escribir `descripcion.txt` de cada short (100 caracteres o menos).
 - **Nether (siguiente paso, idea de Aldo):** agregar lugares del Nether para tener más variedad en el mundo. `mundo.py` ya conoce la carpeta `dimensions/minecraft/the_nether` (el zip la trae); falta: que `export` lea esa dimensión, las texturas propias (netherrack, basalto, soul sand, lava, hongos, nether wart blocks), el cielo/niebla del Nether en `setTime` (sin sol ni nubes, niebla roja) y mobs del Nether (piglins, hoglins, ghasts, strider) en `vida.js`. La lava y los bloques brillantes necesitan luz propia. Luego buscar lugares con el escáner (sin heightmaps de superficie útiles: hay techo de bedrock, así que hay que buscar el piso por columnas).
 - **Videos del plan de AGY que faltan** (uno a la vez): #2089 (listo para renderizar), #1569, #3551, #2916, #2913, #3723, #3727, #2897, #2778, #2333 y #1541. #3863 ya está en la rama `laptop-videos`. El plan con el contenido de cada uno está en `DIARIOS_2_SEMANAS.tex`/`.pdf` (de AGY); revisar con fuerza bruta cada código antes de usarlo y corregir lo que se vio en la revisión (narración, código largo, ejemplos).
 - Subir `MacEntorno` comprimido a `mundos/MacEntorno.zip` (sin `players/`) para poder volver a exportar sus lugares en otra PC.

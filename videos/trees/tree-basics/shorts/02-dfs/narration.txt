@@ -1,0 +1,7 @@
+subtitles:
+- So how do we visit every block? At eight the path splits in two, and we can't take both sides at once.
+- The first way is depth first. Tie a lead to the root, and always go left first, as deep as you can.
+- Eight, three, one. Below one there are only barriers, so the lead pulls us back up to three, and we go right, to six.
+- Three is done, so we climb back to eight, and take the right side. Ten, fourteen, thirteen.
+- Look at the path around the tree. It passes every block three times. On the way down, underneath, and on the way back up.
+- Write a block the first time you pass it, and you get preorder. Eight, three, one, six, ten, fourteen, thirteen.

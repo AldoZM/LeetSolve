@@ -51,6 +51,13 @@ def entry(key, desc, color, icon=None):
 GLOSS_W = 5.5
 
 
+def boxed(row):
+    # Same chat box as entry() around any row, so text stays readable over leaves and mobs
+    box = Rectangle(width=row.width + 0.5, height=max(0.74, row.height + 0.24), fill_color="#000000", fill_opacity=0.6,
+                    stroke_width=0)
+    return VGroup(box, row.move_to(box))
+
+
 def fit(m, w=GLOSS_W):
     if m.width > w:
         m.scale_to_fit_width(w)
@@ -558,9 +565,9 @@ class Scene07_BST(Overlay):
         checks = [entry("checks", str(k), MC_WHITE) for k in (1, 2, 3)]
         for c in checks:
             place(c, 2.4)
-        logn = VGroup(MT("balanced:", 44, MC_WHITE), level_text("O(log n)", 0.62)).arrange(RIGHT, buff=0.3)
+        logn = boxed(VGroup(MT("balanced:", 44, MC_WHITE), level_text("O(log n)", 0.62)).arrange(RIGHT, buff=0.3))
         place(logn, 3.6)
-        on = VGroup(MT("staircase:", 44, MC_WHITE), MT("O(n)", 52, MC_RED, PIXEL)).arrange(RIGHT, buff=0.3)
+        on = boxed(VGroup(MT("staircase:", 44, MC_WHITE), MT("O(n)", 52, MC_RED, PIXEL)).arrange(RIGHT, buff=0.3))
         place(on, 4.8)
         hop = pixel_art("hopper", 0.62)
 
