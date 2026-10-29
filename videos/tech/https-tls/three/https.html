@@ -1,0 +1,354 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+// "How HTTPS works": Steve (the browser) and the bank talk across a road full of eyes. The TLS handshake: hello,
+// the certificate (a name tag stamped by a cleric), the key exchange (mixing dyes) and locked chests afterwards.
+// Every event is tied to a narration line of timestamps.json: ev(line, fraction).
+import { THREE, V, lerp, prog, easeInOut, easeOutBack, pose } from '/vendor/lib/stage.js';
+import { loadTheme, makeWorld, makeTerrain, makeClouds, makeSign, makeChest, makeBlock, tex } from '/vendor/tema/mc.js';
+import { loadMobs, planLife, makeLife, setTime } from '/vendor/tema/vida.js';
+import { loadPeople, makeVillager, makePlayer, makeIllager, moveAlong } from '/vendor/tema/gente.js';
+import { makeTower, makeSite, makeHome, bubble, makeItem, arc, uiSprite, placeUI, cameraAt, put } from '/vendor/tema/aldea.js';
+
+// ---------- timing ----------
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const TOTAL = subs[subs.length - 1].end_s;
+const ev = (line, f = 0) => subs[line].start_s + f * subs[line].duration_s;
+const end = (line) => subs[line].end_s;
+
+// ---------- world ----------
+const WOOL = ['yellow_wool', 'orange_wool', 'green_wool', 'brown_wool', 'gray_wool'];
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'leaves', 'log_side', 'log_top', 'cobble', 'oak_planks',
+  'stone_bricks', 'chiseled_stone_bricks', 'smooth_stone', 'lectern_front', 'lectern_top', 'quartz_block_side', 'quartz_block_top',
+  'glass', 'written_book', 'enchanted_book', 'paper', 'name_tag', 'red_dye', 'blue_dye', 'padlock', 'cauldron_side',
+  'cauldron_top', 'dirt_path_top', 'iron_block', ...WOOL]);
+await loadPeople(imgs, ['villager', 'type_plains', 'type_desert', 'type_snow', 'prof_cleric', 'prof_mason', 'steve',
+  'illusioner', 'wandering_trader']);
+const world = makeWorld({ fov: 40, offset: 0, fog: [60, 170] });
+const { scene, camera } = world;
+const terrain = await makeTerrain('/vendor/tema/mundos/south-plain.json', { turn: 0, plot: [-26, 26, -30, 32], clear: [-34, 34, -36, 40] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+const LIFE = [{ kind: 'sheep', count: 3, graze: 1 }, { kind: 'chicken', count: 3 }, { kind: 'cow', count: 1, graze: 1 }];
+await loadMobs(imgs, LIFE.map((g) => g.kind));
+const light = await setTime(world, 'day', { terrain, clouds, imgs });
+const life = makeLife(imgs, terrain, planLife(terrain, LIFE, { seed: 9, area: [-34, 34, -36, 40], avoid: [[-22, 22, -28, 28]] }), TOTAL, light);
+scene.add(life.g);
+
+// ---------- places: Steve's home in front, the bank at the far end of the road, the church of the CA on the side ----------
+const at = (b, x, z, ry = 0) => { b.g.position.set(x, 0, z); b.g.rotation.y = ry; scene.add(b.g); b.pos = V(x, 0, z); return b; };
+const HOME = at(makeHome(imgs), -4, 19);
+const BANK = at(makeSite(imgs, { label: 'mybank.com' }), 0, -16);
+const CA = at(makeTower(imgs, { label: 'CA', h: 8 }), -15, -4, Math.PI / 2);
+const FAKE = at(makeSite(imgs, { label: 'myb4nk.com' }), 16, -9, -Math.PI / 2);
+const W = (b, v) => b.g.localToWorld(v.clone());
+const pathMat = new THREE.MeshBasicMaterial({ map: tex(imgs, 'dirt_path_top') });
+pathMat.color.setScalar(0.92);
+for (let z = -15; z <= 31; z++) for (const x of [-1, 0, 1]) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), pathMat);
+  m.position.set(x, 0.012, z);
+  scene.add(m);
+}
+const cover = makeSign(imgs, ['HOW HTTPS', 'WORKS'], { w: 3.4, h: 1.7 });
+cover.position.set(0, 2.2, 27);
+scene.add(cover);
+
+// ---------- people ----------
+const STEVE_AT = V(0, 0, 13), BANKER_AT = V(0, 0, -14.6), SPY_AT = V(2.6, 0, -0.5), THIEF_AT = V(-3, 0, -6);
+const steve = makePlayer(imgs, { skin: 'steve' });
+const banker = makeVillager(imgs, { profession: 'mason', type: 'desert' });
+const cleric = makeVillager(imgs, { profession: 'cleric', type: 'plains' });
+const spy = makeVillager(imgs, { skin: 'wandering_trader' });
+const thief = makeIllager(imgs, { kind: 'illusioner' });
+scene.add(steve.g, banker.g, cleric.g, spy.g, thief.g);
+cleric.g.position.copy(W(CA, CA.keeper));
+cleric.g.rotation.y = Math.PI / 2;
+const START = V(0, 0, 37), BACK = Math.PI;
+const STEVE = [[0, START, BACK], [ev(0, 0.1), START, BACK], [ev(0, 0.9), STEVE_AT, BACK], [ev(19, 0.0), STEVE_AT, BACK],
+  [ev(19, 0.0), V(9, 0, -9), -Math.PI / 2], [ev(20, 0), V(9, 0, -9), -Math.PI / 2], [ev(20, 0), START, BACK]];
+
+// ---------- the paint table: a cauldron on each side and the public yellow in the middle ----------
+const cauldron = (x, z) => {
+  const g = new THREE.Group();
+  put(imgs, g, 'cauldron_side', 0, 0, 0);
+  g.position.set(x, 0, z);
+  scene.add(g);
+  return g;
+};
+// Each side keeps its own mix in one cauldron and puts what it receives in a second one
+const MIX_S = V(2.2, 0, 10.5), RECV_S = V(3.6, 0, 10.5), MIX_B = V(2.2, 0, -12), RECV_B = V(3.6, 0, -12), MIX_SPY = V(4.2, 0, -0.5);
+[MIX_S, RECV_S, MIX_B, RECV_B, MIX_SPY].forEach((p) => cauldron(p.x, p.z));
+put(imgs, scene, 'oak_planks', -2.6, 0, 0);
+// A wool block per color at each cauldron; show(name) picks the visible one
+function woolStack(p) {
+  const blocks = Object.fromEntries(WOOL.map((w) => {
+    const b = makeBlock(imgs, w, { size: 0.62 });
+    b.g.position.copy(p).add(V(0, 1.45, 0));
+    scene.add(b.g);
+    return [w, b];
+  }));
+  return (name, k = 1) => {
+    for (const [w, b] of Object.entries(blocks)) {
+      b.g.visible = w === name && k > 0.01;
+      b.g.scale.setScalar(Math.max(easeOutBack(k), 1e-4));
+    }
+  };
+}
+const woolS = woolStack(MIX_S), woolB = woolStack(MIX_B), recvS = woolStack(RECV_S), recvB = woolStack(RECV_B), woolSpy = woolStack(MIX_SPY);
+const publicWool = makeBlock(imgs, 'yellow_wool', { size: 0.8 });
+publicWool.g.position.set(-2.6, 1.45, 0);
+scene.add(publicWool.g);
+// Dyes and wool blocks flying along the road
+const flyer = (name, size = 0.62) => { const b = makeBlock(imgs, name, { size }); scene.add(b.g); b.g.visible = false; return b; };
+const flyOrange = flyer('orange_wool'), flyGreen = flyer('green_wool');
+const flyYellowS = flyer('yellow_wool'), flyYellowB = flyer('yellow_wool');
+const redDye = makeItem(imgs, 'red_dye', 0.55), blueDye = makeItem(imgs, 'blue_dye', 0.55), redDye2 = makeItem(imgs, 'red_dye', 0.55),
+  blueDye2 = makeItem(imgs, 'blue_dye', 0.55);
+scene.add(redDye, blueDye, redDye2, blueDye2);
+
+// ---------- items on the road ----------
+const openBook = makeItem(imgs, 'written_book', 0.8);
+const helloS = makeItem(imgs, 'paper', 0.6), helloB = makeItem(imgs, 'paper', 0.6);
+const tag = makeItem(imgs, 'name_tag', 0.75), thiefTag = makeItem(imgs, 'name_tag', 0.6), trust = makeItem(imgs, 'enchanted_book', 0.6);
+const jobs = [makeItem(imgs, 'enchanted_book', 1.0), makeItem(imgs, 'name_tag', 1.0)];
+const padlock = makeItem(imgs, 'padlock', 1.6), padFake = makeItem(imgs, 'padlock', 1.6);
+scene.add(openBook, helloS, helloB, tag, thiefTag, trust, ...jobs, padlock, padFake);
+// Chests locked with the brown key; the first one stands for "privacy" in the list of three jobs
+const brownChest = () => {
+  const c = makeChest(imgs, 0.75);
+  c.g.traverse((o) => { if (o.material) [].concat(o.material).forEach((m) => m.color.multiply(new THREE.Color(1, 0.72, 0.5))); });
+  scene.add(c.g);
+  return c;
+};
+const chests = [brownChest(), brownChest(), brownChest(), brownChest()];
+const jobChest = brownChest();
+
+// ---------- bubbles ----------
+const B_ = (lines, opts) => { const b = bubble(lines, opts); scene.add(b); return b; };
+const bub = {
+  read: B_(['password: hunter2', '(I can read this)'], { color: 0xFF5555 }),
+  https: B_(['HTTPS = HTTP + TLS'], { color: 0x55FFFF, size: 0.032 }),
+  j1: B_(['privacy'], { color: 0xFFAA00 }), j2: B_(['nothing changed'], { color: 0xB070FF }), j3: B_(['who you talk to'], { color: 0x55FF55 }),
+  hello: B_(['Hello! TLS 1.3']), helloBack: B_(['Hello back!'], { color: 0xFFFF55 }),
+  tag: B_(['mybank.com', 'stamped by: Village CA'], { color: 0x55FF55 }),
+  trusted: B_(['Trusted: Village CA'], { color: 0xB070FF }), stamp: B_(['I vouch for mybank.com'], { color: 0xB070FF }),
+  sign: B_(['Signed with my secret key'], { color: 0x55FF55 }), cant: B_(["Can't sign. Fake!"], { color: 0xFF5555 }),
+  pub: B_(['public: yellow'], { color: 0xFFFF55 }),
+  secretR: B_(['secret: red'], { color: 0xFF5555 }), secretB: B_(['secret: blue'], { color: 0x5555FF }),
+  saw: B_(['I saw yellow,', 'orange and green'], { color: 0xAAAAAA }),
+  same1: B_(['brown!'], { color: 0xC08040 }), same2: B_(['brown!'], { color: 0xC08040 }),
+  mud: B_(['...not brown'], { color: 0xAAAAAA }),
+  key: B_(['the brown key'], { color: 0xC08040 }), boxes: B_(['Just boxes...'], { color: 0xAAAAAA }),
+  broken: B_(['Seal broken. Thrown out!'], { color: 0xFF5555 }),
+  fast: B_(['all in milliseconds'], { color: 0x55FFFF }),
+  honest: B_(['private + right name', 'not "honest"'], { color: 0xFFFF55 }),
+  fakeName: B_(['myb4nk.com ?!'], { color: 0xFF5555 }),
+};
+
+// ---------- timeline helpers ----------
+const ROAD_S = V(0, 1.6, 12.2), ROAD_B = V(0, 1.6, -13.6);
+const fly = (it, a, b, t0, t1, t, h = 1.6) => {
+  const k = prog(t, t0, t1);
+  if (t < t0 || t > t1) return false;
+  it.visible = true;
+  (it.position ?? it.g.position).copy(arc(a, b, easeInOut(k), h));
+  return true;
+};
+function items(t) {
+  for (const it of [openBook, helloS, helloB, tag, thiefTag, trust, ...jobs, padlock, padFake, redDye, blueDye, redDye2, blueDye2]) {
+    it.visible = false;
+    it.glow(0, t);
+  }
+  for (const b of [flyOrange, flyGreen, flyYellowS, flyYellowB]) b.g.visible = false;
+  for (const c of [...chests, jobChest]) c.g.visible = false;
+  // Open book on the road (plain HTTP)
+  fly(openBook, ROAD_S, ROAD_B, ev(1, 0.0), ev(1, 0.8), t);
+  // The three jobs over the road
+  const jp = [V(-1.6, 3.2, 3), V(0, 3.6, 3), V(1.6, 3.2, 3)];
+  const jk = [ev(3, 0.25), ev(3, 0.45), ev(3, 0.7)];
+  jobChest.g.visible = t >= jk[0] && t < end(3);
+  jobChest.g.position.copy(jp[0]).add(V(0, -0.35, 0));
+  jobChest.g.scale.setScalar(Math.max(easeOutBack(prog(t, jk[0], jk[0] + 0.4)), 1e-4));
+  jobs.forEach((it, k) => {
+    it.visible = t >= jk[k + 1] && t < end(3);
+    it.position.copy(jp[k + 1]);
+    it.scale.setScalar(Math.max(easeOutBack(prog(t, jk[k + 1], jk[k + 1] + 0.4)), 1e-4));
+    if (k === 0) it.glow(1, t);
+  });
+  // Hello both ways
+  fly(helloS, ROAD_S, ROAD_B, ev(4, 0.2), ev(4, 0.5), t);
+  fly(helloB, ROAD_B, ROAD_S, ev(4, 0.55), ev(4, 0.85), t);
+  // The name tag comes to Steve and stays over him, glowing (stamped)
+  if (!fly(tag, ROAD_B, ROAD_S, ev(5, 0.1), ev(5, 0.55), t) && t >= ev(5, 0.55) && t < end(7)) {
+    tag.visible = true;
+    tag.position.copy(ROAD_S).add(V(-0.8, 0.9, 0));
+  }
+  if (t >= ev(6, 0.3) && t < end(7)) tag.glow(1, t);
+  // Steve's list of trusted clerics
+  trust.visible = t >= ev(6, 0.55) && t < end(6);
+  trust.position.copy(ROAD_S).add(V(0.8, 0.9, 0));
+  trust.glow(1, t);
+  // The thief's copy of the tag (no stamp glow)
+  thiefTag.visible = t >= ev(7, 0.5) && t < end(7);
+  thiefTag.position.copy(THIEF_AT).add(V(0.6, 1.6, 0.3));
+  // Paint: the public yellow goes to both sides, the secret dyes fall in, the mixes cross the road
+  fly(flyYellowS, V(-2.6, 1.45, 0), MIX_S.clone().add(V(0, 1.45, 0)), ev(9, 0.45), ev(9, 0.85), t, 1.2);
+  fly(flyYellowB, V(-2.6, 1.45, 0), MIX_B.clone().add(V(0, 1.45, 0)), ev(9, 0.45), ev(9, 0.85), t, 1.2);
+  const drop = (it, p, t0, t1) => fly(it, p.clone().add(V(0, 3.2, 0)), p.clone().add(V(0, 1.5, 0)), t0, t1, t, 0.2);
+  drop(redDye, MIX_S, ev(10, 0.0), ev(10, 0.2));
+  drop(blueDye, MIX_B, ev(10, 0.5), ev(10, 0.7));
+  fly(flyOrange.g, MIX_S.clone().add(V(0, 1.45, 0)), RECV_B.clone().add(V(0, 1.45, 0)), ev(10, 0.25), ev(10, 0.5), t, 2.4);
+  fly(flyGreen.g, MIX_B.clone().add(V(0, 1.45, 0)), RECV_S.clone().add(V(0, 1.45, 0)), ev(10, 0.75), ev(11, 0.0), t, 2.4);
+  drop(redDye2, RECV_S, ev(12, 0.05), ev(12, 0.3));
+  drop(blueDye2, RECV_B, ev(12, 0.55), ev(12, 0.8));
+  // Cauldron contents: own mix and received mix on each side
+  const pick = (spans) => (spans.find(([a, b]) => t >= a && t < b) ?? [0, 0, null])[2];
+  woolS(pick([[ev(9, 0.85), ev(10, 0.2), 'yellow_wool'], [ev(10, 0.2), ev(12, 0.0), 'orange_wool']]), prog(t, ev(9, 0.8), ev(9, 0.95)));
+  woolB(pick([[ev(9, 0.85), ev(10, 0.7), 'yellow_wool'], [ev(10, 0.7), ev(12, 0.0), 'green_wool']]), prog(t, ev(9, 0.8), ev(9, 0.95)));
+  recvS(pick([[ev(11, 0.0), ev(12, 0.3), 'green_wool'], [ev(12, 0.3), ev(14, 0.3), 'brown_wool']]), 1);
+  recvB(pick([[ev(10, 0.5), ev(12, 0.8), 'orange_wool'], [ev(12, 0.8), ev(14, 0.3), 'brown_wool']]), 1);
+  const paintOn = t < ev(14, 0.3);
+  publicWool.g.visible = paintOn && t >= ev(9, 0.0);
+  publicWool.g.scale.setScalar(Math.max(easeOutBack(prog(t, ev(9, 0.0), ev(9, 0.3))), 1e-4));
+  woolSpy(t >= ev(13, 0.45) && t < ev(14, 0.3) ? 'gray_wool' : null, prog(t, ev(13, 0.45), ev(13, 0.6)));
+  // Locked chests back and forth; one is grabbed by the spy and breaks
+  const trips = [[ROAD_S, ROAD_B, ev(14, 0.4), ev(15, 0.2)], [ROAD_B, ROAD_S, ev(15, 0.0), ev(15, 0.8)],
+                 [ROAD_S, ROAD_B, ev(15, 0.5), ev(16, 0.2)]];
+  trips.forEach(([a, b, t0, t1], k) => fly(chests[k].g, a, b, t0, t1, t, 1.0));
+  const grab = prog(t, ev(16, 0.2), ev(16, 0.45));
+  if (t >= ev(16, 0.2) && t < ev(16, 0.8)) {
+    const c = chests[3];
+    c.g.visible = true;
+    c.g.position.copy(arc(ROAD_S.clone().lerp(ROAD_B, 0.45), SPY_AT.clone().add(V(0.2, 1.5, 0.6)), easeInOut(grab), 0.6));
+    c.open(prog(t, ev(16, 0.45), ev(16, 0.55)));
+    c.g.scale.setScalar(Math.max(1 - prog(t, ev(16, 0.6), ev(16, 0.8)), 1e-4));
+  }
+  // Padlocks over the doors
+  padlock.visible = t >= ev(17, 0.35) && t < end(18);
+  padlock.position.copy(W(BANK, V(0, 7.2, -1)));
+  padlock.scale.setScalar(1.6 * Math.max(easeOutBack(prog(t, ev(17, 0.35), ev(17, 0.6))), 1e-4));
+  padFake.visible = t >= ev(19, 0.15) && t < end(19);
+  padFake.position.copy(W(FAKE, V(0, 7.2, -1)));
+  padFake.scale.setScalar(1.6 * Math.max(easeOutBack(prog(t, ev(19, 0.15), ev(19, 0.4))), 1e-4));
+}
+
+function bubbles(t) {
+  const over = (p, h = 2.35) => p.g.position.clone().add(V(0, h, 0));
+  bub.read.show(t, ev(1, 0.45), end(1), over(spy, 2.5));
+  bub.https.show(t, ev(2, 0.1), end(2), V(0, 4.5, 4));
+  bub.j1.show(t, ev(3, 0.3), end(3), V(-1.6, 2.5, 3));
+  bub.j2.show(t, ev(3, 0.5), end(3), V(0, 2.9, 3));
+  bub.j3.show(t, ev(3, 0.75), end(3), V(1.6, 2.5, 3));
+  bub.hello.show(t, ev(4, 0.15), ev(4, 0.6), over(steve));
+  bub.helloBack.show(t, ev(4, 0.6), end(4), over(banker, 2.5));
+  bub.tag.show(t, ev(5, 0.55), ev(6, 0.5), ROAD_S.clone().add(V(-0.8, 1.6, 0)));
+  bub.stamp.show(t, ev(6, 0.2), ev(6, 0.6), over(cleric, 2.5));
+  bub.trusted.show(t, ev(6, 0.6), end(6), ROAD_S.clone().add(V(0.8, 1.6, 0)));
+  bub.sign.show(t, ev(7, 0.05), ev(7, 0.5), over(banker, 2.5));
+  bub.cant.show(t, ev(7, 0.6), end(7), over(thief, 2.4));
+  bub.pub.show(t, ev(9, 0.1), ev(9, 0.9), V(-2.6, 2.6, 0));
+  bub.secretR.show(t, ev(10, 0.0), ev(10, 0.3), MIX_S.clone().add(V(0, 3.0, 0)));
+  bub.secretB.show(t, ev(10, 0.5), ev(10, 0.8), MIX_B.clone().add(V(0, 3.0, 0)));
+  bub.saw.show(t, ev(11, 0.1), end(11), over(spy, 2.5));
+  bub.same1.show(t, ev(13, 0.0), ev(14, 0.2), RECV_S.clone().add(V(0, 2.5, 0)));
+  bub.same2.show(t, ev(13, 0.0), ev(14, 0.2), RECV_B.clone().add(V(0, 2.5, 0)));
+  bub.mud.show(t, ev(13, 0.55), ev(14, 0.2), MIX_SPY.clone().add(V(0, 2.6, 0)));
+  bub.key.show(t, ev(14, 0.0), ev(14, 0.6), ROAD_S.clone().add(V(0, 1.4, 0)));
+  bub.boxes.show(t, ev(15, 0.25), end(15), over(spy, 2.5));
+  bub.broken.show(t, ev(16, 0.5), end(16), over(spy, 2.5));
+  bub.fast.show(t, ev(17, 0.1), ev(17, 0.6), V(0, 4.2, 0));
+  bub.honest.show(t, ev(18, 0.2), end(18), W(BANK, V(0, 8.6, -1)));
+  bub.fakeName.show(t, ev(19, 0.45), end(19), over(steve, 2.4));
+}
+
+function people(t) {
+  moveAlong(steve, STEVE, t);
+  banker.g.position.copy(BANKER_AT);
+  banker.g.rotation.y = 0;
+  spy.g.position.copy(SPY_AT);
+  // The spy watches whatever passes on the road
+  const watch = [openBook, ...chests.map((c) => c.g), flyOrange.g, flyGreen.g, helloS, helloB].find((o) => o.visible);
+  const target = watch ? (watch.position ?? watch.g.position) : V(0, 1.6, 0);
+  spy.g.rotation.y = Math.atan2(target.x - SPY_AT.x, target.z - SPY_AT.z);
+  spy.look(0, 0.2);
+  spy.g.visible = t < ev(17, 0.0);
+  thief.g.visible = t >= ev(7, 0.45) && t < end(7);
+  thief.g.position.copy(THIEF_AT);
+  thief.g.rotation.y = 0.6;
+  cleric.look(0.2 * Math.sin(t), 0);
+  banker.look(0, 0);
+  if (t >= ev(7, 0.6) && t < end(7)) thief.look(0.4 * Math.sin(t * 20), 0);
+}
+
+// ---------- camera ----------
+const look = (p, q) => pose(p, q);
+const ROADVIEW = look(V(9, 9, 22), V(0, 1, -2));
+const COVER = look(V(0, 3.0, 33.5), V(0, 2.3, 25));
+const followOf = (getter, dx = 6, dy = 3.5, dz = 6) => () => { const p = getter(); return look(p.clone().add(V(dx, dy, dz)), p.clone()); };
+const CAM = [
+  [0, COVER],
+  [ev(0, 0.25), () => look(steve.g.position.clone().add(V(4.5, 3.2, 6)), steve.g.position.clone().add(V(0, 1.2, -2))), 2.0],
+  [ev(1, 0.0), followOf(() => openBook.position, 5, 3, 7), 1.0],
+  [ev(1, 0.55), look(V(6, 3, 5), SPY_AT.clone().add(V(0, 1.8, 0))), 1.0],
+  [ev(2, 0.0), ROADVIEW, 1.6],
+  [ev(3, 0.0), look(V(0, 3.4, 10), V(0, 3.0, 3)), 1.2],
+  [ev(4, 0.0), ROADVIEW, 1.2],
+  [ev(5, 0.4), look(V(3.4, 3.2, 17), V(-0.4, 2.2, 12)), 1.2],
+  [ev(6, 0.0), look(W(CA, V(0, 3, 6)), W(CA, V(0, 1.6, -2))), 1.2],
+  [ev(6, 0.5), look(V(3.4, 3.2, 17), V(0, 2.2, 12)), 1.0],
+  [ev(7, 0.0), look(V(4, 3.4, -6), V(0, 1.6, -13)), 1.0],
+  [ev(7, 0.45), look(V(1.5, 2.6, -1), THIEF_AT.clone().add(V(0, 1.4, 0))), 1.0],
+  [ev(8, 0.0), look(V(12, 13, 22), V(0, 0, -1)), 1.8],
+  [ev(9, 0.0), look(V(-1, 4.5, 6), V(-2.6, 1.4, 0)), 1.2],
+  [ev(10, 0.0), look(V(6, 4, 15), MIX_S.clone().add(V(0, 1.3, 0))), 1.0],
+  [ev(10, 0.45), look(V(6, 4, -6), MIX_B.clone().add(V(0, 1.3, 0))), 1.0],
+  [ev(11, 0.0), look(V(8, 3.5, 3), SPY_AT.clone().add(V(0, 1.8, 0))), 1.0],
+  [ev(12, 0.0), look(V(6, 4, 15), MIX_S.clone().add(V(0, 1.3, 0))), 1.0],
+  [ev(12, 0.5), look(V(6, 4, -6), MIX_B.clone().add(V(0, 1.3, 0))), 1.0],
+  [ev(13, 0.0), look(V(12, 13, 22), V(0, 0, -1)), 1.4],
+  [ev(14, 0.3), look(V(6, 3.4, 7), V(0, 1.4, 0)), 1.2],
+  [ev(16, 0.1), look(V(8, 3.5, 3), SPY_AT.clone().add(V(0, 1.8, 0))), 1.0],
+  [ev(17, 0.0), look(V(6, 6, 4), W(BANK, V(0, 5, -2))), 1.4],
+  [ev(19, 0.0), look(V(4, 4.5, -2), W(FAKE, V(0, 4, -2))), 1.4],
+  [ev(20, 0.0), look(V(9, 14, 26), V(0, 0, -4)), 1.2],
+  [ev(20, 0.55), COVER, Math.min(2.2, subs[20].duration_s * 0.42)],
+];
+
+// ---------- sound cues ----------
+window.sfxCues = [
+  [ev(1, 0.0), 'book_put', 0.35], [ev(1, 0.45), 'trader_idle', 0.35], [ev(2, 0.1), 'pop', 0.3],
+  [ev(3, 0.25), 'chestclosed', 0.3], [ev(3, 0.45), 'orb', 0.3], [ev(3, 0.7), 'pop', 0.3],
+  [ev(4, 0.15), 'villager_idle1', 0.3], [ev(4, 0.6), 'villager_yes1', 0.35], [ev(5, 0.55), 'orb', 0.3],
+  [ev(6, 0.2), 'villager_idle2', 0.3], [ev(6, 0.6), 'levelup', 0.25], [ev(7, 0.05), 'villager_yes2', 0.35],
+  [ev(7, 0.6), 'villager_no1', 0.35], [ev(9, 0.0), 'pop', 0.3], [ev(10, 0.2), 'pop', 0.3], [ev(10, 0.7), 'pop', 0.3],
+  [ev(11, 0.1), 'trader_idle', 0.35], [ev(12, 0.3), 'pop', 0.3], [ev(12, 0.8), 'pop', 0.3], [ev(13, 0.0), 'levelup', 0.3],
+  [ev(13, 0.55), 'villager_no2', 0.3], [ev(14, 0.4), 'chestclosed', 0.3], [ev(15, 0.0), 'chestclosed', 0.3],
+  [ev(16, 0.45), 'chest_locked', 0.35], [ev(16, 0.6), 'break', 0.4], [ev(17, 0.35), 'toast_in', 0.35],
+  [ev(19, 0.45), 'villager_no3', 0.35],
+].map(([s, n, g]) => [Math.round(s * 1000) / 1000, n, g]);
+
+window.renderAt = (t) => {
+  people(t);
+  items(t);
+  bubbles(t);
+  const cam = cameraAt(CAM, t);
+  world.look(cam.pos, cam.look);
+  camera.updateMatrixWorld();
+  placeUI(camera);
+  clouds.position.x = 4 * Math.sin(2 * Math.PI * t / TOTAL);
+  life.update(t);
+  world.draw(t, TOTAL, 0, 0);
+};
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

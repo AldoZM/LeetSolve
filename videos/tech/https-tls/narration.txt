@@ -1,0 +1,22 @@
+subtitles:
+  - When you log in to your bank, your password travels through many machines you don't control.
+  - With plain H T T P, it travels like an open book. Anyone along the road can read it.
+  - H T T P S fixes that. It's the same H T T P, wrapped in a protocol called T L S.
+  - T L S gives you three things: privacy, proof that nothing was changed, and proof of who you're talking to.
+  - It starts with a handshake. Steve says hello to the bank, and the bank says hello back.
+  - Then the bank shows its certificate, a name tag that says mybank dot com.
+  - Anyone can write a name tag, so this one is stamped by a certificate authority, a cleric that Steve's browser already trusts.
+  - The bank also proves it holds the secret key that matches the tag. A thief with a copy of the tag can't do that.
+  - Now they need a shared secret, but the road is full of eyes. So they mix colors.
+  - They agree on a public color, yellow. Everyone can see it.
+  - Steve adds his secret red and sends orange. The bank adds its secret blue and sends green.
+  - The spy on the road sees yellow, orange and green. Never red, never blue.
+  - Steve adds his red to the bank's green. The bank adds its blue to Steve's orange.
+  - Both end up with the same brown. The spy can't unmix the paint, so he can't make it.
+  - That brown becomes the key. From now on, every message travels in a chest locked with it.
+  - The spy sees boxes going back and forth, and nothing inside.
+  - And if anyone tampers with a box, the seal breaks and the message is thrown away.
+  - All of that happens in milliseconds, and your browser shows it as a padlock.
+  - But careful. The padlock means the line is private and the name checks out, not that the site is honest.
+  - A fake bank at my b four n k dot com can get a padlock too. So read the name.
+  - That's H T T P S. A handshake, a stamped name tag, some paint, and locked chests all the way.

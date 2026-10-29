@@ -1,7 +1,7 @@
 // People for the all-3D videos: villagers (with biome and profession layers), players and illagers.
 // Served as /vendor/tema/gente.js. Textures come from gente/ (copied by extraer.py); models follow the game's entity
 // models (boxes in 1/16 block units, the game's 64 x 64 texture layout), scaled like the game renders them.
-import { THREE } from '/vendor/lib/stage.js';
+import { THREE, prog, easeInOut } from '/vendor/lib/stage.js';
 
 const loadImg = (src) => new Promise((res, rej) => {
   const im = new Image();
@@ -124,4 +124,27 @@ export function makePlayer(imgs, { skin = 'steve' } = {}) {
   g.add(head, body, ...arms, ...legs);
   g.scale.setScalar(0.9375);
   return person(g, head, legs, arms);
+}
+
+// Walks a person through keys [time, position, yaw]: between two keys at different places it walks (facing where it
+// goes); two keys with the same time teleport. amount fades the leg swing in and out.
+export function moveAlong(p, keys, t) {
+  let k = 0;
+  while (k + 1 < keys.length && keys[k + 1][0] <= t) k++;
+  const [t0, p0, y0] = keys[k];
+  const next = keys[k + 1];
+  if (!next || next[1].distanceTo(p0) < 1e-3 || next[0] === t0) {
+    p.g.position.copy(p0);
+    p.g.rotation.y = y0;
+    p.walk(0, 0);
+    return;
+  }
+  const [t1, p1, y1] = next;
+  const u = prog(t, t0, t1);
+  const x = u * 0.85 + easeInOut(u) * 0.15;
+  p.g.position.lerpVectors(p0, p1, x);
+  const dir = Math.atan2(p1.x - p0.x, p1.z - p0.z);
+  const turn = (a, b, w) => a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * w;
+  p.g.rotation.y = u < 0.12 ? turn(y0, dir, u / 0.12) : u > 0.88 ? turn(dir, y1, (u - 0.88) / 0.12) : dir;
+  p.walk(x * p0.distanceTo(p1) * 2.4, Math.min(1, u * 8, (1 - u) * 8));
 }

@@ -1,6 +1,6 @@
 # Plan: short DNS todo en 3D
 
-Diseño: `DISENO.md` (aprobado por Aldo el 2026-10-28). Aldo pidió implementarlo directo. Sin commit ni push hasta que lo pida.
+Diseño: `DISENO.md` (aprobado por Aldo el 2026-10-28). Aldo pidió implementarlo directo, con commit y push al terminar cada sección.
 
 ## Tareas
 

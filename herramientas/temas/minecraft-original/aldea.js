@@ -2,7 +2,7 @@
 // libraries with a lectern, the root tower, destination sites, the barrier room, the TNT bank and a small home.
 // Also the in-world UI: tooltip bubbles, flying items and lectern books. Served as /vendor/tema/aldea.js.
 // Every builder returns { g, ... } with its origin on the ground at the middle of its open front, facing +z.
-import { THREE, V, lerp, prog, easeOutBack } from '/vendor/lib/stage.js';
+import { THREE, V, lerp, prog, easeInOut, easeOutBack, mixPose } from '/vendor/lib/stage.js';
 import { tex, makeSign, drawText, textWidth } from '/vendor/tema/mc.js';
 
 // Face shading like the game (BoxGeometry order +x, -x, +y, -y, +z, -z)
@@ -291,4 +291,15 @@ export function makeItem(imgs, name, size = 0.6) {
 // Point on a hop from a to b at k (0..1), rising `height` in the middle
 export function arc(a, b, k, height = 1.5) {
   return V(lerp(a.x, b.x, k), lerp(a.y, b.y, k) + height * Math.sin(Math.PI * k), lerp(a.z, b.z, k));
+}
+
+// Camera from keys [time, pose or function of t, blend seconds]: each key blends in from the previous one
+export function cameraAt(CAM, t) {
+  const P0 = (k) => (typeof k[1] === 'function' ? k[1](t) : k[1]);
+  let p = P0(CAM[0]);
+  for (const k of CAM.slice(1)) {
+    const x = easeInOut(prog(t, k[0], k[0] + k[2]));
+    if (x > 0) p = mixPose(p, P0(k), x);
+  }
+  return p;
 }
