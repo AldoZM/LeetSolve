@@ -212,8 +212,8 @@ export async function loadMobs(imgs, kinds) {
   const need = new Set();
   for (const k of kinds) {
     need.add(k);
-    if (MODELS[k].wool) need.add(MODELS[k].wool);
-    if (MODELS[k].eyes) need.add(MODELS[k].eyes);
+    if (MODELS[k]?.wool) need.add(MODELS[k].wool);  // textures without a model here (the iron golem) load too
+    if (MODELS[k]?.eyes) need.add(MODELS[k].eyes);
   }
   await Promise.all([...need].map(async (k) => { imgs[`mob_${k}`] = await loadImg(`/vendor/tema/mobs/${k}.png`); }));
 }

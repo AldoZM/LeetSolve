@@ -209,8 +209,12 @@ SHOP.position.copy(WS);
 scene.add(SHOP);
 const L = (x, y, z) => V(x, y, z).add(WS);
 const cover = makeSign(imgs, ['INSIDE A', 'SERVER'], { w: 3.4, h: 1.7 });
-cover.position.set(-3.4, 2.2, 49.5);
+cover.position.copy(L(0, 2.2, 14.5));
 scene.add(cover);
+// It stands between the camera and Steve: it sinks into the ground when the camera leaves the cover and rises again
+// for the last shot, so the video loops (as in the packets short)
+const COVER_OUT = ev(0, 0.15), COVER_IN = ev(20, 0.05);
+const coverY = (t) => 2.2 - 4.5 * easeInOut(prog(t, COVER_OUT, COVER_OUT + 0.8)) * (1 - easeInOut(prog(t, COVER_IN, COVER_IN + 0.8)));
 // Ten identical workshops behind the storage room, for "no memory": any of them can answer
 const COPIES = [-24, -12, 0, 12, 24].flatMap((x) => [-6, -17].map((z) => V(x, 0, z)));
 const copyProto = makeWorkshop(false);
@@ -500,12 +504,12 @@ function bubbles(t) {
   bub.fast.show(t, ev(11, 0.72), end(11), HAND.clone().add(V(0, 1.1, 0)));
   bub.rest.show(t, ev(12, 0.05), end(12), L(0, 4.5, 1));
   bub.res.forEach((b, k) => b.show(t, ev(13, 0.4 + 0.17 * k), end(13), L(LANES[k][1], 2.6, 0.5)));
-  const legend = V(0, 7.4, 7.5);
+  const legend = V(0, 9.4, 7.5);
   const gap = 0.021 * 21 * camera.position.distanceTo(legend) / 7;
   bub.same.forEach((b, k) => b.show(t, ev(15, 0.05 + 0.12 * k), end(15), legend.clone().add(V(0, -k * gap, 0))));
-  const deskTop = L(0, 4.3, -4);
-  const gap2 = 0.04 * 19 * camera.position.distanceTo(deskTop) / 7;
-  bub.codes.forEach((b, k) => b.show(t, ev(16, [0.12, 0.3, 0.5, 0.74][k]), end(16), deskTop.clone().add(V(0, -k * gap2, 0))));
+  // One code at a time over the desk, each until the next one is said
+  const said = [0.12, 0.3, 0.5, 0.74].map((f) => ev(16, f));
+  bub.codes.forEach((b, k) => b.show(t, said[k], k < 3 ? said[k + 1] : end(16), L(0, 3.6, -4)));
   bub.tagOk2.forEach((b, i) => { const a = ev(17, 0.1 + 0.32 * i) + 1.3; b.show(t, a, a + 0.9, guard.g.position.clone().add(V(0, 2.4, 0))); });
   bub.forget.show(t, ev(17, 0.62), end(17), lib.g.position.clone().add(V(0, 2.5, 0)));
   bub.ten.show(t, ev(18, 0.05), end(18), V(0, 5, -11));
@@ -536,14 +540,14 @@ function people(t) {
 
 // ---------- camera ----------
 const look = (p, q) => pose(p, q);
-const COVER = look(L(0, 3.0, 21), L(-0.6, 2.4, 10));
+const COVER = look(L(0, 3.0, 24), L(0, 2.4, 12));
 const OUTV = look(L(4.2, 2.8, 15.5), L(0.6, 1.8, 8));
-const NOTE = look(L(2.6, 2.6, 12.4), HOLD);
+const NOTE = look(L(-1.2, 3.0, 13.6), HOLD);
 const INSIDE = look(L(0, 9.5, 12), L(0, 0.6, 0.5));
 const ROUTERV = look(L(3, 5.2, 7.5), L(0, 1.2, 1.5));
 const CHECKV = look(L(5, 4.8, 3.6), L(0, 1.3, -1.2));
 const DESKV = look(L(2.6, 3.8, 0.8), L(0, 1.6, -4.2));
-const TABLE = look(V(0, 3.2, 24.5), V(0, 2.8, 6.5));
+const TABLE = look(V(0, 3.8, 25), V(0, 3.8, 6.5));
 const AERIAL_WS = look(L(0, 20, 16), L(0, 0, -1));
 const STATE = look(L(5.5, 6.5, 12), L(0, 1.2, 2));
 const COPIESV = look(V(0, 26, 22), V(0, 0, -11));
@@ -558,7 +562,7 @@ const CAM = [
   [ev(9, 0.0), DESKV, 1.0],
   [ev(9, 0.42), TABLE, 0.6],
   [ev(10, 0.0), DESKV, 0.6],
-  [ev(11, 0.3), () => look(answer.position.clone().add(V(3.5, 2.2, 5.5)), answer.position.clone()), 1.0],
+  [ev(11, 0.3), INSIDE, 1.0],
   [ev(12, 0.0), AERIAL_WS, 1.6],
   [ev(14, 0.0), TABLE, 1.6],
   [ev(16, 0.0), DESKV, 1.2],
@@ -587,6 +591,7 @@ window.renderAt = (t) => {
   request(t);
   restTable(t);
   desk2(t);
+  cover.position.y = coverY(t);
   const cam = cameraAt(CAM, t);
   world.look(cam.pos, cam.look);
   camera.updateMatrixWorld();
