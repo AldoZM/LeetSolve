@@ -1,2 +1,9 @@
 {"solo3d": {"page": "three/sql.html"}, "formato": "9:16", "tema": "minecraft-original",
- "musica": {"pista": "subwoofer_lullaby", "volumen": 0.45}}
+ "musica": {"pista": "subwoofer_lullaby", "volumen": 0.45},
+ "subtitulos": {
+  "cambios": {"or one equals one": "OR 1=1"},
+  "ocultar": [[120.6, 122.11]],
+  "amarillo": ["database", "SQL", "table", "column", "row", "query", "index", "transaction", "SQL injection"],
+  "verde": ["fixes that", "rolls back", "the fix:", "value", "the right row"],
+  "rojo": ["full scan", "takes forever", "creeper", "nothing.", "always true", "dangerous"],
+  "dorado": ["select", "from:", "where:", "order by", "limit", "OR 1=1", "two dashes"]}}

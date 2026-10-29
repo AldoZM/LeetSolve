@@ -18,6 +18,10 @@ REF_TEXT_DEFAULT = (
 )
 
 MODEL_ID = "Qwen/Qwen3-TTS-12Hz-0.6B-Base"
+# Pause added after every line but the last: without it the sentences ran together with only the 0.08 s tail
+GAP_S = 0.35
+# Peak ceiling (-1 dBFS): the cloned voice reached 1.07 after MP3 encoding and clipped
+PEAK = 0.89
 
 
 def parse_subtitles(narration_path: str) -> list[str]:
@@ -53,16 +57,18 @@ def ffprobe_duration(mp3_path: str) -> float:
     return float(result.stdout.strip())
 
 
-def concat_mp3s(parts: list[str], out_path: str) -> None:
+def concat_mp3s(parts: list[str], durations: list[float], out_path: str) -> None:
     inputs = [arg for part in parts for arg in ("-i", part)]
     filters = [
-        f"[{i}:a]apad,atrim=duration={ffprobe_duration(part):.9f},"
+        f"[{i}:a]apad,atrim=duration={dur:.9f},"
         f"asetpts=PTS-STARTPTS[a{i}]"
-        for i, part in enumerate(parts)
+        for i, dur in enumerate(durations)
     ]
+    # The limiter catches the MP3 overshoot of lines made before PEAK existed; latency keeps the timing exact
     filters.append(
         "".join(f"[a{i}]" for i in range(len(parts)))
-        + f"concat=n={len(parts)}:v=0:a=1[audio]"
+        + f"concat=n={len(parts)}:v=0:a=1,"
+        + f"alimiter=limit={PEAK}:attack=1:release=40:level=false:latency=true[audio]"
     )
     subprocess.run(
         [
@@ -78,7 +84,11 @@ def write_mp3_clean(audio_np, sr: int, out_path: Path) -> None:
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
         wav_path = f.name
     try:
-        sf.write(wav_path, audio_np, sr)
+        peak = float(abs(audio_np).max())
+        if peak > PEAK:
+            audio_np = audio_np * (PEAK / peak)
+        # Float WAV: 16-bit would clip anything the model makes above 1.0 before the gain above
+        sf.write(wav_path, audio_np, sr, subtype="FLOAT")
         # Strip leading silence and cap any internal/trailing silence > 0.22s, then add 0.08s natural tail
         af = (
             "silenceremove=start_periods=1:start_duration=0.02:start_threshold=-40dB:"
@@ -94,14 +104,10 @@ def write_mp3_clean(audio_np, sr: int, out_path: Path) -> None:
             os.unlink(wav_path)
 
 
-def run_folder(folder: Path, ref_audio: Path, model: Qwen3TTSModel, ref_text: str):
-    narration_file = folder / "narration.txt"
-    cache_dir = folder / ".tts-cache"
-    out_audio = folder / "voiceover.mp3"
-    out_ts = folder / "timestamps.json"
-
-    subtitles = parse_subtitles(str(narration_file))
-    print(f"\n=== Folder: {folder.name} ({len(subtitles)} lines) | Voice: {ref_audio.name} ===")
+def load_voice(ref_audio: Path, ref_text: str):
+    device, dtype = pick_device()
+    print(f"Loading {MODEL_ID} on {device}...")
+    model = Qwen3TTSModel.from_pretrained(MODEL_ID, device_map=device, dtype=dtype)
 
     # Compact silences in the reference audio so the LLM doesn't imitate long dead pauses
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as rf:
@@ -120,7 +126,20 @@ def run_folder(folder: Path, ref_audio: Path, model: Qwen3TTSModel, ref_text: st
     finally:
         if os.path.exists(ref_wav):
             os.unlink(ref_wav)
+    return model, prompt
 
+
+def run_folder(folder: Path, ref_audio: Path, ref_text: str):
+    narration_file = folder / "narration.txt"
+    cache_dir = folder / ".tts-cache"
+    out_audio = folder / "voiceover.mp3"
+    out_ts = folder / "timestamps.json"
+
+    subtitles = parse_subtitles(str(narration_file))
+    print(f"\n=== Folder: {folder.name} ({len(subtitles)} lines) | Voice: {ref_audio.name} ===")
+
+    # The model loads only when a line is missing from the cache: re-joining cached lines takes seconds
+    model = prompt = None
     parts = [""] * len(subtitles)
     started = time.perf_counter()
     for i, text in enumerate(subtitles):
@@ -129,6 +148,8 @@ def run_folder(folder: Path, ref_audio: Path, model: Qwen3TTSModel, ref_text: st
             parts[i] = str(cp)
             print(f"  [{i}] cached ({ffprobe_duration(str(cp)):.2f}s)")
             continue
+        if model is None:
+            model, prompt = load_voice(ref_audio, ref_text)
         t0 = time.perf_counter()
         words = max(1, len(text.split()))
         for attempt in range(3):
@@ -148,8 +169,9 @@ def run_folder(folder: Path, ref_audio: Path, model: Qwen3TTSModel, ref_text: st
         print(f"  [{i}] done in {time.perf_counter() - t0:.1f}s -> {dur:.2f}s: {text[:45]}...")
 
     print(f"Generated in {time.perf_counter() - started:.1f}s. Measuring & concatenating...")
-    durations = [ffprobe_duration(p) for p in parts]
-    concat_mp3s(parts, str(out_audio))
+    # Each line keeps its pause, so a line's start_s is where its speech starts
+    durations = [ffprobe_duration(p) + (GAP_S if i < len(parts) - 1 else 0) for i, p in enumerate(parts)]
+    concat_mp3s(parts, durations, str(out_audio))
 
     start = 0.0
     entries = []
@@ -180,15 +202,12 @@ def pick_device():
 
 
 def main():
-    device, dtype = pick_device()
-    print(f"Loading {MODEL_ID} on {device}...")
-    model = Qwen3TTSModel.from_pretrained(MODEL_ID, device_map=device, dtype=dtype)
     demos = Path(__file__).resolve().parent
     # Usage: python tts_qwen_clone.py [video folder] [reference mp3]   (default: the #4 test with the chosen voice)
     folder = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else demos.parent / "0004-madura-sensual"
     ref = Path(sys.argv[2]).resolve() if len(sys.argv) > 2 else demos / "04_madura_sensual.mp3"
 
-    run_folder(folder, ref, model, REF_TEXT_DEFAULT)
+    run_folder(folder, ref, REF_TEXT_DEFAULT)
 
 
 if __name__ == "__main__":

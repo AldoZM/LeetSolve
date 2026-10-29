@@ -2,6 +2,17 @@
 
 Registro de lo que se hizo en cada sesión, de la más reciente a la más antigua. El cómo trabajar está en `GUIA.md`.
 
+## 2026-10-29 (tarde, PC de Windows): subtítulos y arreglo del audio
+
+- Aldo pidió subtítulos como los de un short de referencia (bloques cortos con rebote, palabras clave en color, contorno negro), pero con la fuente de Minecraft, y que revisara el audio porque notaba un error.
+- **Audio:** dos fallas en todos los shorts de tecnología. Las frases salían pegadas (el script quitaba el silencio inicial y solo dejaba 0.08 s al final) y la voz recortaba (picos de 1.07 después del MP3; 36 muestras en DNS). `tts_qwen_clone.py` deja ahora 0.35 s entre líneas, limita a -1 dBFS y no carga el modelo si todo está en caché. `build.py mux` pasa la mezcla final por un limitador (con los efectos llegaba a +0.27 dB). No se regeneró ninguna voz.
+- **Subtítulos:** `herramientas/palabras.py` (tiempo de cada palabra con Whisper) y `herramientas/subtitulos.py` (bloques, colores, rebote y quemado en `mux`). Cómo se usan, en `GUIA.md` ("Videos solo 3D"). DNS fue la prueba; Aldo la aprobó ("Perfecto") y pidió HTTPS, paquetes y SQL.
+- Altura 0.76: a 0.68 tapaban el letrero de la portada. Después, para SQL (la consulta y el contador de filas quedaban debajo), los bloques **esquivan solos los globos**: se busca el borde morado de los tooltips en el render y el bloque baja a 0.84 o sube a 0.68. Movió 7 a 17 bloques por video; revisado en una hoja de cuadros. Un falso positivo conocido: el pantalón de Steve (HTTPS, 2 s), sin daño.
+- En HTTPS los colores de la pintura van en su color (idea de Claude, se puede quitar).
+- **Rehechos los cuatro** (render 3D con los tiempos nuevos + subtítulos): DNS 164.4 s, HTTPS 126.7 s, paquetes 113.6 s, SQL 122.1 s. Picos finales entre -0.39 y -0.74 dB. Los `.mp4` nuevos están en cada carpeta y en `export/`; los anteriores, en `media/antes/` de cada carpeta.
+- **Error que encontró Aldo:** en SQL, "value in its own slot" y "No user named" se enciman (ya pasaba desde el primer render). Con hojas del video terminado (20, 55 y 90 % de cada línea) aparecieron más del mismo tipo, todos de antes: en SQL "5 emeralds gone!" y "ROLLBACK" sobre los contadores y "orders" sobre "account"; en DNS la pregunta de Alex sobre "from my notebook". Corregidos en `sql.html` y `dns.html` (uno termina cuando entra el otro, o va a un lugar libre). También el letrero de la portada cruzaba los subtítulos al final de los cuatro: nueva opción `"ocultar"`. El detector de globos confundía el pantalón de Steve: umbral más estricto. Errores 18 y 19 en `GUIA.md`. DNS y SQL se volvieron a renderizar; los cuatro se volvieron a revisar completos.
+- La voz del servidor y de Kafka se detuvo a pedido de Aldo (servidor 14 de 21 líneas en caché, Kafka 0). Al terminarlos llevarán subtítulos: correr `palabras.py` después de la voz y poner `"subtitulos"` en su `video.json`.
+
 ## 2026-10-29 (PC de Windows): los temas de la laptop, con voz y render
 
 - Aldo trabajó en la laptop los shorts de paquetes, SQL, servidor y Kafka (y un borrador de streaming) y pidió traerlos con `git pull` y terminarlos como DNS y HTTPS. Streaming sigue como borrador sin aprobar: no se tocó.

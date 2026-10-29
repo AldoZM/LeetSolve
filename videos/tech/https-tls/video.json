@@ -1,2 +1,11 @@
 {"solo3d": {"page": "three/https.html"}, "formato": "9:16", "tema": "minecraft-original",
- "musica": {"pista": "subwoofer_lullaby", "volumen": 0.45}}
+ "musica": {"pista": "subwoofer_lullaby", "volumen": 0.45},
+ "subtitulos": {
+  "cambios": {"mybank dot com": "mybank.com", "my b four n k dot com": "myb4nk.com"},
+  "ocultar": [[124.9, 125.75]],
+  "amarillo": ["HTTP", "HTTPS", "TLS", "privacy", "handshake", "certificate", "certificate authority", "secret key",
+               "shared secret", "key", "padlock", "read the name", "yellow"],
+  "verde": ["fixes that", "nothing inside", "green", "milliseconds"],
+  "rojo": ["red", "myb4nk.com", "thrown away", "thief"],
+  "azul": ["blue"],
+  "dorado": ["orange", "brown"]}}

@@ -502,13 +502,15 @@ function vault(t) {
   inj.bad.show(t, ev(17, 0.45), ev(18, 0.25), row(1));
   inj.gone.show(t, ev(17, 0.55), ev(18, 0.25), row(2));
   inj.safe.show(t, ev(18, 0.25), end(18), row(1));
-  inj.slot.show(t, ev(18, 0.4), end(18), row(2.6));
+  // The slot note gives way to the keeper's answer ("so it can never become a command"): together they overlapped
+  inj.slot.show(t, ev(18, 0.4), ev(18, 0.68), row(2.6));
 }
 
 // ---------- bubbles that are not part of the query ----------
 function bubbles(t) {
   const over = (p, h = 2.4) => p.g.position.clone().add(V(0, h, 0));
-  bub.jobs.forEach((b, k) => b.show(t, ev(0, 0.45 + 0.17 * k), ev(1, 0.3), jobs[k].position.clone().add(V(0, 0.55, 0))));
+  // The middle one (orders) higher: the three items are close and its tooltip covered the other two
+  bub.jobs.forEach((b, k) => b.show(t, ev(0, 0.45 + 0.17 * k), ev(1, 0.3), jobs[k].position.clone().add(V(0, k === 1 ? 0.95 : 0.55, 0))));
   bub.db.show(t, ev(1, 0.15), ev(2, 0.1), V(0, 6.6, 8));
   bub.sql.show(t, ev(1, 0.7), ev(2, 0.1), V(0, 7.6, 8));
   bub.rows.show(t, ev(3, 0.15), end(3), V(4.2, 6.3, 7));
@@ -528,13 +530,15 @@ function bubbles(t) {
   bub.steveCount.forEach((b, k) => b.show(t, counts[k], counts[k + 1], sTop));
   bub.alex30.show(t, ev(13, 0.05), end(15), aTop);
   bub.steps.show(t, ev(13, 0.3), ev(14, 0.1), TX.clone().add(V(0, 4.0, 0)));
-  bub.lost.show(t, BOOM1 + 0.4, end(14), GEM_MID.clone().add(V(0, 1.1, 0)));
-  bub.tx.show(t, ev(15, 0.05), end(15), TX.clone().add(V(0, 4.0, 0)));
-  bub.rollback.show(t, ev(15, 0.8), end(15), GEM_MID.clone().add(V(0, 1.1, 0)));
+  // Over the gems these two landed on the counters and the transaction note: "lost" takes the free slot of the
+  // steps note, "rollback" goes over the transaction note
+  bub.lost.show(t, BOOM1 + 0.4, end(14), TX.clone().add(V(0, 4.35, 0)));
+  bub.tx.show(t, ev(15, 0.05), end(15), TX.clone().add(V(0, 4.35, 0)));
+  bub.rollback.show(t, ev(15, 0.8), end(15), TX.clone().add(V(0, 6.15, 0)));
   const typed = [ev(16, 0.5), ev(17, 0.08), ev(17, 0.22), ev(17, 0.36)];
   bub.form.forEach((b, k) => b.show(t, typed[k], k < 3 ? typed[k + 1] : ev(17, 0.72), login.position.clone().add(V(0, 1.3, 0))));
   bub.always.show(t, ev(17, 0.72), end(17), VA.clone().add(V(0, 1.4, -3.2)));
-  bub.no.show(t, ev(18, 0.62), end(18), over(keeper, 2.5));
+  bub.no.show(t, ev(18, 0.68), end(18), over(keeper, 2.5));
 }
 
 // ---------- people ----------

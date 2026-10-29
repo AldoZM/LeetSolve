@@ -198,7 +198,12 @@ def sfx_cues():
 
 
 def step_mux():
-    if solo3d:
+    if solo3d and cfg.get('subtitulos'):
+        # Subtitles in the game font, burned over the 3D (words.json from palabras.py)
+        sys.path.insert(0, HERE)
+        import subtitulos
+        subtitulos.burn('media/three/solo3d.mp4', 'video_silent.mp4', cfg['subtitulos'], TEMA, FPS)
+    elif solo3d:
         run(['ffmpeg', '-v', 'error', '-y', '-i', 'media/three/solo3d.mp4', '-c', 'copy', '-movflags', '+faststart', 'video_silent.mp4'])
     else:
         run(['ffmpeg', '-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', 'concat.txt', '-c', 'copy', '-movflags', '+faststart',
@@ -242,7 +247,8 @@ def step_mux():
                          f"afade=t=out:st={total - 3}:d=3,volume={musica.get('volumen', 0.45)}[s{k}]")
             mix += f'[s{k}]'
         n = len(cues) + (1 if musica else 0)
-        graph = ';'.join(parts) + f';[1:a]aresample=44100,aformat=channel_layouts=mono[v];[v]{mix}amix=inputs={n + 1}:normalize=0:duration=first[a]'
+        graph = ';'.join(parts) + f';[1:a]aresample=44100,aformat=channel_layouts=mono[v];[v]{mix}amix=inputs={n + 1}:normalize=0:duration=first,' \
+                                     'alimiter=limit=0.95:attack=1:release=40:level=false:latency=true[a]'  # voice + effect peaks clipped
         open('media/sfx_graph.txt', 'w').write(graph)
         # Graph passed inline: ffmpeg 8+ dropped -filter_complex_script
         run(['ffmpeg', '-v', 'error', '-y', '-i', 'video_silent.mp4', '-i', 'voiceover.mp3', *ins, '-filter_complex',

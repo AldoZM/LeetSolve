@@ -1,2 +1,10 @@
 {"solo3d": {"page": "three/dns.html"}, "formato": "9:16", "tema": "minecraft-original",
- "musica": {"pista": "subwoofer_lullaby", "volumen": 0.45}}
+ "musica": {"pista": "subwoofer_lullaby", "volumen": 0.45},
+ "subtitulos": {
+  "cambios": {"google dot com": "google.com", "ads dot tracker dot com": "ads.tracker.com", "dot com": ".com",
+              "one-forty-two, dot two-fifty, dot one-ninety, dot forty-six": "142.250.190.46", "D N S SEC": "DNSSEC"},
+  "ocultar": [[162.3, 164.4]],
+  "amarillo": ["DNS", "Domain Name System", "librarians", "resolver", "notebook", "root library", "TTL", "Pi-hole",
+               "blacklist", "spoofing", "DNSSEC", "privacy", "Encrypted DNS", "Unbound", "speed", "google.com",
+               "coordinates"],
+  "verde": ["instant", "never loads", "closest copy", "loads fast", "fix"]}}

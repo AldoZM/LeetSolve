@@ -267,8 +267,9 @@ function bubbles(t) {
   bub.answer.show(t, ev(9, 0.35), ev(10, 0.1), over(keeper.P, 2.5).add(V(0, 0, 0.4)));
   bub.ttl.show(t, ev(10, 0.4), ev(11, 0.15), LP.clone().add(V(0.15, 1.12, 0.35)));
   bub.ttl2.show(t, ev(12, 0.0), ev(12, 0.85), LP.clone().add(V(0.15, 1.12, 0.35)));
-  bub.askA.show(t, ev(11, 0.35), ev(11, 0.6), over(alex));
-  bub.fast.show(t, ev(11, 0.45), ev(12, 0.2), over(keeper.P, 2.5).add(V(0, 0, 0.4)));
+  // Alex's question gives way to the answer ("the answer is instant"): together they overlapped
+  bub.askA.show(t, ev(11, 0.35), ev(11, 0.5), over(alex));
+  bub.fast.show(t, ev(11, 0.5), ev(12, 0.2), over(keeper.P, 2.5).add(V(0, 0, 0.4)));
   bub.ad.show(t, ev(14, 0.45), ev(15, 0.3), over(steve));
   bub.blocked.show(t, ev(15, 0.25), ev(15, 0.65), over(keeper.P, 2.5).add(V(0, 0, 0.4)));
   bub.buy.show(t, ev(16, 0.0), ev(16, 0.3), W(B, V(0, 3.0, -1.2)));

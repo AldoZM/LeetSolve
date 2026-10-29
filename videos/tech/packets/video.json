@@ -1,2 +1,8 @@
 {"solo3d": {"page": "three/packets.html"}, "formato": "9:16", "tema": "minecraft-original",
- "musica": {"pista": "subwoofer_lullaby", "volumen": 0.45}}
+ "musica": {"pista": "subwoofer_lullaby", "volumen": 0.45},
+ "subtitulos": {
+  "ocultar": [[112.0, 112.8]],
+  "amarillo": ["packets", "minecart", "label", "internet", "router", "little book", "TCP", "time to live", "counter",
+               "ping"],
+  "verde": ["complete", "fresh copy", "sorts them by number"],
+  "rojo": ["gone", "missing", "throws the new cart away", "lag", "zero", "out of order"]}}
