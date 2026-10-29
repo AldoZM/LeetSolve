@@ -201,4 +201,4 @@ Dependencias sin commit de otra sesión: `rieles.js` y los cambios de `gente.js`
 
 - Lugar: se queda `mac-02` (sin renombrar todavía; al terminar, renombrarlo y anotarlo en `lugares.json` junto con el servidor, que usa el mismo).
 - Cuadros revisados y cámaras corregidas; voz lista (21 líneas, 115.1 s, revisada con Whisper); `three/timestamps.json` provisional borrado.
-- El render quedó corriendo al cerrar la sesión. Falta: confirmar `video.mp4`, loop, hoja de cuadros, renombrar a `How SQL Works.mp4`, copiarlo a `export/`, su bloque en `export/descripciones-tecnologia.md`, "Videos hechos" de `GUIA.md`.
+- **Terminado:** render de 115.1 s con 45 efectos, loop con diferencia 0.98; `How SQL Works.mp4` en la carpeta y en `export/`. Solo falta renombrar `mac-02` en `lugares.json` cuando se termine el servidor.

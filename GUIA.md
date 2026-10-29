@@ -128,6 +128,7 @@ Secciones (por tema de LeetCode): `arrays-hashing`, `linked-list`, `sliding-wind
 - `videos/tech/dns`: **How DNS Works** (155.6 s), el primer short de tecnología, todo en 3D: bibliotecarios de una aldea como servidores DNS, caché con TTL, Pi-hole, suplantación y DNSSEC, DNS cifrado y unbound, CDN.
 - `videos/tech/https-tls`: **How HTTPS Works** (119.7 s), segundo short de tecnología: el saludo de TLS, el certificado como etiqueta de nombre sellada por una CA, el intercambio de llaves mezclando tintes, cofres cerrados y el candado que no prueba honestidad.
 - `videos/tech/packets`: **How Packets Work** (105.9 s), tercer short de tecnología: una foto partida en cuatro paquetes que viajan en vagonetas por rieles con routers, filas, un paquete perdido, TCP que pide otra vez el que falta, TTL y ping. Lugar `birch-terraces`.
+- `videos/tech/sql`: **How SQL Works** (115.1 s), primer short de backend: la tabla como estante de letreros, el orden real de una consulta, el índice como árbol de rieles, la transacción con un creeper y la inyección SQL. Lugar `mac-02` (sin renombrar; lo comparte con el servidor).
 
 Al terminar un video nuevo, agrégalo a esta lista.
 
