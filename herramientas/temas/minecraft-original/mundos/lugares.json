@@ -23,5 +23,6 @@
  "birch-grove": {"center": [-138, 62, -94], "turn": 0.7854, "mundo": "MacEntorno", "desc": "Bosque de abedules con flores sobre terrazas de tierra (MacEntorno, 26.3)", "video": "trees/tree-basics"},
  "flower-plain": {"center": [-168, 63, -64], "turn": 0.0, "desc": "Llanura plana con flores, lago y playa al fondo (mundo del zip, 26.2); aldea hecha por codigo encima, plot [-34, 34, -46, 34]", "video": "tech/dns"},
  "south-plain": {"center": [-168, 63, 152], "turn": 0.0, "desc": "Llanura del sur con agua cerca (mundo del zip, 26.2); camino y edificios hechos por codigo, plot [-26, 26, -30, 32]", "video": "tech/https-tls"},
- "birch-terraces": {"center": [-194, 64, -134], "turn": 0.7854, "mundo": "MacEntorno", "desc": "Abedules sobre terrazas de tierra (MacEntorno, 26.3; era mac-13); red de rieles hecha por codigo encima, plot [-38, 30, -44, 34]", "video": "tech/packets"}
+ "birch-terraces": {"center": [-194, 64, -134], "turn": 0.7854, "mundo": "MacEntorno", "desc": "Abedules sobre terrazas de tierra (MacEntorno, 26.3; era mac-13); red de rieles hecha por codigo encima, plot [-38, 30, -44, 34]", "video": "tech/packets"},
+ "birch-creek": {"center": [-86, 64, -30], "turn": 0.3927, "mundo": "MacEntorno", "desc": "Loma de abedules con arroyo (MacEntorno, 26.3; era mac-09); biblioteca y programas hechos por codigo encima, plot [-16, 16, -54, 32]", "video": "tech/kafka"}
 }

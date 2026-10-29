@@ -1,0 +1,730 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+// "How Kafka works": a library in the middle of the village. Programs (shop, mail, stats, stock) stop pulling leads
+// between each other and drop books (events) into the library instead. Books go to the end of a shelf with a number
+// and stay there when read; each reader keeps a bookmark (offset). A topic is an aisle split into three shelves
+// (partitions) fed by a hopper sorter, a group of readers shares the shelves, the shelves have copies in two more
+// libraries (brokers), and old books burn away (retention). Then four uses. Every event is tied to a narration line of
+// timestamps.json: ev(line, fraction).
+import { THREE, V, lerp, prog, easeInOut, easeOutBack, pose } from '/vendor/lib/stage.js';
+import { loadTheme, makeWorld, makeTerrain, makeClouds, makeSign, makeChest, pixelSprite, tex } from '/vendor/tema/mc.js';
+import { loadMobs, planLife, makeLife, setTime } from '/vendor/tema/vida.js';
+import { loadPeople, makeVillager, makePlayer } from '/vendor/tema/gente.js';
+import { put, makeSite, bubble, makeItem, arc, placeUI, cameraAt } from '/vendor/tema/aldea.js';
+import { makeTracks, makeMinecart } from '/vendor/tema/rieles.js';
+
+// ---------- timing ----------
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const TOTAL = subs[subs.length - 1].end_s;
+const ev = (line, f = 0) => subs[line].start_s + f * subs[line].duration_s;
+const end = (line) => subs[line].end_s;
+const during = (t, a, z) => t >= a && t < z;
+
+// ---------- world ----------
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'leaves', 'log_side', 'log_top', 'cobble', 'oak_planks',
+  'stone_bricks', 'smooth_stone', 'bookshelf', 'glass', 'quartz_block_side', 'quartz_block_top', 'written_book', 'paper',
+  'iron_sword', 'filled_map', 'clock', 'lime_wool', 'dirt_path_top', 'hopper_outside', 'hopper_top', 'hopper_inside', 'fire',
+  'rail', 'rail_corner', 'minecart']);
+await loadPeople(imgs, ['villager', 'type_plains', 'type_desert', 'type_snow', 'prof_librarian', 'prof_cleric',
+  'prof_cartographer', 'steve', 'alex', 'wandering_trader']);
+const world = makeWorld({ fov: 40, offset: 0, fog: [90, 220] });
+const { scene, camera } = world;
+// mac-09 of MacEntorno, renamed birch-creek: a birch hill with a creek; the village sits on a leveled lot
+const terrain = await makeTerrain('/vendor/tema/mundos/birch-creek.json', { turn: 0.3927, plot: [-16, 16, -54, 32], clear: [-20, 20, -58, 40] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+const LIFE = [{ kind: 'sheep', count: 3, graze: 1 }, { kind: 'chicken', count: 3 }, { kind: 'cow', count: 2, graze: 1 }];
+await loadMobs(imgs, LIFE.map((g) => g.kind));
+const light = await setTime(world, 'day', { terrain, clouds, imgs });
+const life = makeLife(imgs, terrain, planLife(terrain, LIFE, { seed: 9, area: [-40, 40, -60, 44], avoid: [[-17, 17, -55, 33]] }), TOTAL, light);
+scene.add(life.g);
+
+const pixel = (c) => {
+  const t = new THREE.CanvasTexture(c);
+  t.magFilter = t.minFilter = THREE.NearestFilter;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+};
+function tiled(name, w, h, rx = w, ry = h) {
+  const t = tex(imgs, name).clone();
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(rx, ry);
+  t.needsUpdate = true;
+  return new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t }));
+}
+const glowMat = (color) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, depthWrite: false,
+  blending: THREE.AdditiveBlending });
+
+// ---------- block model pieces for the hopper (from the server short: the game's automatic UVs) ----------
+const SHADE = [0.62, 0.62, 1.0, 0.5, 0.8, 0.8];
+const matCache = new Map();
+function faceMat(name, [u0, v0, u1, v1], shade) {
+  const key = `${name}|${u0},${v0},${u1},${v1}|${shade}`;
+  if (!matCache.has(key)) {
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, u1 - u0); c.height = Math.max(1, v1 - v0);
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(imgs[name], u0, v0, c.width, c.height, 0, 0, c.width, c.height);
+    const m = new THREE.MeshBasicMaterial({ map: pixel(c), transparent: true, alphaTest: 0.1 });
+    m.color.setScalar(shade);
+    matCache.set(key, m);
+  }
+  return matCache.get(key);
+}
+function modelBox(g, [x1, y1, z1], [x2, y2, z2], { side, top = side, bottom = side }) {
+  const uvs = [[16 - z2, 16 - y2, 16 - z1, 16 - y1], [z1, 16 - y2, z2, 16 - y1], [x1, z1, x2, z2], [x1, 16 - z2, x2, 16 - z1],
+               [x1, 16 - y2, x2, 16 - y1], [16 - x2, 16 - y2, 16 - x1, 16 - y1]];
+  const names = [side, side, top, bottom, side, side];
+  const m = new THREE.Mesh(new THREE.BoxGeometry((x2 - x1) / 16, (y2 - y1) / 16, (z2 - z1) / 16),
+                           uvs.map((uv, k) => faceMat(names[k], uv, SHADE[k])));
+  m.position.set((x1 + x2) / 32 - 0.5, (y1 + y2) / 32, (z1 + z2) / 32 - 0.5);
+  g.add(m);
+  return m;
+}
+function makeHopper(parent, x, y, z) {
+  const g = new THREE.Group();
+  const out = { side: 'hopper_outside', top: 'hopper_top', bottom: 'hopper_outside' };
+  modelBox(g, [0, 10, 0], [16, 11, 16], { side: 'hopper_outside', top: 'hopper_inside' });
+  modelBox(g, [0, 11, 0], [2, 16, 16], out);
+  modelBox(g, [14, 11, 0], [16, 16, 16], out);
+  modelBox(g, [2, 11, 0], [14, 16, 2], out);
+  modelBox(g, [2, 11, 14], [14, 16, 16], out);
+  modelBox(g, [4, 4, 4], [12, 10, 12], { side: 'hopper_outside' });
+  modelBox(g, [6, 0, 6], [10, 4, 10], { side: 'hopper_outside' });
+  g.position.set(x + 0.5, y, z + 0.5);
+  parent.add(g);
+  return g;
+}
+
+// ---------- fire and smoke (the game's fire strip, gray puffs) ----------
+const fireFrames = Array.from({ length: 8 }, (_, k) => {
+  const c = document.createElement('canvas');
+  c.width = c.height = 16;
+  c.getContext('2d').drawImage(imgs.fire, 0, 16 * k, 16, 16, 0, 0, 16, 16);
+  return pixel(c);
+});
+function makeFire(size = 1) {
+  const f = new THREE.Sprite(new THREE.SpriteMaterial({ map: fireFrames[0], transparent: true, depthWrite: false }));
+  f.scale.setScalar(size);
+  f.visible = false;
+  scene.add(f);
+  const puffs = Array.from({ length: 5 }, (_, k) => {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0x555555, transparent: true, depthWrite: false }));
+    s.userData.k = k;
+    s.visible = false;
+    scene.add(s);
+    return s;
+  });
+  // burn(t, at, k): k = 0..1 strength; flames flicker, smoke rises over them
+  f.burn = (t, at, k) => {
+    f.visible = k > 0.01;
+    f.position.copy(at).add(V(0, size * 0.45, 0));
+    f.material.map = fireFrames[Math.floor(t * 12 + at.x * 3) % 8];
+    f.material.opacity = Math.min(1, k * 1.5);
+    puffs.forEach((s) => {
+      const u = (t * 0.8 + s.userData.k / 5) % 1;
+      s.visible = f.visible;
+      s.position.copy(at).add(V(0.25 * Math.sin(s.userData.k * 2.3 + t), size * (0.9 + 1.6 * u), 0));
+      s.scale.setScalar(size * (0.3 + 0.5 * u));
+      s.material.opacity = 0.6 * (1 - u) * k;
+    });
+  };
+  return f;
+}
+
+// ---------- the programs: small quartz halls around the library ----------
+// Left side faces +x, right side faces -x; the library stands between them
+const site = (label, x, z) => {
+  const s = makeSite(imgs, { label });
+  s.g.scale.setScalar(0.7);
+  s.g.position.set(x, 0, z);
+  s.g.rotation.y = x < 0 ? Math.PI / 2 : -Math.PI / 2;
+  scene.add(s.g);
+  s.front = V(x + (x < 0 ? 1 : -1) * 1.2, 0, z);
+  s.roof = s.g.localToWorld(V(0, 5.6, -1));
+  return s;
+};
+const SHOP = site('SHOP', -9, 0), STOCK = site('STOCK', -9, -11), MAIL = site('MAIL', 9, 0), STATS = site('STATS', 9, -11);
+const PROGRAMS = [SHOP, MAIL, STATS, STOCK];
+
+// ---------- the library (Kafka): an open hall, three shelves along z, the hopper sorter in front ----------
+// Book number o of a shelf sits at z = slotZ(o); the shelf grows toward the front (+z)
+const SX = [-2.4, 0, 2.4], slotZ = (o) => -15.5 + 0.95 * o, SLOTS = 19;
+const BOOK_Y = 0.95, NUM_Y = 1.55, MARK_Y = 2.2;
+const HALL = new THREE.Group();
+scene.add(HALL);
+for (let z = -17; z <= 2; z++) for (let y = 0; y <= 1; y++) for (const x of [-5, 5]) {
+  put(imgs, HALL, y === 1 && z % 3 !== 0 ? 'bookshelf' : 'stone_bricks', x, y, z);
+}
+for (let x = -4; x <= 4; x++) for (let y = 0; y <= 2; y++) put(imgs, HALL, y === 1 ? 'bookshelf' : 'stone_bricks', x, y, -17);
+for (const x of [-5, 5]) for (let y = 0; y <= 3; y++) put(imgs, HALL, 'log', x, y, 3);
+for (let x = -5; x <= 5; x++) put(imgs, HALL, 'log', x, 4, 3);
+const hallFloor = tiled('smooth_stone', 9, 20);
+hallFloor.rotation.x = -Math.PI / 2;
+hallFloor.position.set(0, 0.012, -7);
+hallFloor.material.color.setScalar(0.85);
+HALL.add(hallFloor);
+const kafkaSign = makeSign(imgs, ['KAFKA'], { w: 4.2, h: 1.3, post: false });
+kafkaSign.position.set(0, 4.0, -16.45);
+HALL.add(kafkaSign);
+const topicSign = makeSign(imgs, ['purchases'], { w: 3.6, h: 0.8, post: false });
+topicSign.position.set(0, 4.5, 3.56);
+HALL.add(topicSign);
+
+// One shelf: a plank strip with its books, their numbers and a sign with its name. Initial books exist from the start.
+const plankMat = new THREE.MeshBasicMaterial({ map: tex(imgs, 'oak_planks') });
+plankMat.color.setScalar(0.8);
+function makeShelf(p, initial) {
+  const g = new THREE.Group();
+  g.position.x = SX[p];
+  HALL.add(g);
+  for (let o = 0; o < SLOTS; o++) {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.95), plankMat);
+    b.position.set(0, 0.25, slotZ(o));
+    g.add(b);
+  }
+  const books = Array.from({ length: SLOTS }, (_, o) => {
+    const it = makeItem(imgs, 'written_book', 0.72);
+    it.position.set(0, BOOK_Y, slotZ(o));
+    it.userData.in = o < initial ? -Infinity : Infinity;  // when it lands on the shelf
+    it.userData.out = Infinity;                           // when it is cleared
+    g.add(it);
+    const n = pixelSprite(String(o), 0xFFFFFF, 0.42);
+    n.position.set(0, NUM_Y, slotZ(o));
+    n.renderOrder = 27;
+    g.add(n);
+    it.userData.num = n;
+    it.userData.show = -Infinity;                         // the number pops in at this time (line 5)
+    return it;
+  });
+  const sign = makeSign(imgs, [`P${p}`], { w: 1.0, h: 0.55 });
+  sign.position.set(0, 1.0, 2.2);
+  g.add(sign);
+  const glow = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.95 * SLOTS), glowMat(0xFFAA00));
+  glow.rotation.x = -Math.PI / 2;
+  glow.position.set(0, 0.52, slotZ((SLOTS - 1) / 2));
+  g.add(glow);
+  return { g, books, sign, glow, p };
+}
+const SHELF = [makeShelf(0, 4), makeShelf(1, 6), makeShelf(2, 5)];
+// The sorter: the input hopper on a plank post, one hopper in front of each shelf
+const SORTER = new THREE.Group();
+HALL.add(SORTER);
+put(imgs, SORTER, 'oak_planks', 0, 0, 5);
+makeHopper(SORTER, -0.5, 1, 4.5);
+SX.forEach((x) => makeHopper(SORTER, x - 0.5, 0, 2.4));
+const IN_TOP = V(0, 2.3, 5), SHELF_IN = (p) => V(SX[p], 1.3, 2.9);
+
+// ---------- the other two libraries (brokers 2 and 3), small copies behind, only for lines 13 to 15 ----------
+function makeBroker(label, z) {
+  const g = new THREE.Group();
+  for (let zz = -10; zz <= 2; zz++) for (const x of [-5, 5]) put(imgs, g, 'stone_bricks', x, 0, zz);
+  for (let x = -4; x <= 4; x++) put(imgs, g, 'bookshelf', x, 0, -10);
+  const floor = tiled('smooth_stone', 9, 12);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.set(0, 0.012, -4);
+  floor.material.color.setScalar(0.85);
+  g.add(floor);
+  const glows = SX.map((x) => {
+    for (let o = 0; o < 10; o++) {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.95), plankMat);
+      b.position.set(x, 0.25, -8.5 + 0.95 * o);
+      g.add(b);
+      const it = makeItem(imgs, 'written_book', 0.72);
+      it.position.set(x, BOOK_Y, -8.5 + 0.95 * o);
+      it.visible = true;
+      g.add(it);
+    }
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 9.6), glowMat(0xFFAA00));
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(x, 0.52, -4.2);
+    g.add(m);
+    return m;
+  });
+  const s = makeSign(imgs, [label], { w: 3.6, h: 1.0 });
+  s.position.set(0, 1.6, 3.2);
+  g.add(s);
+  g.position.set(0, 0, z);
+  scene.add(g);
+  return { g, glows };
+}
+const BROKER2 = makeBroker('BROKER 2', -26), BROKER3 = makeBroker('BROKER 3', -42);
+const B3_FIRES = [V(-4, 0, -49), V(3, 0, -45), V(-2, 0, -41), V(4, 0, -51), V(0, 0, -47)].map((p) => ({ p, f: makeFire(1.6) }));
+
+// ---------- the taxi line (line 20): rails along the right side, a cart and Alex's map ----------
+const TAXI = [V(7, 0, 16), V(7, 0, -14)];
+const rails = makeTracks(imgs, [TAXI]);
+scene.add(rails);
+const taxi = makeMinecart(imgs, { chest: false });
+scene.add(taxi.g);
+const mapCanvas = document.createElement('canvas');
+mapCanvas.width = mapCanvas.height = 128;
+const mapTex = pixel(mapCanvas);
+const map = new THREE.Sprite(new THREE.SpriteMaterial({ map: mapTex, transparent: true, depthWrite: false }));
+map.scale.setScalar(1.3);
+map.renderOrder = 28;
+scene.add(map);
+function drawMap(k) {
+  const ctx = mapCanvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, 128, 128);
+  ctx.drawImage(imgs.filled_map, 0, 0, 128, 128);
+  // The road on the map and the taxi's dot moving along it
+  ctx.fillStyle = '#7a5a3a'; ctx.fillRect(60, 24, 8, 80);
+  ctx.fillStyle = '#ff2020'; ctx.fillRect(58, Math.round(24 + 72 * k), 12, 12);
+  mapTex.needsUpdate = true;
+}
+
+// ---------- leads between the programs (lines 1 to 3): the tangle ----------
+const leadMat = new THREE.MeshBasicMaterial({ color: 0x8a6a42 });
+const PAIRS = [[0, 1], [0, 2], [0, 3], [1, 2], [1, 3], [2, 3], [0, 1], [2, 3], [0, 2], [1, 3]];
+const leads = PAIRS.map(([a, b], i) => {
+  const m = new THREE.Mesh(new THREE.BufferGeometry(), leadMat);
+  m.userData = { a: PROGRAMS[a].roof, b: PROGRAMS[b].roof, i };
+  scene.add(m);
+  return m;
+});
+const LEAD_IN = PAIRS.map((_, i) => ev(1, 0.3) + (i / PAIRS.length) * (end(2) - ev(1, 0.3)) * 0.7);
+const CUT = ev(3, 0.05);
+function updateLeads(t) {
+  leads.forEach((m) => {
+    const { a, b, i } = m.userData;
+    const grow = prog(t, LEAD_IN[i], LEAD_IN[i] + 0.8);
+    const fall = prog(t, CUT, CUT + 0.9);
+    m.visible = grow > 0 && fall < 1;
+    if (!m.visible) return;
+    // Tighter knots through line 2: the curve wobbles more and sags toward the middle of the village
+    const knot = 0.6 + 2.2 * prog(t, ev(2, 0.0), ev(2, 0.8));
+    const pts = [];
+    for (let k = 0; k <= 6; k++) {
+      const u = (k / 6) * grow;
+      const p = a.clone().lerp(b, u);
+      p.y += -2.2 * Math.sin(Math.PI * u) + knot * Math.sin(u * 9 + i * 1.7 + t * 0.6) * Math.sin(Math.PI * u);
+      p.x += knot * 0.8 * Math.cos(u * 7 + i) * Math.sin(Math.PI * u);
+      p.z += knot * 0.8 * Math.sin(u * 8 + i * 2.1) * Math.sin(Math.PI * u);
+      p.y -= 9 * fall * fall;
+      pts.push(p);
+    }
+    m.geometry.dispose();
+    m.geometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 0.07, 5, false);
+  });
+}
+
+// ---------- people ----------
+const steve = makePlayer(imgs, { skin: 'steve' });
+const alex = makePlayer(imgs, { skin: 'alex' });
+const trader = makeVillager(imgs, { skin: 'wandering_trader' });
+const mailReader = makeVillager(imgs, { profession: 'cleric', type: 'plains' });
+const statsReaders = ['plains', 'desert', 'snow'].map((type) => makeVillager(imgs, { profession: 'librarian', type }));
+const newReader = makeVillager(imgs, { profession: 'cartographer', type: 'plains' });
+scene.add(steve.g, alex.g, trader.g, mailReader.g, newReader.g, ...statsReaders.map((r) => r.g));
+const STEVE_AT = V(-6.3, 0, 0.9), TRADER_AT = V(-7.9, 0, 0.0), ALEX_AT = V(3.2, 0, 12.5);
+steve.g.position.copy(STEVE_AT); steve.g.rotation.y = -Math.PI / 2;
+trader.g.position.copy(TRADER_AT); trader.g.rotation.y = Math.PI / 2;
+alex.g.position.copy(ALEX_AT); alex.g.rotation.y = Math.PI;
+const HAND = TRADER_AT.clone().add(V(0.5, 1.5, 0));
+
+// ---------- books on the move ----------
+// Each arrival lands on shelf p as book o at time `at`. Through the sorter from line 10 on; `who` marks the player.
+const ARR = [{ p: 1, o: 6, at: ev(4, 0.75) },
+             { p: 1, o: 7, at: ev(10, 0.35), via: 1, who: 'steve' }, { p: 0, o: 4, at: ev(10, 0.6), via: 1, who: 'alex' },
+             { p: 1, o: 8, at: ev(10, 0.85), via: 1, who: 'steve' }, { p: 1, o: 9, at: ev(15, 0.92), via: 1 },
+             { p: 1, o: 10, at: ev(17, 0.25), via: 1, who: 'steve' },
+             ...Array.from({ length: 8 }, (_, k) => ({ p: 1, o: 11 + k, at: ev(18, 0.12 + 0.05 * k), via: 1 }))];
+const FLY = 1.1, FLY_VIA = 1.5;
+const head = (skin) => {
+  const c = document.createElement('canvas');
+  c.width = c.height = 8;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(imgs[`gente_${skin}`], 8, 8, 8, 8, 0, 0, 8, 8);
+  ctx.drawImage(imgs[`gente_${skin}`], 40, 8, 8, 8, 0, 0, 8, 8);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: pixel(c), transparent: true, depthWrite: false }));
+  s.scale.setScalar(0.42);
+  s.position.set(0.34, 0.34, 0);
+  s.renderOrder = 26;
+  return s;
+};
+ARR.forEach((a) => {
+  SHELF[a.p].books[a.o].userData.in = a.at;
+  a.book = makeItem(imgs, 'written_book', 0.72);
+  if (a.who) a.book.add(head(a.who));
+  scene.add(a.book);
+});
+// Retention (line 15): the three oldest books of P1 burn one after another
+const BURN = [0, 1, 2].map((o) => ev(15, 0.42) + 0.35 * o);
+BURN.forEach((b, o) => { SHELF[1].books[o].userData.out = b + 0.7; });
+const burnFires = BURN.map(() => makeFire(0.9));
+// Line 5: the numbers of P1 pop in order
+SHELF[1].books.forEach((b, o) => { if (o <= 6) b.userData.show = ev(5, 0.05 + 0.055 * o); });
+
+// ---------- bookmarks (offsets): a glowing arrow over the book a reader is on ----------
+function arrowSprite(color) {
+  const c = document.createElement('canvas');
+  c.width = 11; c.height = 11;
+  const ctx = c.getContext('2d');
+  const rows = ['  XXXXXXX  ', '  XoooooX  ', '  XoooooX  ', '  XoooooX  ', 'XXXoooooXXX', ' XoooooooX ', '  XoooooX  ',
+                '   XoooX   ', '    XoX    ', '     X     ', '           '];
+  const col = '#' + color.toString(16).padStart(6, '0');
+  rows.forEach((r, y) => [...r].forEach((ch, x) => {
+    if (ch === ' ') return;
+    ctx.fillStyle = ch === 'X' ? '#1a1a1a' : col;
+    ctx.fillRect(x, y, 1, 1);
+  }));
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: pixel(c), transparent: true, depthWrite: false }));
+  s.scale.setScalar(0.6);
+  s.renderOrder = 29;
+  s.visible = false;
+  scene.add(s);
+  return s;
+}
+const AQUA = 0x55FFFF, YELLOW = 0xFFFF55, PINK = 0xFF77FF;
+// [arrow color, shelf, windows [from, to], offset(t)]
+const step = (t, keys) => {
+  let v = keys[0][1];
+  for (const [a, x, d = 0.4] of keys) v = lerp(v, x, easeInOut(prog(t, a, a + d)));
+  return v;
+};
+const MARKS = [
+  { color: AQUA, p: 1, on: [[ev(6, 0.3), end(8)]], reader: mailReader, off: (t) => step(t, [[0, 5], [ev(7, 0.72), 6]]) },
+  { color: YELLOW, p: 1, on: [[ev(7, 0.15), end(8)], [ev(12, 0.1), end(12)], [ev(18, 0.0), end(18)]], reader: statsReaders[1],
+    off: (t) => step(t, [[0, 2], [ev(7, 0.86), 3], [ev(12, 0.3), 8, end(12) - ev(12, 0.3) - 0.2], [ev(18, 0.0), 10, 0.01],
+                         [ev(18, 0.15), 12, ev(18, 0.6) - ev(18, 0.15)], [ev(18, 0.62), 18, ev(18, 0.95) - ev(18, 0.62)]]) },
+  { color: YELLOW, p: 0, on: [[ev(12, 0.1), end(12)]], reader: statsReaders[0], off: (t) => step(t, [[0, 0], [ev(12, 0.3), 4, end(12) - ev(12, 0.3) - 0.2]]) },
+  { color: YELLOW, p: 2, on: [[ev(12, 0.1), end(12)]], reader: statsReaders[2], off: (t) => step(t, [[0, 0], [ev(12, 0.3), 4, end(12) - ev(12, 0.3) - 0.2]]) },
+  { color: PINK, p: 1, on: [[ev(19, 0.3), end(19)]], reader: newReader, side: -1,
+    off: (t) => step(t, [[0, 3], [ev(19, 0.55), 18, ev(19, 0.95) - ev(19, 0.55)]]) },
+];
+MARKS.forEach((m) => { m.arrow = arrowSprite(m.color); });
+const markAt = (m, t) => V(SX[m.p], MARK_Y, slotZ(m.off(t)));
+
+// ---------- items ----------
+const ITEM = (name, size) => { const it = makeItem(imgs, name, size); scene.add(it); return it; };
+const sword = ITEM('iron_sword', 0.6), stockSword = ITEM('iron_sword', 0.6);
+const readCopy = ITEM('paper', 0.5), receipt = ITEM('paper', 0.5);
+const copies = Array.from({ length: 6 }, () => ITEM('paper', 0.6));
+const fanout = [STOCK, MAIL, STATS].map(() => ITEM('paper', 0.6));
+const pings = Array.from({ length: 5 }, () => [ITEM('paper', 0.5), ITEM('paper', 0.5)]);
+const stockChest = makeChest(imgs, 0.85);
+stockChest.g.position.set(-7.2, 0, -12.6);
+stockChest.g.rotation.y = Math.PI / 2;
+scene.add(stockChest.g);
+const statsBar = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1, 0.8), new THREE.MeshBasicMaterial({ map: tex(imgs, 'lime_wool') }));
+scene.add(statsBar);
+
+// ---------- bubbles ----------
+const B_ = (lines, opts) => { const b = bubble(lines, opts); scene.add(b); return b; };
+const bub = {
+  news: [B_(['Steve bought a sword'], { color: 0x55FF55 }), B_(['Alex logged in'], { color: 0x55FFFF }),
+         B_(["Kai clicked 'play'"], { color: 0xFFFF55 })],
+  progs: ['the shop', 'email sender', 'stats page', 'stock'].map((s) => B_([s], { color: 0x55FFFF })),
+  tangle: B_(['a tangle nobody can fix'], { color: 0xFF5555 }),
+  kafka: B_(['KAFKA'], { color: 0xFFAA00, size: 0.034 }),
+  inout: B_(['news in, news out']),
+  event: B_(['EVENT', 'Steve bought a sword'], { color: 0x55FF55 }),
+  producer: B_(['PRODUCER', 'writes events'], { color: 0xFFAA00 }),
+  order: B_(['numbered in order'], { color: 0xFFFF55 }),
+  stays: B_(['read, and still on the shelf'], { color: 0x55FF55 }),
+  consumer: B_(['CONSUMER', 'reads events'], { color: 0x55FFFF }),
+  offset: B_(['bookmark = offset'], { color: 0x55FFFF }),
+  mail: B_(['email sender: book 5'], { color: AQUA }), stats: B_(['stats page: book 2'], { color: YELLOW }),
+  noWait: B_(['nobody waits for anybody'], { color: 0x55FF55 }),
+  topic: B_(['TOPIC: purchases'], { color: 0xFFAA00 }),
+  parts: B_(['3 PARTITIONS'], { color: 0xFFAA00 }),
+  key: B_(['the player name', 'picks the shelf'], { color: 0xFFFF55 }),
+  steveP1: B_(['Steve -> always P1'], { color: 0x55FF55 }),
+  inside: B_(['in order inside a shelf'], { color: 0x55FF55 }),
+  across: B_(['no order across shelves'], { color: 0xFF5555 }),
+  group: B_(['CONSUMER GROUP: stats'], { color: YELLOW }),
+  each: B_(['one reader per shelf'], { color: YELLOW }),
+  brokers: ['BROKER 1', 'BROKER 2', 'BROKER 3'].map((s) => B_([s], { color: 0xFFAA00 })),
+  leader: B_(['gold: the leader shelf', 'the rest: copies'], { color: 0xFFAA00 }),
+  down: B_(['broker 3 is down'], { color: 0xFF5555 }),
+  takeover: B_(['P2: a copy takes over'], { color: 0x55FF55 }),
+  retain: B_(['older than 7 days: cleared'], { color: 0xFF5555 }),
+  uses: B_(['WHAT IS IT FOR?'], { color: 0xFFAA00, size: 0.03 }),
+  use: ['1. one event, many readers', '2. rush hour', '3. a time machine', '4. live tracking'].map((s) => B_([s], { color: 0xFFAA00 })),
+  stock: B_(['stock: -1 sword'], { color: 0xFFFFFF }), receipt: B_(['receipt sent'], { color: 0xFFFFFF }),
+  sales: B_(['sales: +1'], { color: 0x55FF55 }), unaware: B_(['the shop only writes'], { color: 0xAAAAAA }),
+  friday: B_(['BLACK FRIDAY'], { color: 0xFF5555, size: 0.03 }), keeps: B_(['the shelf keeps them'], { color: 0xFFFF55 }),
+  catchUp: B_(['readers catch up'], { color: 0x55FF55 }),
+  oldest: B_(['new app: start at', 'the oldest book'], { color: PINK }),
+  taxi: B_(['taxi location', 'every few seconds'], { color: 0xFFFF55 }),
+  linkedin: B_(['born at LinkedIn'], { color: 0x55FFFF }), big: B_(["inside most of the world's", 'biggest companies']),
+  recap: ['a library in the middle', 'books that stay', 'a bookmark per reader'].map((s) => B_([s], { color: 0x55FF55 })),
+};
+const over = (p, h = 2.5) => p.g.position.clone().add(V(0, h, 0));
+
+// ---------- cover ----------
+const cover = makeSign(imgs, ['HOW', 'KAFKA', 'WORKS'], { w: 3.4, h: 2.2 });
+cover.position.set(0, 2.2, 20);
+scene.add(cover);
+// It sinks into the ground when the camera leaves the cover and rises again for the last shot, so the video loops
+const COVER_OUT = ev(0, 0.15), COVER_IN = ev(22, 0.85);
+const coverY = (t) => 2.2 - 4.5 * easeInOut(prog(t, COVER_OUT, COVER_OUT + 0.8)) * (1 - easeInOut(prog(t, COVER_IN, COVER_IN + 0.8)));
+
+// ---------- the library over time ----------
+function library(t) {
+  // The hall rises out of the ground in line 3 and sinks again on the way back to the cover
+  const up = easeInOut(prog(t, ev(3, 0.08), ev(3, 0.6))) * (1 - easeInOut(prog(t, COVER_IN, COVER_IN + 1.0)));
+  HALL.visible = up > 0.001;
+  HALL.position.y = -7 * (1 - up);
+  topicSign.scale.setScalar(Math.max(easeOutBack(prog(t, ev(8, 0.45), ev(8, 0.75))), 1e-4));
+  // P0, P2 and the sorter come up in line 9
+  const split = easeOutBack(prog(t, ev(9, 0.3), ev(9, 0.7)));
+  for (const g of [SHELF[0].g, SHELF[2].g, SORTER]) { g.visible = split > 0.001; g.position.y = -1.2 * (1 - split); }
+  SHELF.forEach((s) => s.sign.scale.setScalar(Math.max(split, 1e-4)));
+  SHELF.forEach((s) => s.books.forEach((b, o) => {
+    const d = b.userData;
+    const gone = t >= d.out;
+    b.visible = t >= d.in && !gone;
+    // Burning books shrink before they disappear
+    const k = s.p === 1 && o < 3 ? prog(t, BURN[o] + 0.1, d.out) : 0;
+    b.scale.setScalar(0.72 * Math.max(1 - k, 1e-4));
+    d.num.visible = b.visible && t >= d.show;
+    d.num.setSize(Math.max(easeOutBack(prog(t, d.show, d.show + 0.3)), 0.001) * (1 - k));
+    // The read book glows in line 5; Steve's books glow while the narration follows them (line 10)
+    const read = s.p === 1 && o === 5 ? prog(t, ev(5, 0.62), ev(5, 0.7)) * (1 - prog(t, end(5) - 0.3, end(5))) : 0;
+    b.glow(read, t);
+  }));
+  BURN.forEach((b, o) => burnFires[o].burn(t, V(SX[1], HALL.position.y + 0.55, slotZ(o)), prog(t, b, b + 0.2) * (1 - prog(t, b + 0.7, b + 1.0))));
+  // Line 11: each shelf lights up along its books (order inside); line 13: the leader shelves
+  const inside = prog(t, ev(11, 0.05), ev(11, 0.2)) * (1 - prog(t, ev(11, 0.5), ev(11, 0.6)));
+  const lead = prog(t, ev(13, 0.55), ev(13, 0.7)) * (1 - prog(t, end(14) - 0.3, end(14)));
+  const take = prog(t, ev(14, 0.5), ev(14, 0.6)) * (1 - prog(t, end(14) - 0.3, end(14)));
+  SHELF.forEach((s) => { s.glow.material.color.set(inside > 0 ? 0x55FF55 : 0xFFAA00); });
+  SHELF[0].glow.material.opacity = 0.45 * Math.max(inside, lead);
+  SHELF[1].glow.material.opacity = 0.45 * inside;
+  SHELF[2].glow.material.opacity = 0.45 * Math.max(inside, take);
+  // Brokers 2 and 3: up in line 13, gone after line 15 starts; broker 3 burns in line 14
+  const bk = easeOutBack(prog(t, ev(13, 0.1), ev(13, 0.45))) * (1 - prog(t, ev(15, 0.0), ev(15, 0.05)));
+  for (const b of [BROKER2, BROKER3]) { b.g.visible = bk > 0.001; b.g.scale.set(1, Math.max(bk, 1e-4), 1); }
+  BROKER2.glows[1].material.opacity = 0.45 * lead;
+  BROKER3.glows[2].material.opacity = 0.45 * lead * (1 - prog(t, ev(14, 0.2), ev(14, 0.35)));
+  const fire = prog(t, ev(14, 0.05), ev(14, 0.2)) * (1 - prog(t, ev(15, 0.0), ev(15, 0.05)));
+  B3_FIRES.forEach(({ p, f }, k) => f.burn(t, p, prog(fire, 0.12 * k, 0.12 * k + 0.4)));
+  // Replication in line 13: copies fly from each leader to the other two libraries
+  copies.forEach((c, k) => {
+    const from = [V(SX[0], 1, -7), V(SX[1], 1, -30), V(SX[2], 1, -46)][k % 3];
+    const to = [[V(SX[0], 1, -30), V(SX[0], 1, -46)], [V(SX[1], 1, -7), V(SX[1], 1, -46)], [V(SX[2], 1, -7), V(SX[2], 1, -30)]][k % 3][Math.floor(k / 3)];
+    const a = ev(13, 0.6 + 0.04 * k), f = prog(t, a, a + 1.2);
+    c.visible = f > 0 && f < 1;
+    c.position.copy(arc(from, to, easeInOut(f), 5));
+  });
+}
+
+// ---------- books flying in ----------
+function books(t) {
+  ARR.forEach((a) => {
+    const dur = a.via ? FLY_VIA : FLY, f = prog(t, a.at - dur, a.at);
+    a.book.visible = f > 0 && f < 1;
+    if (!a.book.visible) return;
+    const slot = V(SX[a.p], BOOK_Y, slotZ(a.o));
+    const src = HAND;
+    if (!a.via) { a.book.position.copy(arc(src, slot, easeInOut(f), 3)); return; }
+    // Shop -> input hopper -> the hopper of its shelf -> the end of the shelf
+    if (f < 0.4) a.book.position.copy(arc(src, IN_TOP, easeInOut(f / 0.4), 2.5));
+    else if (f < 0.65) a.book.position.copy(arc(IN_TOP, SHELF_IN(a.p), easeInOut((f - 0.4) / 0.25), 0.6));
+    else a.book.position.copy(arc(SHELF_IN(a.p), slot, easeInOut((f - 0.65) / 0.35), 0.4));
+  });
+  // Line 5: a copy of book 5 goes to the mail reader; the book itself stays
+  const r = prog(t, ev(5, 0.6), ev(5, 0.8));
+  readCopy.visible = r > 0 && r < 1;
+  readCopy.position.copy(arc(V(SX[1], BOOK_Y, slotZ(5)), over(mailReader, 1.6), easeInOut(r), 0.8));
+}
+
+// ---------- readers and bookmarks ----------
+function readers(t) {
+  const shown = new Set();
+  MARKS.forEach((m) => {
+    const on = m.on.some(([a, z]) => during(t, a, z)) && HALL.visible;
+    m.arrow.visible = on;
+    if (!on) return;
+    const p = markAt(m, t);
+    m.arrow.position.copy(p).add(V(0, 0.12 * Math.sin(t * 4), 0));
+    const r = m.reader;
+    shown.add(r);
+    r.g.position.set(SX[m.p] + 1.2 * (m.side ?? 1), 0, p.z);
+    r.g.rotation.y = (m.side ?? 1) > 0 ? -Math.PI / 2 : Math.PI / 2;
+    const moving = Math.abs(m.off(t + 0.05) - m.off(t)) > 1e-3;
+    r.walk(t * 9, moving ? 1 : 0);
+    r.look(0, 0.35);
+  });
+  for (const r of [mailReader, newReader, ...statsReaders]) r.g.visible = shown.has(r);
+}
+
+// ---------- the four uses ----------
+function uses(t) {
+  // Line 0: the trader hands Steve a sword; line 17: he buys another one
+  const f = Math.max(...[ev(0, 0.2), ev(17, 0.05)].map((a) => { const k = prog(t, a, a + 0.7); return k > 0 && k < 1 ? k : 0; }));
+  sword.visible = f > 0;
+  sword.position.copy(arc(HAND, over(steve, 1.4), easeInOut(f), 0.8));
+  // Line 17: from the library, one copy of the news to each reader program
+  const f0 = ev(17, 0.35);
+  fanout.forEach((c, k) => {
+    const dest = [STOCK, MAIL, STATS][k].front.clone().add(V(0, 1.6, 0));
+    const f = prog(t, f0 + 0.1 * k, f0 + 0.1 * k + 1.0);
+    c.visible = f > 0 && f < 1;
+    c.position.copy(arc(V(SX[1], 2, -5), dest, easeInOut(f), 3));
+  });
+  const arrive = f0 + 1.1;
+  stockChest.open(prog(t, arrive, arrive + 0.2) * (1 - prog(t, end(17) - 0.4, end(17))));
+  const s = prog(t, arrive + 0.2, arrive + 0.8);
+  stockSword.visible = s > 0 && t < end(17);
+  stockSword.position.copy(stockChest.g.position).add(V(0, 0.9 + 1.2 * easeInOut(s), 0));
+  const r = prog(t, arrive + 0.2, arrive + 1.1);
+  receipt.visible = r > 0 && r < 1;
+  receipt.position.copy(arc(MAIL.front.clone().add(V(0, 1.6, 0)), over(steve, 1.6), easeInOut(r), 3));
+  const bar = 0.8 + 1.4 * easeOutBack(prog(t, arrive + 0.3, arrive + 0.8)) * (1 - prog(t, end(17) - 0.4, end(17)));
+  statsBar.visible = t >= arrive && t < end(17);
+  statsBar.scale.y = bar;
+  statsBar.position.set(STATS.front.x - 0.4, bar / 2, -13.2);
+  // Line 20: the taxi rolls down the rails; every few seconds its location goes to the library and on to Alex's map
+  const T0 = ev(20, 0.05), T1 = end(20) - 0.3;
+  const onTaxi = during(t, ev(20, 0.0), end(20));
+  rails.visible = taxi.g.visible = map.visible = onTaxi;
+  const k = prog(t, T0, T1);
+  taxi.place(TAXI, k * 30);
+  if (onTaxi) drawMap(Math.floor(k * 5) / 5 + (k * 5 % 1 > 0.8 ? 0.2 * prog(k * 5 % 1, 0.8, 1) : 0));
+  map.position.copy(ALEX_AT).add(V(-0.9, 2.6, 0));
+  pings.forEach(([toLib, toMap], i) => {
+    const a = T0 + (i / 5) * (T1 - T0), f1 = prog(t, a, a + 0.5), f2 = prog(t, a + 0.5, a + 0.95);
+    toLib.visible = onTaxi && f1 > 0 && f1 < 1;
+    toLib.position.copy(arc(V(7, 1.2, 15 - 30 * (i / 5)), V(0, 2.5, -5), easeInOut(f1), 2.5));
+    toMap.visible = onTaxi && f2 > 0 && f2 < 1;
+    toMap.position.copy(arc(V(0, 2.5, -5), map.position, easeInOut(f2), 2.5));
+  });
+}
+
+// ---------- bubbles ----------
+function bubbles(t) {
+  bub.news[0].show(t, ev(0, 0.25), ev(1, 0.25), over(steve, 2.4));
+  bub.news[1].show(t, ev(0, 0.5), ev(1, 0.25), over(alex, 2.4));
+  bub.news[2].show(t, ev(0, 0.72), ev(1, 0.25), STATS.roof.clone().add(V(0, 1.2, 0)));
+  PROGRAMS.forEach((p, k) => bub.progs[k].show(t, ev(1, [0.35, 0.6, 0.85, 0.95][k]), CUT, p.roof.clone().add(V(0, 1.4, 0))));
+  bub.tangle.show(t, ev(2, 0.5), CUT + 0.3, V(0, 7, -5));
+  bub.kafka.show(t, ev(3, 0.2), end(3), V(0, 7.5, -8));
+  bub.inout.show(t, ev(3, 0.6), end(3), V(0, 5.6, -8));
+  const fly0 = ARR[0];
+  bub.event.show(t, ev(4, 0.1), ev(4, 0.55), fly0.book.visible ? fly0.book.position.clone().add(V(0, 1, 0)) : HAND.clone().add(V(0, 1.2, 0)));
+  bub.producer.show(t, ev(4, 0.55), end(4), over(trader, 2.6));
+  bub.order.show(t, ev(5, 0.1), ev(5, 0.55), V(SX[1], 3.2, slotZ(3)));
+  bub.stays.show(t, ev(5, 0.72), end(5), V(SX[1], 3.0, slotZ(5)));
+  bub.consumer.show(t, ev(6, 0.05), ev(6, 0.5), over(mailReader, 2.6));
+  bub.offset.show(t, ev(6, 0.5), end(6), markAt(MARKS[0], t).add(V(0, 1.0, 0)));
+  bub.mail.show(t, ev(7, 0.08), ev(7, 0.7), markAt(MARKS[0], t).add(V(0, 0.9, 0)));
+  bub.stats.show(t, ev(7, 0.35), ev(7, 0.8), markAt(MARKS[1], t).add(V(0, 0.9, 0)));
+  bub.noWait.show(t, ev(7, 0.78), end(7), V(SX[1], 3.4, slotZ(4)));
+  bub.topic.show(t, ev(8, 0.5), end(8), V(0, 6.2, 3.5));
+  bub.parts.show(t, ev(9, 0.6), end(9), V(0, 3.6, -3));
+  bub.key.show(t, ev(10, 0.05), ev(10, 0.45), IN_TOP.clone().add(V(0, 1.6, 0)));
+  bub.steveP1.show(t, ev(10, 0.5), end(10), V(SX[1], 3.2, slotZ(8)));
+  bub.inside.show(t, ev(11, 0.05), ev(11, 0.5), V(0, 3.4, -3));
+  bub.across.show(t, ev(11, 0.5), end(11), V(0, 3.4, -3));
+  bub.group.show(t, ev(12, 0.1), end(12), V(0, 4.6, -2));
+  bub.each.show(t, ev(12, 0.5), end(12), V(0, 3.6, -2));
+  bub.brokers.forEach((b, k) => b.show(t, ev(13, 0.15 + 0.1 * k), k === 2 ? ev(14, 0.12) : end(14), V(0, 4, [-6, -28, -44][k])));
+  bub.leader.show(t, ev(13, 0.62), end(13), V(0, 6, -20));
+  bub.down.show(t, ev(14, 0.12), end(14), V(0, 6, -44));
+  bub.takeover.show(t, ev(14, 0.5), end(14), V(SX[2], 4, -8));
+  bub.retain.show(t, ev(15, 0.3), end(15), V(SX[1], 3.4, slotZ(2)));
+  bub.uses.show(t, ev(16, 0.1), end(16), V(0, 7, -6));
+  const uLines = [17, 18, 19, 20], uAt = [V(0, 1, 6), V(SX[1], 4.6, slotZ(6)), V(SX[1], 4.2, slotZ(6)), V(4, 6, 2)];
+  bub.use.forEach((b, k) => b.show(t, ev(uLines[k], 0.0), end(uLines[k]), uAt[k]));
+  const arrive = ev(17, 0.35) + 1.1;
+  bub.stock.show(t, arrive + 0.3, end(17), STOCK.roof.clone().add(V(0, 0.8, 0)));
+  bub.receipt.show(t, arrive + 0.3, end(17), MAIL.roof.clone().add(V(0, 0.8, 0)));
+  bub.sales.show(t, arrive + 0.5, end(17), STATS.front.clone().add(V(0, 1.2, 1.5)));
+  bub.unaware.show(t, ev(17, 0.7), end(17), over(trader, 2.6));
+  bub.friday.show(t, ev(18, 0.08), ev(18, 0.5), V(SX[1], 3.6, slotZ(15)));
+  bub.keeps.show(t, ev(18, 0.35), ev(18, 0.62), V(SX[1], 3.2, slotZ(14)));
+  bub.catchUp.show(t, ev(18, 0.62), end(18), markAt(MARKS[1], t).add(V(0, 1.0, 0)));
+  bub.oldest.show(t, ev(19, 0.3), end(19), markAt(MARKS[4], t).add(V(0, 1.1, 0)));
+  bub.taxi.show(t, ev(20, 0.2), end(20), taxi.g.position.clone().add(V(0, 2.2, 0)));
+  bub.linkedin.show(t, ev(21, 0.05), end(21), V(0, 10, -6));
+  bub.big.show(t, ev(21, 0.45), end(21), V(0, 3, -6));
+  bub.recap.forEach((b, k) => b.show(t, ev(22, 0.05 + 0.25 * k), COVER_IN + 0.2, V(0, 11 - 3.5 * k, -6)));
+}
+
+// ---------- camera ----------
+const look = (p, q) => pose(p, q);
+const COVER = look(V(0, 3.0, 29), V(0, 2.4, 20));
+const SHOPV = look(V(-2.2, 3.4, 8.5), V(-7.4, 1.6, 0.2));
+const WIDE = look(V(0, 30, 25), V(0, 0, -5));
+const PRODUCE = look(V(-10, 8.5, 10), V(-4.5, 0.5, -4));
+const SHELFV = look(V(1.0, 8, -2.5), V(0.3, 0.6, -12));
+const AISLE = look(V(0, 11.5, 13), V(0, 0.5, -6.5));
+const BROKERS = look(V(0, 44, 18), V(0, 0, -27));
+const RETAIN = look(V(1.5, 7.5, -6), V(0.2, 0.5, -14));
+const ONE_EVENT = look(V(0, 26, 18), V(0, 0, -6));
+const RUSH = look(V(2.2, 13, 8), V(0, 0.5, -6));
+const TRACKV = look(V(1.5, 11, 25), V(4, 0.5, 2));
+const AERIAL = look(V(0, 34, 26), V(0, 0, -7));
+const CAM = [
+  [0, COVER],
+  [ev(0, 0.12), SHOPV, 1.2],
+  [ev(0, 0.5), WIDE, 1.4],
+  [ev(4, 0.0), PRODUCE, 1.4],
+  [ev(5, 0.0), SHELFV, 1.3],
+  [ev(8, 0.0), AISLE, 1.4],
+  [ev(13, 0.0), BROKERS, 1.6],
+  [ev(15, 0.0), RETAIN, 1.4],
+  [ev(16, 0.0), WIDE, 1.4],
+  [ev(17, 0.0), ONE_EVENT, 1.0],
+  [ev(18, 0.0), RUSH, 1.3],
+  [ev(19, 0.0), (t) => { const p = markAt(MARKS[4], t); return look(p.clone().add(V(-4.5, 6, 5)), p.clone().add(V(0, -1, -2))); }, 1.2],
+  [ev(20, 0.0), TRACKV, 1.3],
+  [ev(21, 0.0), AERIAL, 1.6],
+  [COVER_IN, COVER, 1.8],
+];
+
+// ---------- sound cues ----------
+window.sfxCues = [
+  [ev(0, 0.2), 'trader_idle', 0.35], [ev(0, 0.25), 'pop', 0.3], [ev(0, 0.5), 'pop', 0.3], [ev(0, 0.72), 'pop', 0.3],
+  ...LEAD_IN.map((a) => [a, 'lead_tie', 0.18]), [CUT, 'shear', 0.4], [ev(3, 0.1), 'stone_dig2', 0.35], [ev(3, 0.35), 'stone_dig3', 0.35],
+  [ev(3, 0.62), 'levelup', 0.25], [ev(4, 0.3), 'book_flip1', 0.3],
+  ...ARR.map((a) => [a.at, 'book_put', a.o > 10 ? 0.15 : 0.3]),
+  ...SHELF[1].books.slice(0, 7).map((b) => [b.userData.show, 'click', 0.18]),
+  [ev(5, 0.62), 'book_flip2', 0.3], [ev(6, 0.32), 'orb', 0.25], [ev(7, 0.72), 'orb', 0.2], [ev(7, 0.86), 'orb', 0.2],
+  [ev(8, 0.45), 'wood_dig1', 0.3], [ev(9, 0.3), 'stone_dig1', 0.35], [ev(9, 0.4), 'stone_dig4', 0.3],
+  [ev(11, 0.05), 'orb', 0.25], [ev(11, 0.5), 'villager_no1', 0.3], [ev(12, 0.12), 'villager_yes1', 0.3],
+  [ev(13, 0.12), 'stone_dig2', 0.35], [ev(13, 0.6), 'book_flip3', 0.25], [ev(14, 0.05), 'fire', 0.5], [ev(14, 0.5), 'challenge', 0.3],
+  ...BURN.map((b) => [b, 'fire', 0.3]), [ev(15, 0.92), 'book_put', 0.3], [ev(16, 0.1), 'toast_in', 0.3],
+  [ev(17, 0.05), 'trader_idle', 0.3], [ev(17, 0.35) + 1.1, 'chestopen', 0.3], [ev(17, 0.35) + 1.3, 'pop', 0.3],
+  [ev(17, 0.35) + 1.5, 'levelup', 0.2], [ev(18, 0.08), 'bell', 0.35], [ev(18, 0.62), 'orb', 0.25],
+  [ev(19, 0.3), 'villager_idle2', 0.3], [ev(19, 0.55), 'book_flip1', 0.25], [ev(20, 0.05), 'minecart_roll', 0.35],
+  ...pings.map((_, i) => [ev(20, 0.05) + (i / 5) * (end(20) - 0.3 - ev(20, 0.05)), 'click', 0.2]),
+  [ev(21, 0.05), 'toast_in', 0.3], [ev(22, 0.05), 'pop', 0.25], [ev(22, 0.3), 'pop', 0.25], [ev(22, 0.55), 'pop', 0.25],
+].map(([s, n, g]) => [Math.round(s * 1000) / 1000, n, g]);
+
+// The readers and the taxi are placed before the camera (camera keys follow them), so any frame renders alone
+window.renderAt = (t) => {
+  library(t);
+  books(t);
+  readers(t);
+  uses(t);
+  updateLeads(t);
+  cover.position.y = coverY(t);
+  const cam = cameraAt(CAM, t);
+  world.look(cam.pos, cam.look);
+  camera.updateMatrixWorld();
+  bubbles(t);
+  placeUI(camera);
+  clouds.position.x = 4 * Math.sin(2 * Math.PI * t / TOTAL);
+  life.update(t);
+  world.draw(t, TOTAL, 0, 0);
+};
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>
