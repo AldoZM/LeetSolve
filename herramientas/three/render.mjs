@@ -5,6 +5,7 @@
 //   node render.mjs --page <scene.html> --stills 0,5.2,12 --outdir stills/
 //   --lib <dir> sets the folder served as /vendor/lib/ (default: this file's folder, with stage.js)
 //   --tema <dir> serves a theme folder as /vendor/tema/
+//   --cues <file> writes the page's window.sfxCues ([[seconds, sound, gain], ...]) as JSON, for build.py's mix
 import { chromium } from 'playwright';
 import http from 'node:http';
 import fs from 'node:fs';
@@ -60,6 +61,11 @@ page.on('pageerror', (e) => { console.error('[page error]', e.message); process.
 await page.goto(`http://127.0.0.1:${port}/${path.basename(pagePath)}?w=${width}&h=${height}`);
 await page.waitForFunction(() => typeof window.renderAt === 'function', null, { timeout: 60000 });
 console.log('GPU:', await page.evaluate(() => window.gpuInfo ?? 'unknown'));
+if (args.cues) {
+  const cues = await page.evaluate(() => window.sfxCues ?? []);
+  fs.writeFileSync(path.resolve(args.cues), JSON.stringify(cues));
+  console.log(`${cues.length} sound cues ->`, args.cues);
+}
 
 const grab = async (t) => {
   const dataUrl = await page.evaluate((s) => { window.renderAt(s); return document.querySelector('canvas').toDataURL('image/png'); }, t);

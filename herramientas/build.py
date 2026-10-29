@@ -5,6 +5,9 @@
 #   ("formato": "16:9" gives a 1920 x 1080 video for regular YouTube: scenes and 3D world are both 1920 x 1080)
 #   ("comun": ["../comun.py"] adds shared code before scenes.py, for two formats of one video)
 #   (every scene renders transparent over its slice of that clip; scenes not listed in "sharp" get the world blurred)
+# or, for a video that is all 3D (no Manim scenes): "solo3d": {"page": "three/dns.html"} with "formato": "9:16"
+#   (steps: three renders the whole page for the length of voiceover.mp3, mux mixes voice, the page's window.sfxCues
+#    and the music; no args = three mux)
 # Usage: python build.py [script] [lint] [render [Scene ...]] [three] [composite] [sync [Scene ...]] [mux]   (no args = all)
 import json, os, subprocess, sys
 from concurrent.futures import ThreadPoolExecutor
@@ -17,9 +20,10 @@ RENDER3D = os.path.join(HERE, 'three', 'render.mjs')  # needs `npm ci` in herram
 LIB3D = os.path.join(HERE, 'three')  # stage.js, served as /vendor/lib/
 
 cfg = json.load(open('video.json'))
-groups = cfg['groups']
+groups = cfg.get('groups', [])
 three = cfg.get('three')
 fondo = cfg.get('fondo')
+solo3d = cfg.get('solo3d')
 # Optional visual theme: herramientas/temas/<name>/ with tema.py (Manim) and assets for the 3D page
 TEMA = os.path.join(HERE, 'temas', cfg['tema']) if cfg.get('tema') else None
 names = [g[0] for g in groups]
@@ -113,6 +117,14 @@ def step_render(only):
 
 def step_three():
     os.makedirs('media/three', exist_ok=True)
+    if solo3d:
+        # The whole video is the page; its sound cues land in media/sfx/solo3d.json
+        os.makedirs('media/sfx', exist_ok=True)
+        total = round(json.load(open('timestamps.json'))['total_duration_s'] * FPS)
+        extra = ['--tema', TEMA] if TEMA else []
+        run(['node', RENDER3D, '--page', solo3d['page'], '--lib', LIB3D, *extra, *SIZE3D, '--frames', str(total),
+             '--out', 'media/three/solo3d.mp4', '--cues', 'media/sfx/solo3d.json'])
+        return
     extra = ['--tema', TEMA] if TEMA else []
     if fondo:
         total = frame_bounds()[names[-1]][1]
@@ -176,7 +188,7 @@ def step_sync(only):
 def sfx_cues():
     # Sound effects queued by the scenes with self.sfx(); files come from the theme's sounds/ folder
     cues = []
-    for name in names:
+    for name in names + (['solo3d'] if solo3d else []):
         p = f'media/sfx/{name}.json'
         if os.path.exists(p):
             cues += json.load(open(p))
@@ -186,8 +198,11 @@ def sfx_cues():
 
 
 def step_mux():
-    run(['ffmpeg', '-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', 'concat.txt', '-c', 'copy', '-movflags', '+faststart',
-         'video_silent.mp4'])
+    if solo3d:
+        run(['ffmpeg', '-v', 'error', '-y', '-i', 'media/three/solo3d.mp4', '-c', 'copy', '-movflags', '+faststart', 'video_silent.mp4'])
+    else:
+        run(['ffmpeg', '-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', 'concat.txt', '-c', 'copy', '-movflags', '+faststart',
+             'video_silent.mp4'])
     cues = sfx_cues()
     # Optional background music from the theme: "musica": {"pista": "<name>", "volumen": 0.45} (music/<name>.ogg)
     musica = cfg.get('musica')
@@ -239,7 +254,7 @@ def step_mux():
     print('video.mp4 duration', v, 'audio', json.load(open('timestamps.json'))['total_duration_s'])
 
 
-args = sys.argv[1:] or ['script', 'lint', 'render', 'three', 'composite', 'sync', 'mux']
+args = sys.argv[1:] or (['three', 'mux'] if solo3d else ['script', 'lint', 'render', 'three', 'composite', 'sync', 'mux'])
 steps = {'script', 'lint', 'render', 'three', 'composite', 'sync', 'mux'}
 i = 0
 while i < len(args):

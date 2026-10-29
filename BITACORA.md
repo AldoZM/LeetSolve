@@ -6,13 +6,15 @@ Registro de lo que se hizo en cada sesión, de la más reciente a la más antigu
 
 - Aldo aprobó la muestra `shorts/02-dfs`.
 - Aldo avisó que la voz falla en algunos videos (falta saber cuáles y qué tipo de falla): revisar la voz con cuidado antes de entregar.
-- **Música de fondo obligatoria** en todos los videos y shorts (regla de Aldo). `build.py` acepta una lista en `"pista"` (cruce de 4 s y sin el silencio final de cada canción). Short 02-dfs: Subwoofer Lullaby (la eligió Aldo; aprobado). Largo: Subwoofer Lullaby y luego Mice on Venus (Aldo pidió varias canciones). `build.py` iguala el volumen de cada canción a Subwoofer Lullaby; `extraer.py` copia 10 canciones de C418. `extraer.py` ahora copia `sweden`. Solo se corrió `build.py mux`.
+- **Música de fondo obligatoria** en todos los videos y shorts (regla de Aldo), con el OST de Minecraft que ya tenemos copiado del juego (C418, no se descarga nada). Short 02-dfs: Subwoofer Lullaby (la eligió Aldo; aprobado). Largo: Subwoofer Lullaby y luego Mice on Venus (Aldo pidió varias canciones). Cambios en el pipeline: `"pista"` acepta una lista (cruce de 4 s y sin el silencio final de cada canción), `build.py` iguala el volumen de cada canción a Subwoofer Lullaby, y `extraer.py` copia 10 canciones de C418. Solo se corrió `build.py mux`.
 - En `export/`: el largo y el short con música, `How Trees Really Work - thumbnail.jpg` (primer cuadro, 1280 × 720) y `descripciones-arboles.md` (título, descripción con capítulos y emojis, y el texto del short en menos de 100 caracteres).
 - Errores que Aldo encontró con capturas en el largo (y corregidos también en `corto/`, que comparte el código):
   - En la caída del subárbol del 3, las varas quedaban encima de los bloques (el `VGroup` movido con `.animate` listaba las varas al final).
   - En la recursión, el 10 y el 37 se quedaban sobre el bloque 8 al final (y el 1 y el 6 sobre el 3). Ahora se hunden en el bloque, y cuando esperan a un lado van a 1.2 unidades.
   - Se rehicieron solo `Scene04_Subtree` y `Scene09_Recursion` (`script render composite sync mux` de esas escenas). Revisado con cuadros. Ambos errores van en la lista de `GUIA.md` (1 y 17).
 - Subir a Drive: la conexión de Drive no acepta archivos tan grandes (417 MB y 71 MB); Aldo los arrastra a `DevSteve/export`.
+- Subido a GitHub en 8519099 (música, las dos correcciones y la documentación).
+- `GUIA.md`, sección "Música de fondo" reescrita como guía paso a paso: de dónde salen las canciones (el juego instalado, con `extraer.py`), cómo ponerlas en `video.json`, la lista de las 10 canciones con su duración, qué hace `build.py` y la línea de créditos para la descripción. La lista de revisión ahora pide confirmar que el video lleva música.
 
 ## 2026-10-24 (noche, PC de Windows)
 
@@ -368,6 +370,8 @@ Registro de lo que se hizo en cada sesión, de la más reciente a la más antigu
   3. **Escenario y Vida Ambiental en 3D (`vida.js`)**: Se configuró la ubicación `terraced-hill.json` al amanecer (`dawn`) con iluminación matutina y ciclo de mobs autónomos en bucle cerrado (vacas y ovejas pastando, gallinas y cerdos explorando las terrazas), manteniendo un cierre de loop imperceptible (diferencia de 1.848).
 
 ## Pendientes
+
+- **Música en los videos ya hechos:** con la regla nueva, a los videos sin música (#1 a #9, #16 a #19, #60, #102, #124, #2089, #3644, #3942, #2409, #3886 y los de la rama `laptop-videos`) hay que agregarles `"musica"` y correr `build.py mux`. Preguntar a Aldo qué canción lleva cada uno.
 
 - **Guía de árboles (`videos/trees/tree-basics/`):** el largo está terminado (falta que Aldo lo vea y lo escuche). Siguiente: que Aldo apruebe la muestra `shorts/02-dfs` y hacer los otros 4 shorts (1, 3, 4 y 5). El tráiler `corto/` sigue sin voz. Estado en `videos/trees/tree-basics/PARA_AGY.md`.
 - Escribir `descripcion.txt` de cada short (100 caracteres o menos).

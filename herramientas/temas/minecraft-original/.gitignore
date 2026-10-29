@@ -6,6 +6,7 @@ sounds/
 music/
 mobs/
 models/
+gente/
 # Renders and textures made from those files (the world zip, claude.json and preview.html are ours and are kept)
 mundos/tex/
 mundos/vistas/

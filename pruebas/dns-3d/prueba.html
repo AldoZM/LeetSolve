@@ -1,0 +1,300 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+// Throwaway test for the DNS short: everything in 3D. Steve walks to the village library, asks the librarian
+// where google.com is, the librarian looks it up in the lectern book and answers with the address.
+import { THREE, prog, easeInOut, easeOutBack, lerp, V, pose, poseTrack } from '/vendor/lib/stage.js';
+import { loadTheme, makeWorld, makeTerrain, makeBlock, makeClouds, drawText, textWidth } from '/vendor/tema/mc.js';
+import { loadMobs, planLife, makeLife, setTime } from '/vendor/tema/vida.js';
+
+const TOTAL = 15;
+const loadImg = (src) => new Promise((res, rej) => {
+  const im = new Image();
+  im.onload = () => res(im);
+  im.onerror = () => rej(new Error(src));
+  im.src = src;
+});
+
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'leaves', 'log_side', 'log_top', 'compass']);
+const A = {};
+for (const n of ['bookshelf', 'oak_planks', 'oak_log', 'oak_log_top', 'cobblestone', 'glass', 'dirt_path_top', 'dirt_path_side',
+                 'lectern_base', 'lectern_front', 'lectern_sides', 'lectern_top']) imgs[n] = await loadImg(`/assets/block_${n}.png`);
+for (const n of ['villager_villager', 'villager_type_plains', 'villager_profession_librarian', 'player_wide_steve'])
+  A[n] = await loadImg(`/assets/entity_${n}.png`);
+
+const world = makeWorld({ fov: 40, offset: 0, fog: [30, 90] });
+const { scene, camera } = world;
+const terrain = await makeTerrain('/vendor/tema/mundos/claude.json', { turn: 1.5708, plot: [-9, 9, -10, 16], clear: [-12, 12, -12, 30] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+const LIFE = [{ kind: 'sheep', count: 2, graze: 1 }, { kind: 'chicken', count: 3 }, { kind: 'cow', count: 1, graze: 1 }];
+await loadMobs(imgs, LIFE.map((g) => g.kind));
+const light = await setTime(world, 'day', { terrain, clouds, imgs });
+const life = makeLife(imgs, terrain, planLife(terrain, LIFE, { seed: 11, area: [-18, 18, -26, 14], avoid: [[-5, 5, -9, 18]] }), TOTAL, light);
+scene.add(life.g);
+
+// ---------- entity models (boxes in 1/16 block, the game's texture layout) ----------
+function pixelTex(c) {
+  const t = new THREE.CanvasTexture(c);
+  t.magFilter = THREE.NearestFilter;
+  t.minFilter = THREE.NearestFilter;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+function cube(u, v, w, h, d, W, H, grow = 0) {
+  const geo = new THREE.BoxGeometry((w + 2 * grow) / 16, (h + 2 * grow) / 16, (d + 2 * grow) / 16);
+  const rects = [[u + d + w, v + d, d, h], [u, v + d, d, h], [u + d, v, w, d], [u + d + w, v, w, d], [u + d, v + d, w, h], [u + 2 * d + w, v + d, w, h]];
+  const uv = geo.attributes.uv;
+  for (let f = 0; f < 6; f++) {
+    const [x, y, rw, rh] = rects[f];
+    for (let k = 0; k < 4; k++) {
+      const i = f * 4 + k;
+      uv.setXY(i, (x + uv.getX(i) * rw) / W, 1 - (y + (1 - uv.getY(i)) * rh) / H);
+    }
+  }
+  return geo;
+}
+function part(mat, p, boxes, r = [0, 0, 0]) {
+  const g = new THREE.Group();
+  g.position.set(p[0] / 16, (24 - p[1]) / 16, -p[2] / 16);
+  g.rotation.order = 'ZYX';
+  g.rotation.set(r[0], -r[1], -r[2]);
+  g.userData.rest = g.rotation.clone();
+  for (const [u, v, x0, y0, z0, w, h, d, grow = 0] of boxes) {
+    const m = new THREE.Mesh(cube(u, v, w, h, d, 64, 64, grow), mat);
+    m.position.set((x0 + w / 2) / 16, -(y0 + h / 2) / 16, -(z0 + d / 2) / 16);
+    g.add(m);
+  }
+  return g;
+}
+const skinMat = (layers) => {
+  const c = document.createElement('canvas');
+  c.width = 64; c.height = 64;
+  const ctx = c.getContext('2d');
+  for (const im of layers) ctx.drawImage(im, 0, 0);
+  return new THREE.MeshBasicMaterial({ map: pixelTex(c), transparent: true, alphaTest: 0.1 });
+};
+
+// Villager (librarian): base skin + plains biome + profession layer, arms crossed
+function makeVillager() {
+  const mat = skinMat([A.villager_villager, A.villager_type_plains, A.villager_profession_librarian]);
+  const g = new THREE.Group();
+  const head = part(mat, [0, 0, 0], [[0, 0, -4, -10, -4, 8, 10, 8], [32, 0, -4, -10, -4, 8, 10, 8, 0.51], [24, 0, -1, -3, -6, 2, 4, 2]]);
+  const rim = part(mat, [0, 0, 0], [[30, 47, -8, -8, -6, 16, 16, 1]], [-Math.PI / 2, 0, 0]);
+  head.add(rim);
+  rim.position.set(0, 0, 0);
+  const body = part(mat, [0, 0, 0], [[16, 20, -4, 0, -3, 8, 12, 6], [0, 38, -4, 0, -3, 8, 20, 6, 0.5]]);
+  const arms = part(mat, [0, 3, -1], [[44, 22, -8, -2, -2, 4, 8, 4], [44, 22, 4, -2, -2, 4, 8, 4], [40, 38, -4, 2, -2, 8, 4, 4]], [-0.75, 0, 0]);
+  const legR = part(mat, [-2, 12, 0], [[0, 22, -2, 0, -2, 4, 12, 4]]);
+  const legL = part(mat, [2, 12, 0], [[0, 22, -2, 0, -2, 4, 12, 4]]);
+  g.add(head, body, arms, legR, legL);
+  g.scale.setScalar(0.9375);
+  return { g, head, arms, legs: [legR, legL] };
+}
+
+// Player (Steve, wide arms) with the outer layer
+function makePlayer() {
+  const mat = skinMat([A.player_wide_steve]);
+  const g = new THREE.Group();
+  const head = part(mat, [0, 0, 0], [[0, 0, -4, -8, -4, 8, 8, 8], [32, 0, -4, -8, -4, 8, 8, 8, 0.5]]);
+  const body = part(mat, [0, 0, 0], [[16, 16, -4, 0, -2, 8, 12, 4], [16, 32, -4, 0, -2, 8, 12, 4, 0.25]]);
+  const armR = part(mat, [-5, 2, 0], [[40, 16, -3, -2, -2, 4, 12, 4], [40, 32, -3, -2, -2, 4, 12, 4, 0.25]]);
+  const armL = part(mat, [5, 2, 0], [[32, 48, -1, -2, -2, 4, 12, 4], [48, 48, -1, -2, -2, 4, 12, 4, 0.25]]);
+  const legR = part(mat, [-1.9, 12, 0], [[0, 16, -2, 0, -2, 4, 12, 4], [0, 32, -2, 0, -2, 4, 12, 4, 0.25]]);
+  const legL = part(mat, [1.9, 12, 0], [[16, 48, -2, 0, -2, 4, 12, 4], [0, 48, -2, 0, -2, 4, 12, 4, 0.25]]);
+  g.add(head, body, armR, armL, legR, legL);
+  g.scale.setScalar(0.9375);
+  const walk = (s, amount) => {
+    legR.rotation.x = 0.9 * Math.cos(s) * amount;
+    legL.rotation.x = -0.9 * Math.cos(s) * amount;
+    armR.rotation.x = -0.7 * Math.cos(s) * amount;
+    armL.rotation.x = 0.7 * Math.cos(s) * amount;
+  };
+  return { g, head, armR, armL, walk };
+}
+
+// ---------- the library (built by code on the leveled lot, ground top at y = 0) ----------
+const G = terrain.groundAt(0, 0);
+const house = new THREE.Group();
+scene.add(house);
+const put = (name, x, y, z, opts = {}) => { const b = makeBlock(imgs, name, opts); b.g.position.set(x, G + y + 0.5, z); house.add(b.g); return b; };
+// Back wall of bookshelves, plank side walls with log corners, plank roof; the front stays open toward the path
+for (let x = -2; x <= 2; x++) for (let y = 0; y < 3; y++) put(y === 0 ? 'cobblestone' : 'bookshelf', x, y, -6, { top: 'oak_planks', bottom: 'oak_planks' });
+for (const sx of [-3, 3]) {
+  for (const z of [-6, -1]) for (let y = 0; y < 3; y++) put('oak_log', sx, y, z, { top: 'oak_log_top', bottom: 'oak_log_top' });
+  for (let z = -5; z <= -2; z++) for (let y = 0; y < 3; y++) put(y === 0 ? 'cobblestone' : y === 1 && (z === -4 || z === -3) ? 'glass' : 'oak_planks', sx, y, z);
+}
+for (let x = -3; x <= 3; x++) for (let z = -6; z <= -1; z++) put('oak_planks', x, 3, z);
+// Plank floor, laid just above the grass
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(5, 4).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: (() => {
+  const c = document.createElement('canvas'); c.width = 80; c.height = 64;
+  const ctx = c.getContext('2d'); ctx.imageSmoothingEnabled = false;
+  for (let x = 0; x < 80; x += 16) for (let y = 0; y < 64; y += 16) ctx.drawImage(imgs.oak_planks, x, y);
+  return pixelTex(c);
+})() }));
+floor.material.color.setScalar(0.85);
+floor.position.set(0, G + 0.01, -3.5);
+house.add(floor);
+// Dirt path from the camera side to the door
+const pathMat = new THREE.MeshBasicMaterial({ map: pixelTex((() => { const c = document.createElement('canvas'); c.width = 16; c.height = 16; c.getContext('2d').drawImage(imgs.dirt_path_top, 0, 0); return c; })()) });
+for (let z = 0; z <= 16; z++) for (const x of [-1, 0, 1]) {
+  const p = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), pathMat);
+  p.position.set(x, G - 0.05, z);
+  scene.add(p);
+}
+
+// Lectern: base, column and a sloped board facing the path
+const lectern = new THREE.Group();
+{
+  const mats = (side, top) => [side, side, top, top, side, side].map((m) => new THREE.MeshBasicMaterial({ map: pixelTex((() => { const c = document.createElement('canvas'); c.width = 16; c.height = 16; c.getContext('2d').drawImage(m, 0, 0); return c; })()) }));
+  const base = new THREE.Mesh(new THREE.BoxGeometry(1, 2 / 16, 1), mats(imgs.lectern_base, imgs.lectern_base));
+  base.position.y = 1 / 16;
+  const col = new THREE.Mesh(new THREE.BoxGeometry(8 / 16, 13 / 16, 8 / 16), mats(imgs.lectern_front, imgs.lectern_base));
+  col.position.y = 2 / 16 + 6.5 / 16;
+  const top = new THREE.Mesh(new THREE.BoxGeometry(1, 4 / 16, 1), mats(imgs.lectern_sides, imgs.lectern_top));
+  top.position.y = 0.95;
+  top.rotation.x = 0.39;
+  lectern.add(base, col, top);
+  lectern.userData.top = top;
+}
+lectern.position.set(0, G, -3);
+house.add(lectern);
+
+// The open book on the lectern: two pages, the right one with the answer
+function bookPages(lines) {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 320;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#e9dcb8'; ctx.fillRect(0, 0, 512, 320);
+  ctx.fillStyle = '#c9b78e'; ctx.fillRect(252, 0, 8, 320);
+  ctx.strokeStyle = '#6b4a2b'; ctx.lineWidth = 10; ctx.strokeRect(5, 5, 502, 310);
+  ctx.fillStyle = '#b8a77f';
+  for (let y = 60; y < 300; y += 34) ctx.fillRect(28, y, 200, 6);
+  lines.forEach((s, k) => drawText(ctx, s, 384, 120 + k * 60, 3, 0x3a2a14, false));
+  return pixelTex(c);
+}
+const book = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.6), new THREE.MeshBasicMaterial({ map: bookPages(['google.com', '142.250.190.46']), side: THREE.DoubleSide, transparent: true }));
+book.rotation.x = -Math.PI / 2 + 0.39;
+book.position.set(0, 0.14, 0.02);
+lectern.userData.top.add(book);
+book.rotation.set(-Math.PI / 2, 0, 0);
+book.position.set(0, 0.135, 0);
+
+const librarian = makeVillager();
+librarian.g.position.set(0, G, -4.3);
+scene.add(librarian.g);
+const steve = makePlayer();
+scene.add(steve.g);
+
+// ---------- speech bubbles: the game's tooltip (dark purple box with a gradient border) floating over a head ----------
+function bubble(lines, color = 0xFFFFFF) {
+  const scale = 6, pad = 4;
+  const w = Math.max(...lines.map(textWidth)) + 2 * pad, h = lines.length * 11 + 2 * pad - 2;
+  const c = document.createElement('canvas');
+  c.width = (w + 2) * scale; c.height = (h + 2) * scale;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = 'rgba(16,0,16,0.94)';
+  ctx.fillRect(scale, 0, w * scale, (h + 2) * scale);
+  ctx.fillRect(0, scale, (w + 2) * scale, h * scale);
+  const grad = ctx.createLinearGradient(0, 0, 0, c.height);
+  grad.addColorStop(0, '#5000FF'); grad.addColorStop(1, '#28007F');
+  ctx.strokeStyle = grad; ctx.lineWidth = scale;
+  ctx.strokeRect(scale * 1.5, scale * 1.5, (w - 1) * scale, (h - 1) * scale);
+  lines.forEach((s, k) => drawText(ctx, s, c.width / 2, (pad + 5 + k * 11) * scale, scale, k === 0 ? color : 0xAAAAAA));
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: pixelTex(c), transparent: true, depthWrite: false, depthTest: false }));
+  const H = 0.024 * (h + 2);
+  s.scale.set(H * c.width / c.height, H, 1);
+  s.userData.base = s.scale.clone();
+  s.renderOrder = 20;
+  scene.add(s);
+  return s;
+}
+const ask = bubble(['Where is google.com?']);
+const answer = bubble(['142.250.190.46', 'google.com'], 0x55FF55);
+const showBubble = (b, t, a, z, at) => {
+  const o = prog(t, a, a + 0.35) * (1 - prog(t, z - 0.3, z));
+  b.visible = o > 0.01;
+  b.scale.copy(b.userData.base).multiplyScalar(Math.max(easeOutBack(Math.min(1, prog(t, a, a + 0.35))), 1e-4));
+  b.material.opacity = o;
+  b.position.copy(at);
+};
+
+// The compass the librarian hands over: flies from the book to Steve
+const compass = new THREE.Sprite(new THREE.SpriteMaterial({ map: pixelTex((() => { const c = document.createElement('canvas'); c.width = 16; c.height = 16; c.getContext('2d').drawImage(imgs.compass, 0, 0); return c; })()), transparent: true, depthWrite: false }));
+compass.scale.set(0.5, 0.5, 1);
+compass.renderOrder = 15;
+scene.add(compass);
+
+// ---------- timeline ----------
+const T = { arrive: 4.2, ask: 4.6, look: 7.2, open: 7.8, answer: 9.6, give: 11.8, leave: 12.8 };
+const STOP = -1.6, START = 13;
+function steveAt(t) {
+  // Walks in, stops at the lectern, turns around and leaves
+  if (t < T.arrive) {
+    const x = easeInOut(prog(t, 0, T.arrive)) * 0.15 + prog(t, 0, T.arrive) * 0.85;
+    steve.g.position.set(0, G, lerp(START, STOP, x));
+    steve.g.rotation.y = Math.PI;
+    steve.walk(x * (START - STOP) * 2.2, 1 - prog(t, T.arrive - 0.4, T.arrive));
+  } else if (t < T.leave) {
+    steve.g.position.set(0, G, STOP);
+    steve.g.rotation.y = Math.PI;
+    steve.walk(0, 0);
+  } else {
+    const k = prog(t, T.leave, T.leave + 0.5);
+    steve.g.rotation.y = lerp(Math.PI, 0.35, easeInOut(k));
+    const d = Math.max(0, t - T.leave - 0.4) * 2.1;
+    steve.g.position.set(Math.sin(0.35) * d, G, STOP + Math.cos(0.35) * d);
+    steve.walk(d * 2.2, prog(t, T.leave + 0.3, T.leave + 0.6));
+  }
+  steve.head.rotation.x = -0.12 * (prog(t, T.answer - 0.6, T.answer) - prog(t, T.give + 0.2, T.give + 0.8));
+}
+function librarianAt(t) {
+  // Looks at Steve, then down to the book, then back up with the answer
+  const down = prog(t, T.look, T.look + 0.5) - prog(t, T.answer - 0.5, T.answer);
+  librarian.head.rotation.x = -0.55 * easeInOut(down) + 0.08 * Math.sin(t * 2.2) * prog(t, T.answer, T.answer + 0.3) * (1 - prog(t, T.give, T.give + 0.3));
+  librarian.head.rotation.y = 0.15 * Math.sin(t * 0.7) * (1 - down);
+}
+
+const CAMS = [
+  [0, pose(V(2.5, G + 6.5, 20), V(0, G + 1.2, 2))],
+  [3.0, pose(V(5.2, G + 2.6, 4.2), V(0, G + 1.4, -2.4)), 1.4],
+  [6.8, pose(V(2.0, G + 2.4, -0.6), V(0, G + 1.15, -3.0)), 1.0],
+  [9.0, pose(V(4.2, G + 2.6, 4.4), V(0, G + 1.7, -2.2)), 1.0],
+  [12.8, pose(V(6.5, G + 5.2, 15), V(0, G + 1.3, 0)), 2.2],
+];
+
+function renderAt(t) {
+  const cam = poseTrack(t, CAMS);
+  world.look(cam.pos, cam.look);
+  camera.updateMatrixWorld();
+  clouds.position.x = 4 * Math.sin(2 * Math.PI * t / TOTAL);
+  life.update(t);
+  steveAt(t);
+  librarianAt(t);
+  // The book opens: it grows from the spine
+  const op = easeOutBack(prog(t, T.open, T.open + 0.45));
+  book.scale.set(Math.max(op, 1e-4), 1, 1);
+  book.visible = op > 0.01;
+  showBubble(ask, t, T.ask, T.look + 0.3, steve.g.position.clone().add(V(0, 2.3, 0)));
+  showBubble(answer, t, T.answer, T.leave + 0.6, librarian.g.position.clone().add(V(0, 2.55, 0.4)));
+  const k = prog(t, T.give, T.give + 0.8);
+  compass.visible = k > 0 && k < 1;
+  const from = V(0, G + 1.25, -3), to = steve.g.position.clone().add(V(0.35, 1.1, 0));
+  compass.position.lerpVectors(from, to, easeInOut(k)).add(V(0, 0.6 * Math.sin(Math.PI * k), 0));
+  world.draw(t, TOTAL, 0.4, 0.5);
+}
+
+window.renderAt = renderAt;
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

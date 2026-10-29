@@ -1,0 +1,27 @@
+subtitles:
+  - Every time you open a website, your computer asks a question you never see.
+  - Computers don't find each other by name. They use numbers, like coordinates in a Minecraft world.
+  - google dot com is a name for people. Your computer needs something like one-forty-two, dot two-fifty, dot one-ninety, dot forty-six.
+  - Turning names into numbers is the job of D N S, the Domain Name System. Think of it as the village librarians.
+  - Steve wants google dot com, so he asks a librarian called the resolver. Usually, your internet provider runs this one.
+  - First, the librarian checks his notebook. Nothing there yet, so he starts asking around.
+  - He asks the root library. The root doesn't know google, but it knows who runs every dot com.
+  - The dot com library doesn't know the address either, but it knows which library belongs to google.
+  - And google's own library has the real coordinates, written on its lectern.
+  - The answer travels back, and the librarian hands Steve the coordinates.
+  - He also writes them in his notebook, with a timer called the T T L.
+  - So when Alex asks for google dot com a minute later, the answer is instant. No trip at all.
+  - When the timer runs out, the note is erased, so old addresses don't stay forever.
+  - That simple question and answer powers some clever tricks.
+  - First, blocking ads. Ads come from their own names, like ads dot tracker dot com.
+  - A blocker like Pi-hole gives the librarian a blacklist. Ask for an ad, and he sends you to a room of barrier blocks.
+  - The ad never loads. The same list can block any site you choose, for kids or for your own focus.
+  - Second, the dangerous one: spoofing. A fake librarian jumps in with the wrong coordinates.
+  - Your bank's name, but a fake bank, full of T N T.
+  - The fix is D N S SEC. Signed names carry an enchanted seal that nobody can forge, so a fake answer gets thrown out.
+  - Third, privacy. Normally your questions travel open, and your internet provider can read every one.
+  - Encrypted D N S locks each question in a chest. And with your own resolver, like Unbound, you stop using the provider's librarian and ask the source libraries yourself.
+  - Last, speed. google dot com isn't one place. There are copies of it all over the world.
+  - So the librarian points you to the closest copy. That's why it loads fast here and in Tokyo.
+  - So every link you click starts with a librarian, a notebook and a few trips around the village.
+  - That's D N S.

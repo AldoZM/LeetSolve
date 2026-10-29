@@ -20,5 +20,6 @@
  "tall-meadow": {"center": [-110, 69, -110], "turn": 0.7854, "desc": "Pradera de pasto alto con robles y abedules al fondo (mundo del zip, 26.2); lote alargado hasta la camara", "video": "math/2409-count-days-together"},
  "east-meadow": {"center": [-54, 76, 34], "turn": 3.927, "desc": "Pradera ondulada con un estanque, al sur del spawn (mundo del zip, 26.2); lote alargado hasta la camara", "video": "arrays-hashing/3886-sum-of-sortable-integers"},
  "birch-flowers": {"center": [-182, 65, -74], "turn": 0.3927, "mundo": "MacEntorno", "desc": "Bosque de abedules con flores y piedras (MacEntorno, 26.3); lote alargado hasta la camara", "video": "binary-search/2089-find-target-indices"},
- "birch-grove": {"center": [-138, 62, -94], "turn": 0.7854, "mundo": "MacEntorno", "desc": "Bosque de abedules con flores sobre terrazas de tierra (MacEntorno, 26.3)", "video": "trees/tree-basics"}
+ "birch-grove": {"center": [-138, 62, -94], "turn": 0.7854, "mundo": "MacEntorno", "desc": "Bosque de abedules con flores sobre terrazas de tierra (MacEntorno, 26.3)", "video": "trees/tree-basics"},
+ "flower-plain": {"center": [-168, 63, -64], "turn": 0.0, "desc": "Llanura plana con flores, lago y playa al fondo (mundo del zip, 26.2); aldea hecha por codigo encima, plot [-34, 34, -46, 34]", "video": "tech/dns"}
 }

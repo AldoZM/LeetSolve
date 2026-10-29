@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+// Check page for the village place: at second k, candidate k seen from high above (k = 0..3), then from the ground (4..7)
+import { V } from '/vendor/lib/stage.js';
+import { loadTheme, makeWorld, makeTerrain } from '/vendor/tema/mc.js';
+
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt']);
+const world = makeWorld({ fov: 40, offset: 0, fog: [60, 140] });
+const names = ['aldea-a', 'aldea-b', 'aldea-c', 'aldea-d'];
+const terrains = [];
+for (const n of names) {
+  const t = await makeTerrain(`/vendor/tema/mundos/${n}.json`);
+  t.visible = false;
+  world.scene.add(t);
+  terrains.push(t);
+}
+window.renderAt = (t) => {
+  const k = Math.floor(t) % 4, ground = t >= 4;
+  terrains.forEach((tr, j) => { tr.visible = j === k; });
+  if (ground) world.look(V(0, 8, 34), V(0, 1, -10));
+  else world.look(V(0, 70, 30), V(0, 0, -6));
+  world.draw(t, 10, 0, 0);
+};
+window.sceneDuration = 8;
+</script>
+</body>
+</html>

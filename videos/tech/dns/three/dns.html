@@ -1,0 +1,451 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+// "How DNS works": the whole short in 3D. A village where librarians are DNS servers, names are places and IP
+// addresses are coordinates. Every event is tied to a narration line of timestamps.json: ev(line, fraction).
+import { THREE, V, lerp, prog, easeInOut, easeOutBack, pose, mixPose } from '/vendor/lib/stage.js';
+import { loadTheme, makeWorld, makeTerrain, makeClouds, makeSign, makeChest, pixelSprite, tex } from '/vendor/tema/mc.js';
+import { loadMobs, planLife, makeLife, setTime } from '/vendor/tema/vida.js';
+import { loadPeople, makeVillager, makePlayer, makeIllager } from '/vendor/tema/gente.js';
+import { makeLibrary, makeTower, makeSite, makeBarrierRoom, makeBank, makeHome, bubble, makeItem, arc, uiSprite, placeUI } from '/vendor/tema/aldea.js';
+
+// ---------- timing ----------
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const TOTAL = subs[subs.length - 1].end_s;
+const ev = (line, f = 0) => subs[line].start_s + f * subs[line].duration_s;
+const end = (line) => subs[line].end_s;
+
+// ---------- world ----------
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'leaves', 'log_side', 'log_top', 'cobble', 'oak_planks', 'bookshelf',
+  'glass', 'stone_bricks', 'chiseled_stone_bricks', 'smooth_stone', 'lectern_front', 'lectern_top', 'quartz_block_side',
+  'quartz_block_top', 'barrier', 'black_wool', 'iron_block', 'tnt_side', 'tnt_top', 'tnt_bottom', 'written_book',
+  'enchanted_book', 'compass', 'clock', 'dirt_path_top', 'dirt_path_side']);
+await loadPeople(imgs, ['villager', 'type_plains', 'type_desert', 'type_taiga', 'type_snow', 'type_savanna', 'prof_librarian',
+  'prof_cartographer', 'prof_cleric', 'steve', 'alex', 'illusioner', 'wandering_trader']);
+const world = makeWorld({ fov: 40, offset: 0, fog: [60, 170] });
+const { scene, camera } = world;
+const terrain = await makeTerrain('/vendor/tema/mundos/flower-plain.json', { turn: 0, plot: [-34, 34, -46, 34], clear: [-40, 40, -50, 40] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+const LIFE = [{ kind: 'sheep', count: 3, graze: 1 }, { kind: 'cow', count: 2, graze: 1 }, { kind: 'chicken', count: 3 }, { kind: 'pig', count: 1 }];
+await loadMobs(imgs, LIFE.map((g) => g.kind));
+const light = await setTime(world, 'day', { terrain, clouds, imgs });
+const life = makeLife(imgs, terrain, planLife(terrain, LIFE, { seed: 21, area: [-40, 40, -50, 40],
+  avoid: [[-30, 30, -42, 26]] }), TOTAL, light);
+scene.add(life.g);
+
+// ---------- the village (every building faces +z) ----------
+const at = (b, x, z) => { b.g.position.set(x, 0, z); scene.add(b.g); b.pos = V(x, 0, z); return b; };
+const P = at(makeLibrary(imgs, { label: 'PROVIDER' }), 0, 0);              // the resolver, run by the internet provider
+const R = at(makeTower(imgs, { label: 'ROOT' }), -18, -20);
+const C = at(makeLibrary(imgs, { label: '.com' }), 0, -34);
+const N = at(makeLibrary(imgs, { label: 'ns.google.com' }), 18, -20);       // google's own name server
+const S = at(makeSite(imgs, { label: 'google.com' }), -15, 6);             // the place itself
+const B = at(makeBarrierRoom(imgs), 14, 7);
+const F = at(makeBank(imgs, { label: 'mybank.com' }), 25, -6);             // the fake bank
+const H = at(makeHome(imgs), 8, 18);
+const COPIES = [[-52, -46], [50, -48], [-50, 30], [52, 26]].map(([x, z]) => at(makeSite(imgs, { label: 'google.com' }), x, z));
+// World position of a point given in a building's local frame
+const W = (b, v) => b.pos.clone().add(v);
+const lecternTop = (b) => b.g.localToWorld(b.lectern.g.position.clone().add(V(0, 1.3, 0)));
+
+// Path from the entrance to the provider, and the entrance sign (the cover)
+const pathMat = new THREE.MeshBasicMaterial({ map: tex(imgs, 'dirt_path_top') });
+pathMat.color.setScalar(0.92);
+for (let z = 1; z <= 31; z++) for (const x of [-1, 0, 1]) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), pathMat);
+  m.position.set(x, 0.012, z);
+  scene.add(m);
+}
+const cover = makeSign(imgs, ['HOW DNS', 'WORKS'], { w: 3.4, h: 1.7 });
+cover.position.set(0, 2.2, 24);
+scene.add(cover);
+const signpost = makeSign(imgs, ['google.com', '???'], { w: 1.8, h: 0.95 });
+signpost.position.set(2.6, 1.55, 10);
+signpost.rotation.y = -0.5;
+scene.add(signpost);
+
+// ---------- people ----------
+const steve = makePlayer(imgs, { skin: 'steve' });
+const alex = makePlayer(imgs, { skin: 'alex' });
+const keeper = {
+  P: makeVillager(imgs, { profession: 'librarian', type: 'plains' }),
+  R: makeVillager(imgs, { profession: 'cartographer', type: 'taiga' }),
+  C: makeVillager(imgs, { profession: 'cartographer', type: 'desert' }),
+  N: makeVillager(imgs, { profession: 'librarian', type: 'snow' }),
+  H: makeVillager(imgs, { profession: 'librarian', type: 'savanna' }),
+};
+for (const [k, v] of Object.entries(keeper)) {
+  const b = { P, R, C, N, H }[k];
+  v.g.position.copy(W(b, b.keeper));
+  scene.add(v.g);
+}
+keeper.H.g.rotation.y = 0;
+const spoofer = makeIllager(imgs, { kind: 'illusioner' });
+const trader = makeVillager(imgs, { skin: 'wandering_trader' });
+scene.add(steve.g, alex.g, spoofer.g, trader.g);
+
+// Walks a person through keys [time, position, yaw]: between two keys at different places it walks (facing where it
+// goes); two keys with the same time teleport. amount fades the leg swing in and out.
+function moveAlong(p, keys, t) {
+  let k = 0;
+  while (k + 1 < keys.length && keys[k + 1][0] <= t) k++;
+  const [t0, p0, y0] = keys[k];
+  const next = keys[k + 1];
+  if (!next || next[1].distanceTo(p0) < 1e-3 || next[0] === t0) {
+    p.g.position.copy(p0);
+    p.g.rotation.y = y0;
+    p.walk(0, 0);
+    return;
+  }
+  const [t1, p1, y1] = next;
+  const u = prog(t, t0, t1);
+  const x = u * 0.85 + easeInOut(u) * 0.15;
+  p.g.position.lerpVectors(p0, p1, x);
+  const dir = Math.atan2(p1.x - p0.x, p1.z - p0.z);
+  const turn = (a, b, w) => a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * w;
+  p.g.rotation.y = u < 0.12 ? turn(y0, dir, u / 0.12) : u > 0.88 ? turn(dir, y1, (u - 0.88) / 0.12) : dir;
+  p.walk(x * p0.distanceTo(p1) * 2.4, Math.min(1, u * 8, (1 - u) * 8));
+}
+
+const PV = W(P, P.visitor), BACK = Math.PI;
+const START = V(0, 0, 31);
+const STEVE = [
+  [0, START, BACK], [ev(0, 0.15), START, BACK], [ev(1, 0.35), V(1.2, 0, 11.5), -0.6], [ev(4, 0.0), V(1.2, 0, 11.5), -0.6],
+  [ev(4, 0.55), PV, BACK], [ev(9, 0.65), PV, BACK], [ev(10, 0.6), W(S, V(0, 0, 1.2)), BACK], [ev(13, 0.9), W(S, V(0, 0, 1.2)), BACK],
+  [ev(13, 0.9), PV, BACK], [ev(15, 0.45), PV, BACK], [ev(15, 0.95), W(B, V(0, 0, -2)), BACK], [ev(16, 1), W(B, V(0, 0, -2)), BACK],
+  [ev(17, 0), PV, BACK], [ev(17, 0.95), PV, BACK], [ev(18, 0.5), W(F, V(0, 0, 0.6)), BACK], [ev(18, 0.74), W(F, V(0, 0, 0.6)), BACK],
+  [ev(18, 0.86), W(F, V(0, 0, 2.8)), BACK], [ev(19, 0), W(F, V(0, 0, 2.8)), BACK],
+  [ev(19, 0), PV, BACK], [ev(20, 0), PV, BACK], [ev(20, 0), W(H, V(0, 0, 1.4)), BACK], [ev(22, 0), W(H, V(0, 0, 1.4)), BACK],
+  [ev(22, 0), PV, BACK], [ev(25, 0), PV, BACK], [ev(25, 0), START, BACK],
+];
+const ALEX = [
+  [0, V(6, 0, 12), BACK], [ev(11, 0.0), V(6, 0, 12), BACK], [ev(11, 0.35), PV.clone().add(V(0.9, 0, 0.3)), BACK],
+  [ev(12, 0.2), PV.clone().add(V(0.9, 0, 0.3)), BACK], [ev(13, 0.6), V(9, 0, 10), 0.4],
+];
+const TRADER = [[0, V(4.5, 0, 9), -1.2]];
+const SPOOF = [[0, V(-9, 0, -9), 0.3]];
+
+// ---------- items and bubbles ----------
+const book = makeItem(imgs, 'written_book', 0.9);
+const sealed = makeItem(imgs, 'enchanted_book', 0.9);
+const fake = makeItem(imgs, 'written_book', 0.9);
+const compass = makeItem(imgs, 'compass', 0.7);
+const clock = makeItem(imgs, 'clock', 0.3);
+scene.add(book, sealed, fake, compass, clock);
+const chest = makeChest(imgs, 0.8);
+scene.add(chest.g);
+const B_ = (lines, opts) => { const b = bubble(lines, opts); scene.add(b); return b; };
+const bub = {
+  people: B_(['google.com', 'for people'], { size: 0.032 }), computer: B_(['142.250.190.46', 'for computers'], { color: 0x55FF55, size: 0.032 }),
+  coords: pixelSprite('XYZ: -168 / 63 / -64', 0xFFFFFF, 0.32),
+  ask: B_(['Where is google.com?']), empty: B_(['Not in my notebook...']),
+  root: B_(["Don't know google.com", 'Ask the .com library'], { color: 0xFFFF55 }),
+  com: B_(['Ask ns.google.com'], { color: 0xFFFF55 }),
+  answer: B_(['142.250.190.46', 'google.com'], { color: 0x55FF55 }),
+  ttl: B_(['TTL'], { color: 0xFFAA00, size: 0.018 }), ttl2: B_(['TTL'], { color: 0xFFAA00, size: 0.018 }),
+  askA: B_(['Where is google.com?']), fast: B_(['142.250.190.46', 'from my notebook'], { color: 0x55FF55 }),
+  ad: B_(['ads.tracker.com?']), blocked: B_(['0.0.0.0', 'blocked'], { color: 0xFF5555 }),
+  buy: B_(['BUY NOW!!!'], { color: 0xFFFF55, size: 0.034 }),
+  bank: B_(['mybank.com?']), lie: B_(['6.6.6.6', 'mybank.com, trust me'], { color: 0x55FF55 }),
+  no: B_(['No seal. Thrown out!'], { color: 0xFF5555 }), yes: B_(['Sealed. Real address.'], { color: 0xB070FF }),
+  peek: B_(['google.com', 'youtube.com', 'mybank.com'], { color: 0xAAAAAA }), locked: B_(['???'], { color: 0xAAAAAA }),
+  own: B_(['I ask the libraries myself'], { color: 0x55FFFF }),
+  near: B_(['closest copy'], { color: 0x55FFFF }), tokyo: B_(['Tokyo'], { color: 0xAAAAAA }),
+};
+scene.add(bub.coords);
+// Names over the buildings for the aerial shots
+const TAGS = [[P, 'PROVIDER', 0xFFFFFF], [R, 'ROOT', 0xFFFF55], [C, '.com', 0xFFFF55], [N, 'ns.google.com', 0xFFFF55],
+              [S, 'google.com', 0x55FFFF], [H, 'home', 0xAAAAAA]].map(([b, name, color]) => [b, B_([name], { color })]);
+const AERIALS = [[ev(3, 0.3), end(3)], [ev(13, 0.3), end(13)], [ev(24, 0.15), end(24)]];
+bub.coords.renderOrder = 30;
+bub.coords.material.depthTest = false;
+uiSprite(bub.coords);
+// TTL bar: shrinks while the note is valid
+const ttlBar = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0xFFAA00, depthTest: false, depthWrite: false }));
+ttlBar.renderOrder = 31;
+scene.add(ttlBar);
+
+// Beacon beam over the closest copy of google.com
+const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 60, 8, 1, true),
+  new THREE.MeshBasicMaterial({ color: 0x9FF5FF, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+beam.position.copy(W(S, V(0, 30, -2.5)));
+scene.add(beam);
+
+// Blast at the fake bank: a flash and flying debris
+const flash = new THREE.Sprite(new THREE.SpriteMaterial({ map: (() => {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+  const ctx = c.getContext('2d'); const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  g.addColorStop(0, 'rgba(255,250,220,1)'); g.addColorStop(0.45, 'rgba(255,190,90,0.8)'); g.addColorStop(1, 'rgba(255,120,40,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c);
+})(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+flash.position.copy(W(F, V(0, 1.8, -3.5)));
+scene.add(flash);
+const debris = Array.from({ length: 14 }, (_, k) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.28, 0.28), new THREE.MeshBasicMaterial({ color: k % 3 ? 0x8a8a8a : 0xd23a2a }));
+  const a = k * 2.4, up = 3 + (k % 4);
+  m.userData.v = V(Math.cos(a) * 3.2, up, Math.sin(a) * 2.2 + 1.5);
+  scene.add(m);
+  return m;
+});
+
+// ---------- the lectern books ----------
+const NOTE = [{ s: 'google.com', color: 0x3a2a14 }, { s: '142.250.190.46', color: 0x1d6b2a }];
+function books(t) {
+  // Provider's notebook: empty, then the note (fading when the TTL runs out), then the blacklist
+  let lines = [{ s: '- empty -', color: 0x8a7a5a }];
+  if (t >= ev(9, 0.4) && t < ev(13, 0.2)) {
+    const fade = 1 - prog(t, ev(12, 0.45), ev(12, 0.8));
+    lines = fade > 0.01 ? NOTE.map((l) => ({ ...l, alpha: Math.round(fade * 10) / 10 })) : [{ s: '- empty -', color: 0x8a7a5a }];
+  }
+  if (t >= ev(13, 0.2) && t < ev(17, 0)) {
+    lines = [{ s: 'BLACKLIST', color: 0xb02020 }, { s: 'ads.tracker.com', strike: true }];
+    if (t >= ev(16, 0.45)) lines.push({ s: 'youtube.com', strike: true });
+  }
+  if (t >= ev(17, 0)) lines = [{ s: 'mybank.com ?', color: 0x3a2a14 }];
+  P.lectern.setBook(lines);
+  P.lectern.open(prog(t, ev(5, 0.15), ev(5, 0.35)));
+  R.lectern.setBook([{ s: '.com', color: 0x3a2a14 }, { s: 'ask that library', color: 0x6b5a3a }]);
+  R.lectern.open(prog(t, ev(6, 0.4), ev(6, 0.55)));
+  C.lectern.setBook([{ s: 'google.com', color: 0x3a2a14 }, { s: 'ask ns.google.com', color: 0x6b5a3a }]);
+  C.lectern.open(prog(t, ev(7, 0.3), ev(7, 0.45)));
+  N.lectern.setBook(NOTE);
+  N.lectern.open(prog(t, ev(8, 0.15), ev(8, 0.3)));
+  H.lectern.setBook([{ s: 'my own resolver', color: 0x3a2a14 }]);
+  H.lectern.open(prog(t, ev(21, 0.45), ev(21, 0.55)));
+}
+
+// ---------- the question's trips ----------
+const LP = lecternTop(P), LR = lecternTop(R), LC = lecternTop(C), LN = lecternTop(N), LH = lecternTop(H);
+const TRIPS = [  // [item, from, to, start, end]
+  [book, LP, LR, ev(6, 0.0), ev(6, 0.4)], [book, LR, LC, ev(7, 0.0), ev(7, 0.3)], [book, LC, LN, ev(8, 0.0), ev(8, 0.15)],
+  [book, LN, LP, ev(9, 0.0), ev(9, 0.35)],
+  [book, LP, V(-9, 2.4, -9), ev(17, 0.25), ev(17, 0.55)], [fake, V(-9, 2.4, -9), LP, ev(17, 0.6), ev(17, 0.95)],
+  [fake, V(-9, 2.4, -9), LP, ev(19, 0.1), ev(19, 0.4)], [sealed, LR, LP, ev(19, 0.15), ev(19, 0.45)],
+  [book, W(H, V(0, 1.8, 1.4)), LP, ev(20, 0.15), ev(20, 0.95)],
+  [book, LH, LR, ev(21, 0.55), ev(21, 0.7)], [book, LR, LC, ev(21, 0.7), ev(21, 0.8)], [book, LC, LN, ev(21, 0.8), ev(21, 0.9)],
+  [book, LN, LH, ev(21, 0.9), ev(21, 1.0)],
+  [book, LP, LR, ev(24, 0.0), ev(24, 0.2)], [book, LR, LC, ev(24, 0.2), ev(24, 0.4)], [book, LC, LN, ev(24, 0.4), ev(24, 0.6)],
+  [book, LN, LP, ev(24, 0.6), ev(24, 0.8)],
+];
+const CHEST = [W(H, V(0, 1.2, 1.4)), LP.clone().add(V(0, -0.4, 1.2)), ev(21, 0.0), ev(21, 0.45)];
+function items(t) {
+  for (const it of [book, sealed, fake]) { it.visible = false; it.glow(0, t); it.scale.setScalar(0.9); }
+  for (const [it, a, b, t0, t1] of TRIPS) {
+    if (t >= t0 && t <= t1) {
+      it.visible = true;
+      it.position.copy(arc(a, b, easeInOut(prog(t, t0, t1)), Math.min(7, 1 + a.distanceTo(b) * 0.25)));
+    }
+  }
+  // The sealed answer glows; the fake one falls and vanishes after the "no"
+  if (sealed.visible || (t >= ev(19, 0.45) && t < end(19))) {
+    sealed.visible = true;
+    if (t >= ev(19, 0.45)) sealed.position.copy(LP).add(V(-0.75, 0.5, 0.1));
+    sealed.glow(1, t);
+    if (t >= ev(19, 0.45)) sealed.scale.setScalar(0.45);
+  }
+  if (t >= ev(19, 0.4) && t < ev(19, 0.8)) {
+    fake.visible = true;
+    fake.scale.setScalar(0.45);
+    fake.position.copy(LP).add(V(-0.1, 0.5 - 1.4 * prog(t, ev(19, 0.62), ev(19, 0.8)), 0.1));
+  }
+  // The question inside a closed chest (encrypted DNS)
+  const k = prog(t, CHEST[2], CHEST[3]);
+  chest.g.visible = t >= CHEST[2] && t <= CHEST[3];
+  chest.g.position.copy(arc(CHEST[0], CHEST[1], easeInOut(k), 1.4)).add(V(0, -0.4, 0));
+  chest.open(0);
+  // Compass from the provider to Steve
+  const kc = prog(t, ev(9, 0.4), ev(9, 0.65));
+  compass.visible = kc > 0 && kc < 1;
+  compass.position.copy(arc(LP, PV.clone().add(V(0.35, 1.1, 0)), kc, 0.7));
+  // TTL clock and bar next to the note
+  const ttlOn = t >= ev(10, 0.3) && t < ev(12, 0.85);
+  clock.visible = ttlOn;
+  clock.position.copy(LP).add(V(0.15, 0.75, 0.35));
+  const left = 1 - prog(t, ev(11, 0.6), ev(12, 0.7));
+  ttlBar.visible = ttlOn;
+  ttlBar.scale.set(Math.max(left * 0.9, 1e-3), 0.08, 1);
+  ttlBar.position.copy(LP).add(V(0.15 - (1 - left) * 0.45, 0.5, 0.35));
+}
+
+function bubbles(t) {
+  const over = (p, h = 2.35) => p.g.position.clone().add(V(0, h, 0));
+  bub.coords.visible = t >= ev(1, 0.35) && t < end(1);
+  bub.coords.userData.anchor.copy(over(steve, 2.5));
+  bub.people.show(t, ev(2, 0.0), ev(3, 0.1), V(2.6, 3.0, 10));
+  bub.computer.show(t, ev(2, 0.35), ev(3, 0.1), V(2.6, 4.1, 10));
+  bub.ask.show(t, ev(4, 0.6), ev(5, 0.4), over(steve));
+  bub.empty.show(t, ev(5, 0.4), end(5), over(keeper.P, 2.45));
+  bub.root.show(t, ev(6, 0.6), end(6), W(R, V(0, 4.4, 0.4)));
+  bub.com.show(t, ev(7, 0.45), end(7), W(C, V(0, 4.2, 0.6)));
+  bub.answer.show(t, ev(9, 0.35), ev(10, 0.1), over(keeper.P, 2.5).add(V(0, 0, 0.4)));
+  bub.ttl.show(t, ev(10, 0.4), ev(11, 0.15), LP.clone().add(V(0.15, 1.12, 0.35)));
+  bub.ttl2.show(t, ev(12, 0.0), ev(12, 0.85), LP.clone().add(V(0.15, 1.12, 0.35)));
+  bub.askA.show(t, ev(11, 0.35), ev(11, 0.6), over(alex));
+  bub.fast.show(t, ev(11, 0.45), ev(12, 0.2), over(keeper.P, 2.5).add(V(0, 0, 0.4)));
+  bub.ad.show(t, ev(14, 0.45), ev(15, 0.3), over(steve));
+  bub.blocked.show(t, ev(15, 0.25), ev(15, 0.65), over(keeper.P, 2.5).add(V(0, 0, 0.4)));
+  bub.buy.show(t, ev(16, 0.0), ev(16, 0.3), W(B, V(0, 3.0, -1.2)));
+  bub.bank.show(t, ev(17, 0.05), ev(17, 0.3), over(steve));
+  bub.lie.show(t, ev(17, 0.6), ev(18, 0.2), W(P, V(-1.2, 3.2, -1.5)));
+  bub.no.show(t, ev(19, 0.55), end(19), over(keeper.P, 2.5).add(V(0.4, 0, 0.4)));
+  bub.yes.show(t, ev(19, 0.75), end(19), over(keeper.P, 3.0).add(V(0.4, 0, 0.4)));
+  bub.peek.show(t, ev(20, 0.45), end(20), over(trader, 2.5));
+  bub.locked.show(t, ev(21, 0.2), ev(21, 0.45), over(trader, 2.5));
+  bub.own.show(t, ev(21, 0.5), end(21), over(keeper.H, 2.5));
+  for (const [b, tag] of TAGS) {
+    const w = AERIALS.find(([a, z]) => t >= a && t < z) ?? [0, 0];
+    tag.show(t, w[0], w[1], W(b, V(0, 6.5, -3)));
+  }
+  bub.near.show(t, ev(23, 0.1), end(23), W(S, V(0, 10, 0)));
+  bub.tokyo.show(t, ev(23, 0.4), end(23), W(COPIES[1], V(0, 10, 0)));
+}
+
+// ---------- the people's poses ----------
+function people(t) {
+  moveAlong(steve, STEVE, t);
+  // Knocked back by the blast
+  const kb = prog(t, ev(18, 0.74), ev(18, 0.86));
+  if (kb > 0 && kb < 1) { steve.g.position.y = 1.2 * Math.sin(Math.PI * kb); steve.g.rotation.y = BACK; steve.walk(0, 0); }
+  moveAlong(alex, ALEX, t);
+  alex.g.visible = t >= ev(10, 0.5) && t < ev(13, 0.6);
+  moveAlong(trader, TRADER, t);
+  trader.g.visible = t >= ev(20, 0) && t < end(21);
+  trader.look(0.2 * Math.sin(t * 1.3), 0);
+  moveAlong(spoofer, SPOOF, t);
+  spoofer.g.visible = t >= ev(17, 0.2) && t < ev(19, 0.62);
+  // Librarians: look at the visitor, down at the book while reading, shake the head for "no"
+  const read = (a, b) => prog(t, a, a + 0.3) - prog(t, b - 0.3, b);
+  keeper.P.look(0.12 * Math.sin(t * 0.7), 0.5 * Math.max(read(ev(5, 0.1), ev(5, 0.6)), read(ev(10, 0.0), ev(10, 0.9))));
+  if (t >= ev(19, 0.5) && t < ev(19, 0.75)) keeper.P.look(0.45 * Math.sin(t * 22), 0);
+  keeper.R.look(0, 0.5 * read(ev(6, 0.4), ev(6, 0.7)));
+  keeper.C.look(0, 0.5 * read(ev(7, 0.3), ev(7, 0.6)));
+  keeper.N.look(0, 0.5 * read(ev(8, 0.15), ev(8, 0.6)));
+  keeper.H.look(-0.3, 0.5 * read(ev(21, 0.45), ev(21, 0.6)));
+  steve.look(0, -0.15 * prog(t, ev(4, 0.55), ev(4, 0.8)));
+}
+
+// ---------- the blast and the ad ----------
+function effects(t) {
+  const fuse = prog(t, ev(18, 0.5), ev(18, 0.74));
+  const boom = t >= ev(18, 0.74);
+  const flashOn = fuse > 0 && !boom && Math.floor(t * 6) % 2 === 0;
+  F.tnt.forEach((m) => {
+    m.visible = !boom || t >= ev(20, 0);
+    m.material.forEach((mt, k) => mt.color.setScalar([0.62, 0.62, 1, 0.5, 0.8, 0.8][k] * (flashOn ? 2.2 : 1)));
+  });
+  const kf = prog(t, ev(18, 0.74), ev(18, 0.74) + 0.7);
+  flash.visible = kf > 0 && kf < 1;
+  flash.scale.setScalar(2 + 9 * kf);
+  flash.material.opacity = 1 - kf;
+  const kd = t - ev(18, 0.74);
+  debris.forEach((m) => {
+    m.visible = kd > 0 && kd < 1.6;
+    const v = m.userData.v;
+    m.position.copy(flash.position).add(V(v.x * kd, v.y * kd - 4.9 * kd * kd, v.z * kd));
+    m.rotation.set(kd * 5, kd * 3, 0);
+  });
+  // The ad tries to show up in the barrier room and breaks
+  const ka = prog(t, ev(16, 0.0), ev(16, 0.3));
+  bub.buy.material.opacity *= 1 - prog(t, ev(16, 0.18), ev(16, 0.3));
+  bub.buy.userData.anchor.x += 0.15 * Math.sin(t * 40) * ka;
+  // CDN copies: always there; the beam marks the closest one
+  beam.visible = t >= ev(22, 0.6) && t < end(23);
+  beam.material.opacity = 0.45 * prog(t, ev(22, 0.6), ev(23, 0.1));
+}
+
+// ---------- camera ----------
+// Keys [time, pose or function of t, blend seconds]; each key blends in from the previous one
+const look = (pos, target) => pose(pos, target);
+const near = (b, side = 1) => look(W(b, V(4.4 * side, 2.8, 4.4)), W(b, V(0, 1.5, -2.6)));
+const close = (b) => look(W(b, V(1.9, 2.3, -0.6)), W(b, V(0, 1.15, -3.0)));
+const follow = (it, dx = 5, dy = 3.5, dz = 9) => () => look(it.position.clone().add(V(dx, dy, dz)), it.position.clone());
+const COVER = look(V(0, 3.0, 30.5), V(0, 2.3, 22));
+const CAM = [
+  [0, COVER],
+  [ev(0, 0.35), look(V(7, 7, 36), V(0, 1, 12)), 2.5],
+  [ev(1, 0.1), look(V(5.5, 2.8, 16.5), V(1.4, 1.8, 10.5)), 1.4],
+  [ev(3, 0.0), look(V(0, 78, 30), V(0, 0, -10)), 2.4],
+  [ev(4, 0.3), near(P), 2.0],
+  [ev(5, 0.1), close(P), 1.0],
+  [ev(6, 0.0), follow(book, 6, 4, 10), 1.0],
+  [ev(6, 0.42), look(W(R, V(1.4, 2.3, 4.2)), W(R, V(0, 1.4, -3))), 0.8],
+  [ev(7, 0.0), follow(book, 6, 4, 10), 0.8],
+  [ev(7, 0.3), near(C), 0.8],
+  [ev(8, 0.0), follow(book, 6, 4, 10), 0.6],
+  [ev(8, 0.15), close(N), 0.8],
+  [ev(9, 0.0), follow(book, 6, 4, 10), 0.8],
+  [ev(9, 0.38), near(P), 0.8],
+  [ev(10, 0.0), close(P), 1.0],
+  [ev(11, 0.1), near(P, -1), 1.0],
+  [ev(12, 0.25), close(P), 1.0],
+  [ev(13, 0.0), look(V(0, 78, 30), V(0, 0, -10)), 2.0],
+  [ev(14, 0.2), near(P), 1.6],
+  [ev(15, 0.25), close(P), 0.8],
+  [ev(15, 0.6), look(W(B, V(4.5, 3.2, 7)), W(B, V(0, 1.2, -2))), 1.2],
+  [ev(17, 0.0), near(P), 0.6],
+  [ev(17, 0.25), look(V(-2, 7, 6), V(-6, 1.5, -6)), 1.0],
+  [ev(17, 0.62), near(P, -1), 1.0],
+  [ev(18, 0.25), look(W(F, V(6, 3.4, 9)), W(F, V(0, 1.5, -2))), 1.2],
+  [ev(19, 0.0), close(P), 1.0],
+  [ev(20, 0.0), look(V(-4, 5.5, 23), V(5, 1.4, 9)), 1.2],
+  [ev(21, 0.5), look(V(-4, 40, 36), V(0, 0, -14)), 1.6],
+  [ev(22, 0.0), look(V(0, 95, 85), V(0, 0, -6)), 3.0],
+  [ev(24, 0.0), look(V(0, 78, 30), V(0, 0, -10)), 2.0],
+  [ev(25, 0.0), COVER, Math.min(2.2, subs[25].duration_s * 0.9)],
+];
+function cameraAt(t) {
+  const P0 = (k) => (typeof k[1] === 'function' ? k[1](t) : k[1]);
+  let p = P0(CAM[0]);
+  for (const k of CAM.slice(1)) {
+    const x = easeInOut(prog(t, k[0], k[0] + k[2]));
+    if (x > 0) p = mixPose(p, P0(k), x);
+  }
+  return p;
+}
+
+// ---------- sound cues: [seconds, sound, gain] ----------
+window.sfxCues = [
+  [ev(2, 0.0), 'pop', 0.3], [ev(2, 0.35), 'pop', 0.3], [ev(4, 0.6), 'villager_idle1', 0.35], [ev(5, 0.15), 'book_flip1', 0.4],
+  [ev(5, 0.45), 'villager_no1', 0.35], [ev(6, 0.0), 'book_put', 0.35], [ev(6, 0.6), 'villager_idle2', 0.35],
+  [ev(7, 0.3), 'book_flip2', 0.4], [ev(8, 0.15), 'book_flip3', 0.4], [ev(9, 0.35), 'villager_yes1', 0.4],
+  [ev(9, 0.6), 'orb', 0.35], [ev(10, 0.3), 'book_flip1', 0.35], [ev(11, 0.45), 'villager_yes2', 0.4],
+  [ev(12, 0.7), 'pop', 0.3], [ev(15, 0.25), 'villager_no2', 0.35], [ev(16, 0.25), 'break', 0.4],
+  [ev(17, 0.25), 'illusioner_mirror', 0.4], [ev(17, 0.6), 'illusioner_idle', 0.35], [ev(18, 0.5), 'fuse', 0.45],
+  [ev(18, 0.74), 'explode2', 0.5], [ev(19, 0.5), 'villager_no3', 0.4], [ev(19, 0.75), 'levelup', 0.3],
+  [ev(20, 0.45), 'trader_idle', 0.35], [ev(21, 0.0), 'chestclosed', 0.35], [ev(21, 0.45), 'chest_locked', 0.3],
+  [ev(21, 0.55), 'book_flip2', 0.35], [ev(23, 0.1), 'toast_in', 0.35],
+].map(([s, n, g]) => [Math.round(s * 1000) / 1000, n, g]);
+
+// ---------- frame ----------
+window.renderAt = (t) => {
+  // Far shots (CDN) see the whole map: the fog moves away
+  const far = prog(t, ev(22, 0), ev(22, 0.5)) * (1 - prog(t, ev(24, 0), ev(24, 0.5)));
+  scene.fog.near = lerp(60, 120, far);
+  scene.fog.far = lerp(170, 280, far);
+  people(t);
+  books(t);
+  items(t);
+  bubbles(t);
+  effects(t);
+  const cam = cameraAt(t);
+  world.look(cam.pos, cam.look);
+  camera.updateMatrixWorld();
+  placeUI(camera);
+  clouds.position.x = 4 * Math.sin(2 * Math.PI * t / TOTAL);
+  life.update(t);
+  world.draw(t, TOTAL, 0, 0);
+};
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

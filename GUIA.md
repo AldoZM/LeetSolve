@@ -30,7 +30,7 @@ Los videos nuevos se hacen con el **estilo Minecraft con assets del juego y su m
    - Elegir la hora y los mobs del lugar (ver "Vida en el fondo").
    - Cambiar la parte del recorrido (objetos y eventos) según el algoritmo. La mezcla de cámaras (`W0`, `W1`) y la cámara de paseo (`roamPose`) se quedan igual; `walkPose` se ajusta para que el contenido quepa entre los píxeles 130 y 735.
 8. `python ../../../herramientas/build.py`, hojas de cuadros con `sheet.py`, revisar el loop y abrir el visor.
-9. Música de fondo (obligatoria desde 2026-10-25, regla de Aldo): `"musica"` en `video.json`. Si se agrega a un video ya hecho, basta `build.py mux`.
+9. **Música de fondo, obligatoria (regla de Aldo, 2026-10-25):** todo video y todo short lleva música del OST de Minecraft que ya tenemos copiada del juego. Se pone `"musica"` en `video.json` (ver "Música de fondo"); si el video ya estaba hecho, basta `build.py mux`.
 
 Detalles aprendidos en el #297:
 - Para resaltar pixel art (bloques, objetos, barreras), usar un pulso de escala; `Indicate` con color lo pinta de un solo color. En texto, `Indicate` sí sirve.
@@ -329,6 +329,21 @@ Un tema cambia el estilo sin tocar el flujo. Vive en `herramientas/temas/<tema>/
 - El repositorio trae una copia del mundo en `mundos/ClaudeEntorno.zip` (sin la carpeta `players/`) y su exportación `mundos/claude.json`. Para verlo en el juego, descomprimir el zip en la carpeta `saves` de Minecraft Java 26.2 o más nuevo. Las texturas de `mundos/tex/` no se suben: las vuelve a copiar `mundo.py export` desde el juego instalado.
 - La cámara del clip completo hace un recorrido periódico (`sin` y `cos` de `2π t / TOTAL`) para que el último cuadro sea igual al primero. Entra y sale de la cámara del recorrido del algoritmo en 1.5 s.
 
+## Videos solo 3D (sin Manim)
+
+Desde 2026-10-28, para la línea de shorts que explican tecnologías (`videos/tech/`). A Aldo le gustan más las partes 3D que las escenas 2D, así que aquí todo pasa dentro del mundo. Ejemplo: `videos/tech/dns/` (diseño en `DISENO.md`).
+
+- **`video.json`:** `{"solo3d": {"page": "three/dns.html"}, "formato": "9:16", "tema": "minecraft-original", "musica": {...}}`. Sin `groups`. `build.py` sin argumentos corre `three mux`: renderiza la página por la duración de `voiceover.mp3` y mezcla voz, efectos y música.
+- **Voz:** `narration.txt` y `pruebas/voces_demo/tts_qwen_clone.py <carpeta>` (voz madura clonada), que escribe `voiceover.mp3` y `timestamps.json` sin Manim. En la PC de Windows corre en CPU (venv `~/.manim-skill-src/.venv-tts` con torch de CPU): unos 4 minutos por línea, porque reintenta las líneas con silencios largos. Escribir números y siglas como se dicen ("one-forty-two", "D N S", "google dot com").
+- **Tiempos:** la página lee `/timestamps.json` y ancla todo a `ev(línea, fracción)` (fracción de la duración de esa línea), nunca a segundos absolutos: si la voz cambia, todo se mueve con ella. Mientras no hay voz, se puede poner un `three/timestamps.json` provisional (la carpeta de la página tiene prioridad); **hay que borrarlo** antes del render final.
+- **Efectos de sonido:** la página define `window.sfxCues = [[segundos, sonido, volumen], ...]`; `render.mjs --cues` los guarda en `media/sfx/solo3d.json` y `mux` los mezcla.
+- **Cámara:** lista de llaves `[tiempo, pose o función de t, segundos de mezcla]`; una función sirve para seguir a un objeto que vuela (el libro de la pregunta).
+- **Personajes (`gente.js` del tema):** `makeVillager(imgs, {profession, type})` (o `{skin: 'wandering_trader'}`), `makePlayer(imgs, {skin: 'steve' | 'alex'})`, `makeIllager(imgs, {kind: 'illusioner'})`. Cada uno da `{g, head, walk(fase, cantidad), look(giro, inclinación)}`. Texturas en `gente/` (las copia `extraer.py`). El ala del sombrero solo se dibuja si la textura la tiene.
+- **Aldea (`aldea.js` del tema):** `makeLibrary`, `makeTower`, `makeSite`, `makeBarrierRoom`, `makeBank`, `makeHome` (construcciones por código con las texturas del juego; todas miran hacia +z), `makeLectern` (con `setBook(líneas)` y `open(k)`), `bubble(líneas)` (tooltip del juego), `makeItem(imgs, nombre)` (con `glow` de encantamiento) y `arc(a, b, k, altura)`.
+- **Globos legibles:** `bubble` y `uiSprite` registran el sprite y `placeUI(camera)` (después de mover la cámara, cada cuadro) les da el mismo tamaño en pantalla y los mete dentro del cuadro. Sin eso, en las tomas cercanas salen enormes y cortados.
+- **Tomas aéreas:** en 9:16 el ancho es poco; para ver toda la aldea (70 × 70 bloques) la cámara va a unos 80 de altura, y los nombres de los edificios se ponen como globos flotantes porque los letreros no se leen.
+- Errores de la primera versión, ya corregidos: el sendero como bloques quedaba enterrado bajo el pasto (va como plano encima), la casa tapaba la cámara (revisar qué hay entre la cámara y el objetivo), el destello de la explosión salía cuadrado (textura radial) y lo que se orienta hacia la cámara debe hacerlo después de moverla.
+
 ## Lugares del mundo
 
 - 2026-10-23: `forest-edge` (−2, 69, 98, giro 1.9635), del mundo del zip. Se buscó con un escáner de heightmaps (`OCEAN_FLOOR`, `MOTION_BLOCKING`, `MOTION_BLOCKING_NO_LEAVES`, `WORLD_SURFACE`) con las reglas de abajo, a más de 45 bloques de los lugares usados, y se eligió entre 4 candidatos viendo la cámara de paseo y la del recorrido. Los otros 3 eran pradera plana con paredes de tierra en la cámara del recorrido.
@@ -367,15 +382,48 @@ Un tema cambia el estilo sin tocar el flujo. Vive en `herramientas/temas/<tema>/
 
 ## Música de fondo
 
-- **Obligatoria en todos los videos y shorts (Aldo, 2026-10-25).** En `video.json`: `"musica": {"pista": "subwoofer_lullaby", "volumen": 0.45}`. El archivo sale de `music/<pista>.ogg` del tema; `extraer.py` lo copia del juego (diccionario `MUSIC`, con la ruta del índice de assets, por ejemplo `music/game/subwoofer_lullaby`).
-- `build.py` la recorta a la duración del video, con 2 s de entrada y 3 s de salida suaves (así el loop no salta), y la mezcla sin bajar la voz.
-- Con `volumen` 0.45, Subwoofer Lullaby queda unos 16 dB debajo de la voz.
-- Si el video dura más que una canción, `"pista"` puede ser una lista: se tocan en orden con un cruce de 4 s, y a todas menos la última se les quita el silencio final (Sweden termina con unos 8 s). El largo de árboles usa `["subwoofer_lullaby", "mice_on_venus"]`; el short 02-dfs, solo `subwoofer_lullaby` (la que eligió Aldo).
-- `build.py` iguala cada pista a la media de Subwoofer Lullaby (-34.8 dB) con `volumedetect`; entre canciones de C418 hay hasta 7 dB de diferencia. `volumen` se aplica después.
-- Pistas que copia `extraer.py`: subwoofer_lullaby (209 s), sweden (230 s, con una pausa propia de 10 s a los 127 s), mice_on_venus (281 s), haggstrom (191 s), wet_hands (90 s), danny (255 s), clark (202 s), minecraft (261 s), dry_hands (68 s) y living_mice (188 s).
-- La música está en `.gitignore` (`music/`).
-- **Riesgo al publicar:** las canciones de C418 (Subwoofer Lullaby, Sweden, Wet Hands...) reciben reclamos de derechos de autor en YouTube; no entran en los permisos de Mojang para videos. Aldo ya lo sabe y aun así la quiere en todos los videos.
-- Primer video con música: `trees/0297-serialize-tree` (Subwoofer Lullaby, a petición de Aldo).
+**Regla de Aldo (2026-10-25): todos los videos y shorts llevan música de fondo**, del OST de Minecraft (C418) que ya tenemos sacado del juego instalado. No se descarga música de internet: sale de los archivos de Minecraft Java de Aldo, igual que las texturas y los sonidos.
+
+### Cómo agregarla
+
+1. Las canciones viven en `herramientas/temas/minecraft-original/music/<pista>.ogg`. Si faltan (PC nueva o carpeta vacía), correr `extraer.py 26.3` en esa carpeta: las copia del índice de assets del juego (`%APPDATA%\.minecraft\assets`) según el diccionario `MUSIC`.
+2. En el `video.json` del video:
+   ```json
+   "musica": {"pista": "subwoofer_lullaby", "volumen": 0.45}
+   ```
+   Si el video dura más que una canción, una lista (se tocan en orden):
+   ```json
+   "musica": {"pista": ["subwoofer_lullaby", "mice_on_venus"], "volumen": 0.45}
+   ```
+3. Correr `build.py` completo, o solo `build.py mux` si el video ya estaba hecho (la imagen no se vuelve a renderizar).
+4. Revisar que en la salida diga `music <pistas>` y que la duración del video y del audio coincidan. Escuchar el cambio de canción si hay más de una.
+
+### Canciones disponibles (C418, Minecraft Volume Alpha y Beta)
+
+- `subwoofer_lullaby`: 209 s. **La favorita de Aldo**, la primera opción.
+- `mice_on_venus`: 281 s, sin silencios.
+- `haggstrom`: 191 s, sin silencios.
+- `sweden`: 230 s. Tiene una pausa propia de 10 s a los 127 s.
+- `danny`: 255 s.
+- `minecraft`: 261 s.
+- `clark`: 202 s.
+- `living_mice`: 188 s.
+- `wet_hands`: 90 s.
+- `dry_hands`: 68 s.
+
+Para agregar otra, ponerla en `MUSIC` de `extraer.py` (su ruta es `music/game/<nombre>`; la lista completa está en el índice `assets/indexes/<id>.json`, en las claves `minecraft/sounds/music/game/...`) y volver a correr `extraer.py`.
+
+### Qué hace `build.py` con la música
+
+- La recorta a la duración del video, con 2 s de entrada y 3 s de salida suaves (así el loop no salta), y la mezcla sin bajar la voz.
+- Con una lista: cruce de 4 s entre canciones, y a todas menos la última se les quita el silencio del final.
+- Iguala cada canción a la media de Subwoofer Lullaby (-34.8 dB) con `volumedetect`, porque entre canciones de C418 hay hasta 7 dB de diferencia. `volumen` se aplica después: con 0.45 la música queda unos 16 dB debajo de la voz.
+
+### Notas
+
+- La música está en `.gitignore` (`music/`). Nunca subir assets de Mojang al repo.
+- **Riesgo al publicar:** las canciones de C418 pueden recibir reclamos de derechos de autor en YouTube; no entran en los permisos de Mojang para videos. Aldo ya lo sabe y aun así la quiere en todos los videos. En la descripción del video se pone la línea "🎵 Music: C418 - <canción> (Minecraft Volume Alpha)".
+- Videos con música: `trees/0297-serialize-tree` (Subwoofer Lullaby), el largo de árboles (Subwoofer Lullaby + Mice on Venus) y el short `tree-basics/shorts/02-dfs` (Subwoofer Lullaby). Los demás videos ya hechos todavía no la tienen.
 
 ## Errores ya cometidos (no repetir)
 
@@ -402,6 +450,7 @@ Aldo los encontró en el #297 o salieron en su revisión. Antes de entregar un v
 ## Lista de revisión antes de entregar
 
 - `build.py` imprime la duración del video y la del audio: deben coincidir.
+- El video lleva música de fondo: la salida de `build.py` dice `music <pistas>`.
 - Hojas de cuadros con `sheet.py` (`python ../../../herramientas/sheet.py hoja.png 3 --video video.mp4 1,5,12,...`) y revisar cada escena: textos que se enciman, letras tapadas, cosas cortadas en los bordes, el código tapado por el 3D.
 - Probar el render 3D con cuadros sueltos antes del clip completo:
   ```bash

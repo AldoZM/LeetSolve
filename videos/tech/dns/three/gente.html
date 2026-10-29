@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+// Check page for gente.js: every character in a row, with their heights printed to the console
+import { THREE, V } from '/vendor/lib/stage.js';
+import { loadTheme, makeWorld, makeBlock } from '/vendor/tema/mc.js';
+import { loadPeople, makeVillager, makePlayer, makeIllager } from '/vendor/tema/gente.js';
+
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt']);
+await loadPeople(imgs, ['villager', 'type_plains', 'type_desert', 'prof_librarian', 'prof_cartographer', 'prof_cleric',
+                        'steve', 'alex', 'illusioner', 'wandering_trader']);
+const world = makeWorld({ fov: 40, offset: 0, fog: [40, 90] });
+for (let x = -7; x <= 7; x++) for (let z = -3; z <= 3; z++) {
+  const b = makeBlock(imgs, 'grass_side', { top: 'grass_top', bottom: 'dirt' });
+  b.g.position.set(x, -0.5, z);
+  world.scene.add(b.g);
+}
+const cast = [
+  ['librarian', makeVillager(imgs, { profession: 'librarian' })],
+  ['cartographer', makeVillager(imgs, { profession: 'cartographer', type: 'desert' })],
+  ['cleric', makeVillager(imgs, { profession: 'cleric' })],
+  ['steve', makePlayer(imgs, { skin: 'steve' })],
+  ['alex', makePlayer(imgs, { skin: 'alex' })],
+  ['illusioner', makeIllager(imgs, { kind: 'illusioner' })],
+  ['trader', makeVillager(imgs, { skin: 'wandering_trader' })],
+];
+cast.forEach(([name, p], k) => {
+  p.g.position.set((k - 3) * 1.6, 0, 0);
+  world.scene.add(p.g);
+  p.g.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(p.g);
+  console.log(`${name} height ${box.max.y.toFixed(3)} min ${box.min.y.toFixed(3)}`);
+});
+window.renderAt = (t) => {
+  cast.forEach(([, p], k) => { p.walk(t * 6, k % 2); p.look(0.4 * Math.sin(t), 0); });
+  world.look(V(0, 1.6, 9.5), V(0, 1.0, 0));
+  world.draw(t, 10, 0, 0);
+};
+window.sceneDuration = 10;
+</script>
+</body>
+</html>

@@ -26,6 +26,19 @@ BLOCKS = {  # output name -> texture inside the jar
     'clock': 'item/clock_00',  # dates (#2409)
     'shears': 'item/shears', 'lead': 'item/lead', 'hopper': 'item/hopper',  # cut a subtree, DFS rope, BST funnel
     'oak_sapling': 'block/oak_sapling', 'compass': 'item/compass_16',  # tree basics
+    # DNS village (videos/tech/dns): buildings, the lectern and the items that travel between libraries
+    **{n: f'block/{n}' for n in ('bookshelf', 'oak_planks', 'glass', 'dirt_path_top', 'dirt_path_side', 'stone_bricks',
+                                 'chiseled_stone_bricks', 'smooth_stone', 'lectern_base', 'lectern_front', 'lectern_sides',
+                                 'lectern_top', 'tnt_side', 'tnt_top', 'tnt_bottom', 'white_wool', 'red_wool', 'blue_wool',
+                                 'yellow_wool', 'lime_wool', 'gray_wool', 'black_wool', 'quartz_block_side',
+                                 'quartz_block_top', 'iron_block', 'emerald_block', 'oak_trapdoor')},
+    'written_book': 'item/written_book', 'paper': 'item/paper', 'filled_map': 'item/filled_map',
+    'enchanted_book': 'item/enchanted_book', 'glint': 'misc/enchanted_glint_item',
+    # HTTPS and TLS (videos/tech/https-tls): paint mixing for the key exchange, the name tag and the padlock
+    **{n: f'block/{n}' for n in ('orange_wool', 'green_wool', 'brown_wool', 'cauldron_side', 'cauldron_top')},
+    **{n: f'item/{n}' for n in ('name_tag', 'red_dye', 'blue_dye', 'yellow_dye', 'orange_dye', 'green_dye', 'brown_dye',
+                               'emerald')},
+    'padlock': 'gui/sprites/container/cartography_table/locked',
 }
 GUI = {
     'generic_54': 'gui/container/generic_54', 'hotbar': 'gui/sprites/hud/hotbar',
@@ -43,6 +56,12 @@ SOUNDS = {
     **{f'book_flip{k}': f'item/book/open_flip{k}' for k in range(1, 4)}, 'book_put': 'item/book/close_put1',
     **{f'villager_no{k}': f'mob/villager/no{k}' for k in range(1, 4)},
     'shear': 'mob/sheep/shear', 'lead_tie': 'entity/leashknot/leash1',  # tree basics: shears and lead
+    # DNS village
+    **{f'villager_yes{k}': f'mob/villager/yes{k}' for k in range(1, 4)},
+    **{f'villager_idle{k}': f'mob/villager/idle{k}' for k in range(1, 4)},
+    **{f'explode{k}': f'random/explode{k}' for k in range(1, 5)}, 'fuse': 'random/fuse',
+    'illusioner_idle': 'mob/illusion_illager/idle1', 'illusioner_mirror': 'mob/illusion_illager/prepare_mirror',
+    'trader_idle': 'mob/wandering_trader/idle1', 'door_open': 'random/door_open', 'chest_locked': 'block/chest/close_locked',
 }
 # Mobs walking around the 3D background (vida.js), plus the moon for night scenes
 MOBS = {
@@ -51,6 +70,15 @@ MOBS = {
     'squid': 'entity/squid/squid', 'zombie': 'entity/zombie/zombie', 'skeleton': 'entity/skeleton/skeleton',
     'creeper': 'entity/creeper/creeper', 'spider': 'entity/spider/spider', 'spider_eyes': 'entity/spider/spider_eyes',
     'moon': 'environment/celestial/moon/full_moon',
+}
+# People for the all-3D videos (gente.js): villager layers (base, biome type, profession), players, illagers, trader
+GENTE = {
+    'villager': 'entity/villager/villager',
+    **{f'type_{n}': f'entity/villager/type/{n}' for n in ('plains', 'desert', 'taiga', 'snow', 'savanna')},
+    **{f'prof_{n}': f'entity/villager/profession/{n}' for n in ('librarian', 'cartographer', 'cleric', 'mason', 'nitwit')},
+    'steve': 'entity/player/wide/steve', 'alex': 'entity/player/wide/alex',
+    'illusioner': 'entity/illager/illusioner', 'vindicator': 'entity/illager/vindicator',
+    'wandering_trader': 'entity/wandering_trader/wandering_trader',
 }
 # Block models drawn as 2D icons by model_icon() in tema.py: the model json and every texture it uses go to models/<name>/
 MODELS = {'lever': 'block/lever', 'lever_on': 'block/lever_on'}
@@ -81,7 +109,7 @@ def main():
     version = sys.argv[1] if len(sys.argv) > 1 else newest_version()
     jar = zipfile.ZipFile(os.path.join(MC, 'versions', version, version + '.jar'))
     tex = lambda p: Image.open(jar.open(f'{A}textures/{p}.png')).convert('RGBA')
-    for d in ('tex', 'gui', 'font', 'sounds', 'music', 'mobs', 'models'):
+    for d in ('tex', 'gui', 'font', 'sounds', 'music', 'mobs', 'models', 'gente'):
         os.makedirs(os.path.join(HERE, d), exist_ok=True)
 
     for name, p in BLOCKS.items():
@@ -95,6 +123,8 @@ def main():
         tex(p).save(os.path.join(HERE, 'gui', f'{name}.png'))
     for name, p in MOBS.items():
         tex(p).save(os.path.join(HERE, 'mobs', f'{name}.png'))
+    for name, p in GENTE.items():
+        tex(p).save(os.path.join(HERE, 'gente', f'{name}.png'))
 
     # Models, resolving the parent chain; textures keep their game names ("block/cobblestone" -> cobblestone.png)
     for name, p in MODELS.items():
