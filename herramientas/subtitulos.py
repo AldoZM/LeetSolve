@@ -3,7 +3,7 @@
 #   "subtitulos": {"cambios": {"google dot com": "google.com"}, "amarillo": ["DNS", "root library"], "verde": ["instant"]}
 # "cambios" turns the words written for the voice into the ones shown; letters spelled out ("D N S") join on their own.
 # Keywords are matched on the shown text, a phrase only when its words come together; with punctuation, exactly.
-# "ocultar": [[a, z]] keeps those seconds without subtitles (see blocks_of).
+# "ocultar": [[a, z]] keeps those seconds without subtitles (see blocks_of); "notas": true also dodges paper notes.
 # build.py calls burn() in the mux step; `python subtitulos.py <video folder>` prints the blocks to check them.
 import json
 import os
@@ -114,10 +114,14 @@ def blocks_of(lines, cfg, font, total):
         for u in units:
             text = ' '.join(shown(x['t']) for x in cur + [u])
             if cur and (len(cur) >= MAX_WORDS or font.width(text) * S > MAX_W or u['a'] - cur[-1]['b'] > 0.35):
-                # A highlighted phrase is not split: its first words move to the next block with it
+                # A highlighted phrase is not split: its first words move to the next block with it,
+                # unless the phrase does not fit in one block (that left single words: "AND | THE | GOLEM STOPS YOU")
                 k = len(cur)
                 while u['phrase'] and k > 1 and cur[k - 1]['phrase'] == u['phrase']:
                     k -= 1
+                whole = [x for x in units if u['phrase'] and x['phrase'] == u['phrase']]
+                if len(whole) > MAX_WORDS or font.width(' '.join(shown(x['t']) for x in whole)) * S > MAX_W:
+                    k = len(cur)
                 blocks.append(cur[:k])
                 cur = cur[k:]
             cur.append(u)
@@ -192,8 +196,9 @@ def band_frame(img, s, width, band_h, cy):
     return band.tobytes()
 
 
-def tooltip_cells(src, fps=6, W=540, H=960, cell=10):
-    # Where the page's tooltips are, frame by frame: pixels of their purple border, counted on a 54 x 96 grid
+def tooltip_cells(src, notes=False, fps=6, W=540, H=960, cell=10):
+    # Where the page's tooltips are, frame by frame: pixels of their purple border, counted on a 54 x 96 grid.
+    # notes: also the paper notes of the server short (#e9dcb8); off by default, sand has a close color
     p = subprocess.Popen(['ffmpeg', '-v', 'error', '-i', src, '-vf', f'fps={fps},scale={W}:{H}', '-f', 'rawvideo',
                           '-pix_fmt', 'rgb24', '-'], stdout=subprocess.PIPE)
     out, size = [], W * H * 3
@@ -201,6 +206,8 @@ def tooltip_cells(src, fps=6, W=540, H=960, cell=10):
         f = np.frombuffer(buf, np.uint8).reshape(H, W, 3).astype(np.int16)
         r, g, b = f[..., 0], f[..., 1], f[..., 2]
         m = (g < 20) & (b > 100) & (b > 1.7 * r) & (r > 20)  # stricter green: Steve's pants passed as a tooltip
+        if notes:
+            m |= (r > 215) & (g > 200) & (b > 165) & (b < 205) & (r - b > 30)
         out.append(m.reshape(H // cell, cell, W // cell, cell).sum(axis=(1, 3)) >= 3)
     p.wait()
     return np.array(out), fps
@@ -235,7 +242,7 @@ def burn(src, dst, cfg, tema, fps):
                                     '-of', 'csv=p=0', src], capture_output=True, text=True).stdout.strip().split(','))
     n = round(total * fps)
     imgs = [draw_block(font, b['units']) for b in blocks]
-    cells, cfps = tooltip_cells(src)
+    cells, cfps = tooltip_cells(src, cfg.get('notas', False))
     ys = [place(b, im, cells, cfps, W, H) for b, im in zip(blocks, imgs)]
     top = round(H * min(HEIGHTS) - BAND_H / 2)
     band_h = round(H * (max(HEIGHTS) - min(HEIGHTS))) + BAND_H

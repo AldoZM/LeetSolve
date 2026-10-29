@@ -1,2 +1,12 @@
 {"solo3d": {"page": "three/server.html"}, "formato": "9:16", "tema": "minecraft-original",
- "musica": {"pista": "subwoofer_lullaby", "volumen": 0.45}}
+ "musica": {"pista": "subwoofer_lullaby", "volumen": 0.45},
+ "subtitulos": {
+  "ocultar": [[1.15, 1.5]], "notas": true,
+  "cambios": {"get, slash players, slash Ren.": "GET /players/Ren", "jay-son,": "JSON", "twenty-five.": "25",
+              "four oh one,": "401", "two hundred,": "200", "Two hundred,": "200", "Two oh one,": "201",
+              "Four oh four,": "404", "Five hundred,": "500", "rest.": "REST"},
+  "amarillo": ["request", "headers", "body", "server", "router", "middleware", "handler", "database", "JSON",
+               "status code", "REST", "resource"],
+  "verde": ["OK", "it worked", "created", "any of them can answer", "200", "201"],
+  "rojo": ["unauthorized", "401", "the golem stops you", "not found", "404", "500", "the server broke"],
+  "dorado": ["GET /players/Ren", "get reads", "post creates", "put or patch changes", "delete removes", "verb"]}}

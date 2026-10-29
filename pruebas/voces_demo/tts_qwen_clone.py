@@ -89,9 +89,10 @@ def write_mp3_clean(audio_np, sr: int, out_path: Path) -> None:
             audio_np = audio_np * (PEAK / peak)
         # Float WAV: 16-bit would clip anything the model makes above 1.0 before the gain above
         sf.write(wav_path, audio_np, sr, subtype="FLOAT")
-        # Strip leading silence and cap any internal/trailing silence > 0.22s, then add 0.08s natural tail
+        # Strip leading silence and cap any internal/trailing silence > 0.22s, then add 0.08s natural tail.
+        # The start threshold is low (-50 dB): at -40 dB a soft first "F" was cut ("Fourth" sounded "ourth", Kafka)
         af = (
-            "silenceremove=start_periods=1:start_duration=0.02:start_threshold=-40dB:"
+            "silenceremove=start_periods=1:start_duration=0.02:start_threshold=-50dB:"
             "stop_periods=-1:stop_duration=0.22:stop_threshold=-40dB,"
             "apad=pad_dur=0.08"
         )
@@ -153,7 +154,8 @@ def run_folder(folder: Path, ref_audio: Path, ref_text: str):
         t0 = time.perf_counter()
         words = max(1, len(text.split()))
         for attempt in range(3):
-            torch.manual_seed(100 + i * 10 + attempt)
+            # TTS_SEED=1 (or 2...) gives another take of the lines missing from the cache, when a take drops words
+            torch.manual_seed(100 + i * 10 + attempt + 1000 * int(os.environ.get("TTS_SEED", "0")))
             wavs, sr = model.generate_voice_clone(
                 text=text,
                 language="English",

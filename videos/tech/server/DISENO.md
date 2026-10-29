@@ -168,3 +168,10 @@ Falta, para la sesión del render: elegir el lugar (y anotarlo en `lugares.json`
 - Cuadros revisados con el `timestamps.json` provisional y corregidos (portada al centro que baja al suelo, toma de la nota, respuesta vista desde arriba, códigos de uno en uno, leyenda de verbos sobre la tabla).
 - La voz se estaba generando al cerrar la sesión (reanuda desde `.tts-cache/`).
 - Falta: terminar la voz y revisarla, borrar `three/timestamps.json`, cuadros con la voz real, render, lugar en `lugares.json` (el mismo que SQL), descripciones y "Videos hechos".
+
+## Terminado (2026-10-29, PC de Windows)
+
+- Voz completa (21 líneas, 121.9 s). La línea 9 se comía "row": otra toma con `TTS_SEED=1`. Revisada con `whisper-small.en`.
+- `three/timestamps.json` provisional borrado. Corregidos con la voz real: la nota principal ya no espera en `WAIT2` (tapaba la nota sin etiqueta y los sellos 401 y 429), los sellos van arriba, "limit" cede su lugar al 429, "tag ok" más alto y `/players` más arriba que `/orders` y `/messages`.
+- Render con subtítulos (`"notas": true` para que también esquiven las notas de papel) y Subwoofer Lullaby. `How a Server Works.mp4` en la carpeta y en `export/`, con su bloque en `export/descripciones-tecnologia.md`.
+- Falta: renombrar `mac-02` en `lugares.json` (lo comparte con SQL).

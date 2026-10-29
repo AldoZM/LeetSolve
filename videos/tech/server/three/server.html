@@ -330,7 +330,7 @@ const toCopies = COPIES.map(() => makeNote('GET', '/players', { tag: true, ui: f
 // The way in: from Steve's hand, through the slot, along the hoppers to the router and down the /players lane
 const TOP = 1.35;
 const HAND = L(1.2, 1.5, 10.0), HOLD = L(0.7, 2.1, 8.6), SLOT = L(0, 1.5, 7), ROUTER = L(0, TOP, 2);
-const CHECK1 = L(0, TOP, -0.4), WAIT2 = L(0, TOP, -1.2), GOLEM_AT = L(0, TOP, -2.0), DESK = L(0, 1.7, -3.6);
+const CHECK1 = L(0, TOP, -0.4), GOLEM_AT = L(0, TOP, -2.0), DESK = L(0, 1.7, -3.6);
 const IN = [SLOT, L(0, TOP, 6), L(0, TOP, 3), ROUTER];
 // Point along a polyline at k (0..1)
 function path(pts, k) {
@@ -352,10 +352,10 @@ function mainAt(t) {
     [ev(5, 0.4), ev(5, 0.55), () => ROUTER],
     [ev(5, 0.55), ev(6, 0.6), (k) => ROUTER.clone().lerp(CHECK1, k)],
     [ev(6, 0.6), ev(7, 0.12), () => CHECK1],
-    [ev(7, 0.12), ev(7, 0.3), (k) => CHECK1.clone().lerp(WAIT2, k)],
-    [ev(7, 0.3), ev(8, 0.0), () => WAIT2],
-    [ev(8, 0.0), ev(8, 0.25), (k) => WAIT2.clone().lerp(DESK, k)],
-    [ev(8, 0.25), ev(9, 0.12), () => DESK],
+    // Past the golem to the desk right after the check: waiting at WAIT2 (where it used to wait) its label covered the note without a tag
+    // and the 401 and 429 stamps (lines 7 and 8)
+    [ev(7, 0.12), ev(7, 0.3), (k) => path([CHECK1, GOLEM_AT, DESK], k)],
+    [ev(7, 0.3), ev(9, 0.12), () => DESK],
   ];
   for (const [a, b, f] of seg) if (t >= a && t < b) return f(easeInOut(prog(t, a, b)));
   return null;
@@ -382,7 +382,7 @@ const bub = {
   s200: stamp('200 OK', 0x55FF55),
   fast: B_(['a few milliseconds'], { color: 0xAAAAAA }),
   rest: B_(['REST: a way to design', 'requests and paths'], { color: 0x55FFFF }),
-  res: LANES.map(([s]) => B_([s], { color: 0xFFFF55, size: 0.03 })),
+  res: LANES.map(([s]) => B_([s], { color: 0xFFFF55, size: 0.022 })),
   same: [['GET /players/ren: read', 0x55FF55], ['POST /players: create', 0x55FFFF], ['PATCH /players/ren: change', 0xFFFF55],
          ['DELETE /players/ren: remove', 0xFF5555]].map(([s, c]) => B_([s], { color: c, size: 0.021 })),
   codes: [['200 OK', 0x55FF55], ['201 Created', 0x55FFFF], ['404 Not Found', 0xFFFF55], ['500 Server Error', 0xFF5555]]
@@ -494,16 +494,21 @@ function bubbles(t) {
   bub.body.show(t, ev(3, 0.55), end(3), notePos.clone().add(V(0, -1.1, 0)));
   bub.router.show(t, ev(5, 0.05), end(5), ROUTER.clone().add(V(0, 1.6, 0)));
   bub.mw.show(t, ev(6, 0.2), end(6), L(0, 3.2, -1.2));
-  bub.tagOk.show(t, ev(7, 0.02), ev(7, 0.3), guard.g.position.clone().add(V(0, 2.4, 0)));
-  bub.s401.show(t, ev(7, 0.55), end(7), CHECK1.clone().add(V(0, 1.4, 0.6)));
-  bub.limit.show(t, ev(8, 0.2), end(8), golem.g.position.clone().add(V(0, 3.4, 0)));
-  bub.s429.show(t, ev(8, 0.62), end(8), GOLEM_AT.clone().add(V(0.4, 1.4, 1.0)));
+  // Higher than the note that passes the guard at the same moment (at +2.4 it covered it)
+  bub.tagOk.show(t, ev(7, 0.02), ev(7, 0.3), guard.g.position.clone().add(V(0, 3.6, 0)));
+  // The stamps go over the main note (already at the desk behind): at +1.4 they covered it, lower they covered
+  // the note bouncing back
+  bub.s401.show(t, ev(7, 0.55), end(7), CHECK1.clone().add(V(0, 2.5, 0.6)));
+  // The limit note gives way to the 429 stamp ("the golem stops you"), which takes its place
+  bub.limit.show(t, ev(8, 0.2), ev(8, 0.62), golem.g.position.clone().add(V(0, 3.4, 0)));
+  bub.s429.show(t, ev(8, 0.62), end(8), GOLEM_AT.clone().add(V(0.4, 2.5, 1.0)));
   bub.handler.show(t, ev(9, 0.02), ev(9, 0.4), lib.g.position.clone().add(V(0, 2.4, 0)));
   bub.json.show(t, ev(10, 0.35), ev(11, 0.15), DESK.clone().add(V(0, 1.4, 0)));
   bub.s200.show(t, ev(11, 0.05), ev(11, 0.7), DESK.clone().add(V(0, 1.1, 0.3)));
   bub.fast.show(t, ev(11, 0.72), end(11), HAND.clone().add(V(0, 1.1, 0)));
   bub.rest.show(t, ev(12, 0.05), end(12), L(0, 4.5, 1));
-  bub.res.forEach((b, k) => b.show(t, ev(13, 0.4 + 0.17 * k), end(13), L(LANES[k][1], 2.6, 0.5)));
+  // The middle lane's label higher: side by side the three overlapped
+  bub.res.forEach((b, k) => b.show(t, ev(13, 0.4 + 0.17 * k), end(13), L(LANES[k][1], k === 1 ? 4.6 : 2.6, 0.5)));
   const legend = V(0, 9.4, 7.5);
   const gap = 0.021 * 21 * camera.position.distanceTo(legend) / 7;
   bub.same.forEach((b, k) => b.show(t, ev(15, 0.05 + 0.12 * k), end(15), legend.clone().add(V(0, -k * gap, 0))));

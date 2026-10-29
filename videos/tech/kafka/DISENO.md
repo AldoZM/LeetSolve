@@ -160,3 +160,9 @@ Falta:
 - Exactitud cuidada en la página: P1 tiene los libros 0 a 5 desde el inicio, el 6 en la línea 4, el 7 y el 8 de Steve en la línea 10, la retención quita el 0, 1 y 2 en la línea 15; la app nueva de la línea 19 empieza en el 3 (el más viejo que queda). Cada marcapáginas es de un grupo distinto (correo, estadísticas, app nueva) y apunta a un libro que existe.
 - Cuadros revisados con un `three/timestamps.json` provisional y corregidos.
 - Falta: la voz (se estaba generando al cerrar), revisarla, borrar el provisional, cuadros con la voz real, render, descripciones y "Videos hechos".
+
+## Terminado (2026-10-29, PC de Windows)
+
+- Voz completa (24 líneas, 147.7 s). La línea 20 decía "ourth": el recorte del silencio inicial a -40 dB se comía la "F"; ahora es -50 dB y se generó otra toma. Revisada con `whisper-small.en`.
+- `three/timestamps.json` provisional borrado. Globos corregidos: "a tangle" sobre las dos filas, "KAFKA" sobre "news in, news out", "the player name" más alto, "gold: the leader shelf" y "P2: a copy takes over" lejos de las etiquetas de los brokers, "receipt sent" cede a "the shop only writes" y el título de live tracking se va antes de que suba el globo del taxi.
+- Render con subtítulos y Mice on Venus. `How Kafka Works.mp4` en la carpeta y en `export/`, con su bloque en `export/descripciones-tecnologia.md`.

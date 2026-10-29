@@ -1,2 +1,9 @@
 {"solo3d": {"page": "three/kafka.html"}, "formato": "9:16", "tema": "minecraft-original",
- "musica": {"pista": "mice_on_venus", "volumen": 0.45}}
+ "musica": {"pista": "mice_on_venus", "volumen": 0.45},
+ "subtitulos": {
+  "ocultar": [[145.5, 147.0]],
+  "amarillo": ["Kafka", "library", "event", "producer", "consumer", "bookmark", "offset", "topic", "partitions",
+               "group", "broker", "replicas"],
+  "verde": ["doesn't remove it", "still there", "catch up", "stay in order", "moves right away"],
+  "rojo": ["a tangle nobody can fix", "too slow", "burns down", "cleared"],
+  "dorado": ["one event many readers", "rush hour", "a time machine", "live tracking", "purchases"]}}
