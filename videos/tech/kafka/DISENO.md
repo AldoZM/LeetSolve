@@ -152,3 +152,11 @@ Falta:
 2. Lugar: renombrar `mundos/mac-09.json` (radio 64) y anotarlo en `lugares.json`.
 3. Un `three/timestamps.json` provisional, `node --check` y revisar la lógica (libros sin encimarse, marcapáginas sobre libros que existen).
 4. Entrada en `BITACORA.md`.
+
+## Estado (2026-10-29, PC de Windows)
+
+- `three/kafka.html` escrita completa. Lugar: `mac-09` renombrado a `birch-creek` y anotado en `lugares.json`.
+- Distribución final: la biblioteca (sala abierta sin techo, x ±5, z −17 a 3) sube del suelo en la línea 3 y baja al volver a la portada; 3 estantes a lo largo de z en x = −2.4, 0 y 2.4 (libro o en z = −15.5 + 0.95·o, 19 lugares); clasificador de tolvas al frente; programas (SHOP, MAIL, STATS, STOCK) a los lados en x = ±9; brokers 2 y 3 como copias más chicas detrás (z −26 y −42), solo en las líneas 13 a 15; vía del taxi en x = 7.
+- Exactitud cuidada en la página: P1 tiene los libros 0 a 5 desde el inicio, el 6 en la línea 4, el 7 y el 8 de Steve en la línea 10, la retención quita el 0, 1 y 2 en la línea 15; la app nueva de la línea 19 empieza en el 3 (el más viejo que queda). Cada marcapáginas es de un grupo distinto (correo, estadísticas, app nueva) y apunta a un libro que existe.
+- Cuadros revisados con un `three/timestamps.json` provisional y corregidos.
+- Falta: la voz (se estaba generando al cerrar), revisarla, borrar el provisional, cuadros con la voz real, render, descripciones y "Videos hechos".

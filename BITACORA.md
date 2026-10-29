@@ -2,6 +2,18 @@
 
 Registro de lo que se hizo en cada sesión, de la más reciente a la más antigua. El cómo trabajar está en `GUIA.md`.
 
+## 2026-10-29 (PC de Windows): los temas de la laptop, con voz y render
+
+- Aldo trabajó en la laptop los shorts de paquetes, SQL, servidor y Kafka (y un borrador de streaming) y pidió traerlos con `git pull` y terminarlos como DNS y HTTPS. Streaming sigue como borrador sin aprobar: no se tocó.
+- En esta PC: `extraer.py 26.3` (assets nuevos) y las texturas de los lugares nuevos con `mundo.py`'s `block_textures` (`mundos/tex/` está en `.gitignore`, así que cada PC las genera).
+- **Arreglo compartido:** `loadMobs` de `vida.js` fallaba con una textura sin modelo en `vida.js` (el gólem del servidor). Ahora la carga igual.
+- **Paquetes: terminado.** Voz clonada (23 líneas, 105.9 s), toma del TTL abierta para que la vagoneta no quede pegada abajo, render con 37 efectos, loop con diferencia 0.66. `How Packets Work.mp4` en la carpeta y en `export/`.
+- **SQL:** cuadros revisados y corregidos (la consulta flota sobre la pared y no tapa la tabla, la cámara de la tabla sube, la toma del pago se abre y los cofres se acercan, en la bóveda la consulta va sobre el techo y el formulario se quita cuando se abren los cofres). Voz lista (21 líneas, 115.1 s; Whisper sin problemas). `three/timestamps.json` provisional ya borrado. **El render quedó corriendo al cerrar la sesión:** revisar que exista `video.mp4` (si no, correr `build.py` otra vez), el loop y la hoja de cuadros; renombrarlo `How SQL Works.mp4` y copiarlo a `export/`.
+- **Servidor:** cuadros revisados y corregidos (la portada ahora está al centro y baja al suelo como en paquetes, la toma de la nota ya no queda tapada por la cabeza de Steve, la respuesta se ve desde arriba, los códigos de estado salen de uno en uno, la leyenda de los verbos sube sobre la tabla). Falta: la voz (se estaba generando al cerrar), borrar `three/timestamps.json`, revisar los cuadros con la voz real y el render.
+- **Kafka:** página `three/kafka.html` escrita completa en esta sesión con el diseño aprobado. Lugar `mac-09` renombrado a `birch-creek` y anotado en `lugares.json`. Cuadros revisados con un `three/timestamps.json` provisional y corregidos (tomas aéreas más cerca, globos que se enciman). Falta: la voz, borrar el provisional, revisar con la voz real y el render.
+- La voz del servidor y de Kafka se quedó generándose en segundo plano: `tts_qwen_clone.py` reanuda desde `.tts-cache/`, así que si se cortó, basta con volver a correrlo en cada carpeta.
+- **Descripciones:** `export/descripciones-tecnologia.md` (como `descripciones-arboles.md`, local) con título y descripción para YouTube de DNS, HTTPS y paquetes. Faltan las de SQL, servidor y Kafka al terminar cada uno. Los `descripcion.txt` de cada carpeta ya estaban.
+
 ## 2026-10-28 (laptop): short del servidor (Request → Response y REST), solo el código
 
 - Segundo short de backend, pedido por Aldo después del de SQL. Diseño aprobado en `videos/tech/server/DISENO.md`: el servidor es un taller; la petición, una nota que viaja por tolvas (router → middleware con el aldeano de la etiqueta y el gólem → handler → base de datos → libro con JSON y sello `200 OK`). Luego REST: recursos, cuatro verbos sobre la tabla de SQL, códigos de estado y "sin estado" con diez talleres iguales.

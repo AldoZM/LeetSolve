@@ -162,3 +162,9 @@ Cómo quedó:
 - Línea 18: diez talleres a escala 0.55 detrás de la sala.
 
 Falta, para la sesión del render: elegir el lugar (y anotarlo en `lugares.json` junto con SQL), la voz (`tts_qwen_clone.py videos/tech/server`), cuadros fijos para ajustar las cámaras (calculadas a mano), borrar el `timestamps.json` provisional y el render.
+
+## Estado (2026-10-29, PC de Windows)
+
+- Cuadros revisados con el `timestamps.json` provisional y corregidos (portada al centro que baja al suelo, toma de la nota, respuesta vista desde arriba, códigos de uno en uno, leyenda de verbos sobre la tabla).
+- La voz se estaba generando al cerrar la sesión (reanuda desde `.tts-cache/`).
+- Falta: terminar la voz y revisarla, borrar `three/timestamps.json`, cuadros con la voz real, render, lugar en `lugares.json` (el mismo que SQL), descripciones y "Videos hechos".

@@ -196,3 +196,9 @@ Falta, para la sesión del render:
 5. Borrar `three/timestamps.json`, render completo, loop y la lista de revisión.
 
 Dependencias sin commit de otra sesión: `rieles.js` y los cambios de `gente.js` (`entityPart` y `skinMat` exportados) y de `extraer.py` (rieles, vagoneta, sonido `minecart_roll`). Si esa sesión cambia esas funciones, revisar esta página.
+
+## Estado (2026-10-29, PC de Windows)
+
+- Lugar: se queda `mac-02` (sin renombrar todavía; al terminar, renombrarlo y anotarlo en `lugares.json` junto con el servidor, que usa el mismo).
+- Cuadros revisados y cámaras corregidas; voz lista (21 líneas, 115.1 s, revisada con Whisper); `three/timestamps.json` provisional borrado.
+- El render quedó corriendo al cerrar la sesión. Falta: confirmar `video.mp4`, loop, hoja de cuadros, renombrar a `How SQL Works.mp4`, copiarlo a `export/`, su bloque en `export/descripciones-tecnologia.md`, "Videos hechos" de `GUIA.md`.
