@@ -1,0 +1,24 @@
+subtitles:
+  - When you send a photo, it doesn't travel in one piece.
+  - It's cut into thousands of small pieces called packets. Here, we'll use four.
+  - Each packet rides in its own minecart, with a label. Where it's going, where it came from, and its number.
+  - The rails are the internet, and every junction has a station called a router.
+  - Here's the trick. No station knows the whole way to Alex.
+  - Each one only has a little book. For this address, send it down that track.
+  - So a packet hops from station to station, one step at a time.
+  - And packets from the same photo don't always take the same road. Packet two goes the long way around.
+  - Some stations get busy. Carts line up and wait their turn.
+  - When the line is full, there's no room left, so the station simply throws the new cart away.
+  - Packet three is gone.
+  - Alex receives packet one, then four, then two. Out of order, and one is missing.
+  - Her computer sorts them by number, and sees the hole.
+  - So it tells Steve. I have everything up to two. Send three again.
+  - Steve sends a fresh copy of three, and the photo is complete.
+  - That careful bookkeeping is the job of a protocol called T C P.
+  - One more rule. Every label has a counter, called time to live.
+  - Each station takes one off. If a cart gets stuck going around in circles, the counter hits zero and the cart is removed.
+  - So one broken track can't clog the network forever.
+  - The time for a packet to go and an answer to come back is your ping.
+  - More stations, longer lines and longer distances mean a higher ping. That's lag.
+  - Every photo, message and video crosses the internet like this. Tiny minecarts, one station at a time.
+  - That's how packets work.

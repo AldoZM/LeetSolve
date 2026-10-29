@@ -39,6 +39,15 @@ BLOCKS = {  # output name -> texture inside the jar
     **{n: f'item/{n}' for n in ('name_tag', 'red_dye', 'blue_dye', 'yellow_dye', 'orange_dye', 'green_dye', 'brown_dye',
                                'emerald')},
     'padlock': 'gui/sprites/container/cartography_table/locked',
+    # Packets (videos/tech/packets): rails, the minecart entity (64 x 32) and the 2 x 2 painting cut into four packets
+    'rail': 'block/rail', 'rail_corner': 'block/rail_corner', 'minecart': 'entity/minecart/minecart',
+    'painting_bust': 'painting/bust', 'painting_back': 'painting/back',
+    # Server (videos/tech/server): the hopper line, the worker's furnace (500) and its fire
+    **{n: f'block/{n}' for n in ('hopper_outside', 'hopper_top', 'hopper_inside', 'furnace_front', 'furnace_front_on',
+                                 'furnace_side', 'furnace_top')},
+    'fire': 'block/fire_0',
+    # Kafka (videos/tech/kafka): the sword Steve buys, the event of the shop
+    'iron_sword': 'item/iron_sword',
 }
 GUI = {
     'generic_54': 'gui/container/generic_54', 'hotbar': 'gui/sprites/hud/hotbar',
@@ -62,6 +71,11 @@ SOUNDS = {
     **{f'explode{k}': f'random/explode{k}' for k in range(1, 5)}, 'fuse': 'random/fuse',
     'illusioner_idle': 'mob/illusion_illager/idle1', 'illusioner_mirror': 'mob/illusion_illager/prepare_mirror',
     'trader_idle': 'mob/wandering_trader/idle1', 'door_open': 'random/door_open', 'chest_locked': 'block/chest/close_locked',
+    # Packets: minecarts rolling, a cart thrown away, the painting pieces put on the wall, the station bell
+    'minecart_roll': 'minecart/base', 'fizz': 'random/fizz', 'painting_place': 'entity/painting/place1',
+    'frame_add': 'entity/itemframe/add_item1', 'bell': 'note/bell',
+    # Server: the golem that stops a flood of notes, the status stamp, the broken furnace
+    'golem_hit': 'mob/irongolem/hit1', 'anvil_land': 'random/anvil_land', 'fire': 'fire/fire',
 }
 # Mobs walking around the 3D background (vida.js), plus the moon for night scenes
 MOBS = {
@@ -69,6 +83,7 @@ MOBS = {
     'sheep_wool': 'entity/sheep/sheep_wool', 'chicken': 'entity/chicken/chicken_temperate', 'wolf': 'entity/wolf/wolf',
     'squid': 'entity/squid/squid', 'zombie': 'entity/zombie/zombie', 'skeleton': 'entity/skeleton/skeleton',
     'creeper': 'entity/creeper/creeper', 'spider': 'entity/spider/spider', 'spider_eyes': 'entity/spider/spider_eyes',
+    'iron_golem': 'entity/iron_golem/iron_golem',  # the rate limiter of the server short (128 x 128)
     'moon': 'environment/celestial/moon/full_moon',
 }
 # People for the all-3D videos (gente.js): villager layers (base, biome type, profession), players, illagers, trader

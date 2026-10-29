@@ -2,6 +2,46 @@
 
 Registro de lo que se hizo en cada sesión, de la más reciente a la más antigua. El cómo trabajar está en `GUIA.md`.
 
+## 2026-10-28 (laptop): short del servidor (Request → Response y REST), solo el código
+
+- Segundo short de backend, pedido por Aldo después del de SQL. Diseño aprobado en `videos/tech/server/DISENO.md`: el servidor es un taller; la petición, una nota que viaja por tolvas (router → middleware con el aldeano de la etiqueta y el gólem → handler → base de datos → libro con JSON y sello `200 OK`). Luego REST: recursos, cuatro verbos sobre la tabla de SQL, códigos de estado y "sin estado" con diez talleres iguales.
+- Hecho: `narration.txt` (21 líneas, ~115 s), `video.json`, `descripcion.txt` (97 caracteres) y `three/server.html` (mismo lugar y misma sala que SQL). `extraer.py` copia ahora la tolva, el horno, el fuego, el gólem de hierro y sus sonidos (se corrió en la laptop). Verificado: `node --check`. **No verificado:** nada renderizado.
+- Correcciones en `sql.html`: la pared del fondo sube a 6 bloques (el letrero `players` quedaba en el aire) y la vagoneta se coloca antes que la cámara (la toma que la sigue leía la posición del cuadro anterior, y un cuadro suelto salía mal).
+
+## 2026-10-28 (laptop): short de SQL, solo el código
+
+- Aldo pidió explicar el **backend** sin enfocarse en redes, con SQL como ejemplo, y eligió **un solo short** ("How SQL works") con la forma del de DNS: cómo funciona (tabla, consulta y orden real de ejecución) y tres usos (índice, transacción e inyección SQL). Diseño aprobado en `videos/tech/sql/DISENO.md`.
+- Metáfora: la tabla es un estante de letreros en una sala de piedra; la consulta, globos que lee el bibliotecario; el índice, un árbol de rieles hasta una pared de un millón de cajones; la transacción, un pago de esmeraldas que un creeper interrumpe; la inyección, el texto del ilusionista pegado en la consulta que abre todos los cofres.
+- Hecho: `narration.txt` (21 líneas, ~125 s), `video.json`, `descripcion.txt` (91 caracteres) y `three/sql.html`. Verificado: `node --check`, la lógica del índice en Node y el resultado de la consulta en Python. **No verificado:** nada se ha visto renderizado; las cámaras están calculadas a mano.
+- Aldo pidió **no renderizar todavía**: la voz se detuvo después de la primera línea (queda en `.tts-cache/`). `three/timestamps.json` es provisional y se borra antes del render final. Pasos que faltan al final de `DISENO.md`.
+- Usa `rieles.js` y `entityPart`/`skinMat` de `gente.js`, de la sesión de paquetes (sin commit todavía). `lugares.json` no se tocó: el lugar (`mac-02` de prueba) se anota al elegirlo.
+
+## 2026-10-28 (laptop): short de paquetes, solo el código
+
+- Tercer short de la línea de tecnología (`videos/tech/`), después de DNS y HTTPS. Aldo eligió **paquetes** entre varios temas de redes (puertos y NAT, TCP contra UDP, VPN) y pidió hacerlo igual que DNS, pero **primero el código; la voz y el render en otro momento**.
+- Metáfora: la foto es el cuadro `bust` del juego (2 × 2), cada bloque es un paquete en una vagoneta con cofre, los rieles son la red y cada cruce es un router (puesto con cartógrafo y libro de rutas). El paquete 2 va por el camino largo y espera en fila, el 3 se tira en un router lleno, Alex los ordena por número y pide el 3 otra vez (TCP). Después, el TTL (una vagoneta atrapada en un lazo) y el ping. Diseño en `videos/tech/packets/DISENO.md`; estado y pasos en `PLAN.md`.
+- Nuevo en el tema: `rieles.js` (rieles, vagoneta del juego, estación y avance por llaves), `entityPart` y `skinMat` exportados en `gente.js` (la textura puede ser de 64 × 32) y assets nuevos en `extraer.py` (rieles, vagoneta, cuadro, sonidos de vagoneta, `fizz`, cuadro, marco y campana).
+- Lugar: `mac-13` renombrado a `birch-terraces` y anotado en `lugares.json`.
+- Hecho: `narration.txt` (23 líneas, ~118 s), `video.json`, `descripcion.txt` (93 caracteres) y `three/packets.html`. Verificado: sintaxis con `node --check` y la lógica de los rieles en Node (largos de las rutas 72 y 92 bloques, giro de las 4 curvas, pasadas del TTL). **No verificado:** nada se ha visto renderizado; en esta laptop falta correr `extraer.py 26.3` y copiar las texturas de `birch-terraces`.
+- Siguiente tema que pidió Aldo: cómo funciona el backend, qué es Kafka y cómo funciona. Otra sesión dejó un diseño de "How SQL works" en `videos/tech/sql/DISENO.md`.
+- **Continuación, primeros cuadros (otra sesión, misma noche):**
+  - Se corrió `extraer.py 26.3` y se copiaron las texturas de `birch-terraces`.
+  - Se renderizaron 26 cuadros fijos con un `three/timestamps.json` **provisional** (130.4 s, hay que borrarlo antes del render final).
+  - Se corrigieron 5 fallas, detalladas en `PLAN.md`, paso 8:
+    - Globos gigantes fuera del cuadro.
+    - El globo más ancho que el 9:16.
+    - Rieles invisibles en las tomas lejanas.
+    - El texto de la portada que no cabía.
+    - El letrero de la portada tapando la toma de Steve.
+  - Dos de las fallas se corrigieron en herramientas compartidas, así que también benefician a DNS, HTTPS y SQL:
+    - `placeUI` de `aldea.js` usa la profundidad, oculta los globos cuya ancla queda muy fuera del cuadro y achica los que no caben.
+    - Los rieles de `rieles.js` son recorte opaco.
+  - Ambas cosas quedaron anotadas en `GUIA.md`.
+  - Verificado con cuadros: loop con diferencia 0.01.
+  - Choques de vagonetas, revisados en la lógica de la página. Los paquetes no chocan y llegan en el orden de la narración. El tráfico de las tomas aéreas se atravesaba de frente; ahora va en un solo sentido.
+  - Aldo pidió que esta sesión solo haga código: la voz y el render los hace él.
+  - Falta: la voz, el render y que Aldo vea los cuadros (`review3d/hoja1.png`, `hoja2.png`, `hoja_rieles.png`).
+
 ## 2026-10-28 (PC de Windows)
 
 ### Línea nueva: shorts de tecnología, todo en 3D

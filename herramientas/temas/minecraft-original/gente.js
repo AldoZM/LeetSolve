@@ -15,8 +15,8 @@ export async function loadPeople(imgs, names) {
   await Promise.all(names.map(async (n) => { imgs[`gente_${n}`] = await loadImg(`/vendor/tema/gente/${n}.png`); }));
 }
 
-// A box with the entity texture layout: (u, v) texture offset, (w, h, d) size in texture pixels
-function cube(u, v, w, h, d, grow = 0) {
+// A box with the entity texture layout: (u, v) texture offset, (w, h, d) size in texture pixels, [tw, th] texture size
+function cube(u, v, w, h, d, grow = 0, [tw, th] = [64, 64]) {
   const geo = new THREE.BoxGeometry((w + 2 * grow) / 16, (h + 2 * grow) / 16, (d + 2 * grow) / 16);
   const rects = [[u + d + w, v + d, d, h], [u, v + d, d, h], [u + d, v, w, d], [u + d + w, v, w, d], [u + d, v + d, w, h],
                  [u + 2 * d + w, v + d, w, h]];
@@ -25,33 +25,35 @@ function cube(u, v, w, h, d, grow = 0) {
     const [x, y, rw, rh] = rects[f];
     for (let k = 0; k < 4; k++) {
       const i = f * 4 + k;
-      uv.setXY(i, (x + uv.getX(i) * rw) / 64, 1 - (y + (1 - uv.getY(i)) * rh) / 64);
+      uv.setXY(i, (x + uv.getX(i) * rw) / tw, 1 - (y + (1 - uv.getY(i)) * rh) / th);
     }
   }
   return geo;
 }
 
 // A part in game model space (y down, front toward -z) converted to three.js (y up, front toward +z):
-// pivot p, boxes [u, v, x0, y0, z0, w, h, d, grow], rest rotation r = [x, y, z]
-function part(mat, p, boxes, r = [0, 0, 0]) {
+// pivot p, boxes [u, v, x0, y0, z0, w, h, d, grow], rest rotation r = [x, y, z], texture size (64 x 32 for a minecart).
+// Exported as entityPart for other entities (rieles.js)
+export function entityPart(mat, p, boxes, r = [0, 0, 0], size = [64, 64]) {
   const g = new THREE.Group();
   g.position.set(p[0] / 16, (24 - p[1]) / 16, -p[2] / 16);
   g.rotation.order = 'ZYX';
   g.rotation.set(r[0], -r[1], -r[2]);
   g.userData.rest = g.rotation.clone();
   for (const [u, v, x0, y0, z0, w, h, d, grow = 0] of boxes) {
-    const m = new THREE.Mesh(cube(u, v, w, h, d, grow), mat);
+    const m = new THREE.Mesh(cube(u, v, w, h, d, grow, size), mat);
     m.position.set((x0 + w / 2) / 16, -(y0 + h / 2) / 16, -(z0 + d / 2) / 16);
     g.add(m);
   }
   return g;
 }
+const part = entityPart;
 
 // One material from stacked skin layers (the game draws them as separate passes on the same model).
-// mat.userData.rim: the skin has a hat brim (its top face at 31..47 x 48..64 is not empty)
-function skinMat(layers) {
+// mat.userData.rim: the skin has a hat brim (its top face at 31..47 x 48..64 is not empty). Also used for the minecart.
+export function skinMat(layers) {
   const c = document.createElement('canvas');
-  c.width = 64; c.height = 64;
+  c.width = layers[0].width; c.height = layers[0].height;
   const ctx = c.getContext('2d');
   for (const im of layers) ctx.drawImage(im, 0, 0);
   const t = new THREE.CanvasTexture(c);

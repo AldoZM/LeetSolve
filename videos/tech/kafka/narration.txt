@@ -1,0 +1,25 @@
+subtitles:
+  - Every big app is full of tiny news. Someone buys a sword. Someone logs in. Someone clicks.
+  - And lots of programs want that news. The shop, the email sender, the stats page.
+  - If every program called every other program directly, you'd get this. A tangle nobody can fix.
+  - Kafka puts a library in the middle. Programs drop news in, and other programs read it out.
+  - Each piece of news is an event, written in a book. A program that writes them is a producer.
+  - Books go to the end of a shelf, numbered in order. And here's the twist. Reading a book doesn't remove it.
+  - A program that reads is a consumer. Each one keeps a bookmark, called the offset, so it knows where it left off.
+  - The email sender is on book five. The stats page is still on book two. Neither one slows the other down.
+  - News about one subject goes in a topic. This aisle is the topic called purchases.
+  - One shelf would be too slow, so a topic is split into shelves, called partitions.
+  - The player's name picks the shelf. All of Steve's books land on the same one, so his purchases stay in order.
+  - But order is only promised inside a shelf, not across the whole aisle.
+  - To read faster, consumers team up in a group. Each shelf goes to just one reader of the group.
+  - Each library is a server, called a broker. Every shelf has copies in other brokers, called replicas.
+  - If one library burns down, a copy takes over, and the books are still there.
+  - Books don't stay forever, though. After a set time, often seven days, the oldest ones are cleared.
+  - So what do people use it for?
+  - First, one event, many readers. Steve buys a sword, and the stock, the receipt and the stats all react. The shop doesn't even know they exist.
+  - Second, rush hour. On Black Friday, books arrive faster than anyone can read them. The library keeps them, and the readers catch up.
+  - Third, a time machine. A brand new program can start at the oldest book on the shelf and read the whole history.
+  - Fourth, live tracking. A taxi sends its location every few seconds, and the map on your phone moves right away.
+  - Kafka was born at LinkedIn, and now it runs inside most of the world's biggest companies.
+  - A library in the middle, books that stay, and a bookmark for every reader.
+  - That's Kafka.

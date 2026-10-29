@@ -220,13 +220,18 @@ export function placeUI(camera, { ref = 7, margin = 0.06 } = {}) {
   for (const s of UI) {
     if (!s.visible) continue;
     const a = s.userData.anchor;
-    const d = camera.position.distanceTo(a);
-    s.scale.copy(s.userData.base).multiplyScalar(Math.max(s.userData.k, 1e-4) * d / ref);
+    // Depth along the view, not the distance: clamping keeps the depth, so the size on screen stays the same
+    const depth = -a.clone().applyMatrix4(camera.matrixWorldInverse).z;
     const p = a.clone().project(camera);
-    if (p.z > 1) { s.visible = false; continue; }
-    // Half size of the box on screen, from two projected corners
-    const hx = Math.abs(a.clone().addScaledVector(right, s.scale.x / 2).project(camera).x - p.x);
-    const hy = Math.abs(a.clone().addScaledVector(up, s.scale.y / 2).project(camera).y - p.y);
+    // Behind the camera or far outside the picture: hidden. Pulled in, it would sit next to the lens and fill the frame
+    if (depth < 0.5 || Math.abs(p.x) > 1.5 || Math.abs(p.y) > 1.5) { s.visible = false; continue; }
+    s.scale.copy(s.userData.base).multiplyScalar(Math.max(s.userData.k, 1e-4) * depth / ref);
+    // Half size of the box on screen, from two projected corners; a box wider than the picture shrinks to fit (9:16)
+    let hx = Math.abs(a.clone().addScaledVector(right, s.scale.x / 2).project(camera).x - p.x);
+    let hy = Math.abs(a.clone().addScaledVector(up, s.scale.y / 2).project(camera).y - p.y);
+    const fit = Math.min(1, (1 - margin) / hx, (1 - margin) / hy);
+    s.scale.multiplyScalar(fit);
+    hx *= fit; hy *= fit;
     p.x = Math.min(1 - margin - hx, Math.max(-1 + margin + hx, p.x));
     p.y = Math.min(1 - margin - hy, Math.max(-1 + margin + hy, p.y));
     s.position.copy(p.unproject(camera));

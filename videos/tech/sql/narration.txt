@@ -1,0 +1,22 @@
+subtitles:
+  - Every app you use keeps its data somewhere. Your account, your orders, your messages.
+  - Much of it lives in a database, and you talk to it with a language called S Q L.
+  - Picture a storage room. A table is a long shelf. Each column has a sign: name, emeralds, village.
+  - Each row is one record. Steve, Alex, and every other player.
+  - To get data, you write a query, like a note for the librarian: select the names of players with more than ten emeralds.
+  - The database reads it, but not in the order you wrote it.
+  - First, from: find the right shelf. Then where: walk the rows and keep only the ones that match.
+  - Then select keeps just the columns you asked for. Order by sorts them, and limit cuts the list.
+  - The answer comes back as a new, smaller table.
+  - You say what you want, not how to find it. The database decides the how, and that's where the tricks are.
+  - First, speed. With a million players, checking every row takes forever. That's a full scan.
+  - An index is a sorted guide, built like a tree. Each sign tells the librarian which way to go.
+  - A few jumps, and he's at the right row out of a million.
+  - Second, safety. Steve pays Alex five emeralds: take five from Steve, give five to Alex.
+  - But a creeper blows up the room right in the middle. Steve lost his emeralds, and Alex got nothing.
+  - A transaction fixes that. Both steps happen, or neither does. If anything fails, it all rolls back.
+  - Third, the dangerous one: S Q L injection. A bad login form pastes your text straight into the query.
+  - So someone types a quote, then or one equals one, and two dashes to hide the rest. Now the check is always true.
+  - The fix: never paste text into a query. Send it as a value in its own slot, so it can never become a command.
+  - So every time an app remembers you, a librarian is reading a note and walking down a shelf.
+  - That's S Q L.

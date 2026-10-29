@@ -1,0 +1,602 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+// "What a server does inside": a request is a note that drops into a workshop's hopper line. The router sends it down
+// the lane of its path, middleware checks it (a villager reads the name tag, an iron golem stops floods), the handler
+// fetches Ren's row from the storage room of the SQL short and sends back a stamped JSON book. Then REST: resources,
+// four verbs on the same table, status codes, and no memory between notes (so one workshop can become ten).
+// Every event is tied to a narration line of timestamps.json: ev(line, fraction).
+import { THREE, V, lerp, prog, easeInOut, easeOutBack, pose } from '/vendor/lib/stage.js';
+import { loadTheme, makeWorld, makeTerrain, makeClouds, makeSign, makeChest, tex, drawText, textWidth } from '/vendor/tema/mc.js';
+import { loadMobs, planLife, makeLife, setTime } from '/vendor/tema/vida.js';
+import { loadPeople, makeVillager, makePlayer, makeIllager, moveAlong, entityPart, skinMat } from '/vendor/tema/gente.js';
+import { put, makeLectern, bubble, makeItem, arc, uiSprite, placeUI, cameraAt } from '/vendor/tema/aldea.js';
+
+// ---------- timing ----------
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const TOTAL = subs[subs.length - 1].end_s;
+const ev = (line, f = 0) => subs[line].start_s + f * subs[line].duration_s;
+const end = (line) => subs[line].end_s;
+
+// ---------- world ----------
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'leaves', 'log_side', 'log_top', 'cobble', 'oak_planks', 'stone',
+  'stone_bricks', 'chiseled_stone_bricks', 'smooth_stone', 'bookshelf', 'lectern_front', 'lectern_top', 'emerald',
+  'writable_book', 'written_book', 'name_tag', 'clock', 'hopper_outside', 'hopper_top', 'hopper_inside', 'furnace_front',
+  'furnace_front_on', 'furnace_side', 'furnace_top', 'fire']);
+await loadPeople(imgs, ['villager', 'type_plains', 'type_desert', 'type_snow', 'prof_librarian', 'prof_cleric', 'prof_mason',
+  'prof_cartographer', 'steve', 'illusioner', 'vindicator']);
+const world = makeWorld({ fov: 40, offset: 0, fog: [60, 170] });
+const { scene, camera } = world;
+// Same place as the SQL short (the storage room is the database the handler asks); still to confirm with --stills
+const terrain = await makeTerrain('/vendor/tema/mundos/mac-02.json', { turn: 0, plot: [-32, 32, -24, 56], clear: [-36, 36, -28, 60] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+const LIFE = [{ kind: 'sheep', count: 3, graze: 1 }, { kind: 'chicken', count: 3 }, { kind: 'cow', count: 2, graze: 1 }];
+await loadMobs(imgs, [...LIFE.map((g) => g.kind), 'iron_golem']);
+const light = await setTime(world, 'day', { terrain, clouds, imgs });
+const life = makeLife(imgs, terrain, planLife(terrain, LIFE, { seed: 7, area: [-36, 36, -28, 60], avoid: [[-30, 30, -24, 50]] }), TOTAL, light);
+scene.add(life.g);
+
+function tiled(name, w, h, rx = w, ry = h) {
+  const t = tex(imgs, name).clone();
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(rx, ry);
+  t.needsUpdate = true;
+  return new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t }));
+}
+const pixel = (c) => {
+  const t = new THREE.CanvasTexture(c);
+  t.magFilter = t.minFilter = THREE.NearestFilter;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+};
+
+// ---------- block model pieces (the game's automatic UVs: each face shows the part of the texture where it sits) ----------
+const SHADE = [0.62, 0.62, 1.0, 0.5, 0.8, 0.8];
+const matCache = new Map();
+function faceMat(name, [u0, v0, u1, v1], shade) {
+  const key = `${name}|${u0},${v0},${u1},${v1}|${shade}`;
+  if (!matCache.has(key)) {
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, u1 - u0); c.height = Math.max(1, v1 - v0);
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(imgs[name], u0, v0, c.width, c.height, 0, 0, c.width, c.height);
+    const m = new THREE.MeshBasicMaterial({ map: pixel(c), transparent: true, alphaTest: 0.1 });
+    m.color.setScalar(shade);
+    matCache.set(key, m);
+  }
+  return matCache.get(key);
+}
+// A box from `from` to `to` in 1/16 block (block origin at the bottom center); faces: side, top, bottom texture names
+function modelBox(g, [x1, y1, z1], [x2, y2, z2], { side, top = side, bottom = side }) {
+  const uvs = [[16 - z2, 16 - y2, 16 - z1, 16 - y1], [z1, 16 - y2, z2, 16 - y1], [x1, z1, x2, z2], [x1, 16 - z2, x2, 16 - z1],
+               [x1, 16 - y2, x2, 16 - y1], [16 - x2, 16 - y2, 16 - x1, 16 - y1]];
+  const names = [side, side, top, bottom, side, side];
+  const m = new THREE.Mesh(new THREE.BoxGeometry((x2 - x1) / 16, (y2 - y1) / 16, (z2 - z1) / 16),
+                           uvs.map((uv, k) => faceMat(names[k], uv, SHADE[k])));
+  m.position.set((x1 + x2) / 32 - 0.5, (y1 + y2) / 32, (z1 + z2) / 32 - 0.5);
+  g.add(m);
+  return m;
+}
+// The hopper, element by element as in block/hopper.json: the bowl floor, four rim walls, the middle and the spout
+function makeHopper(parent, x, z) {
+  const g = new THREE.Group();
+  const out = { side: 'hopper_outside', top: 'hopper_top', bottom: 'hopper_outside' };
+  modelBox(g, [0, 10, 0], [16, 11, 16], { side: 'hopper_outside', top: 'hopper_inside' });
+  modelBox(g, [0, 11, 0], [2, 16, 16], out);
+  modelBox(g, [14, 11, 0], [16, 16, 16], out);
+  modelBox(g, [2, 11, 0], [14, 16, 2], out);
+  modelBox(g, [2, 11, 14], [14, 16, 16], out);
+  modelBox(g, [4, 4, 4], [12, 10, 12], { side: 'hopper_outside' });
+  modelBox(g, [6, 0, 6], [10, 4, 10], { side: 'hopper_outside' });
+  g.position.set(x, 0, z);
+  parent.add(g);
+  return g;
+}
+// A furnace facing +z; lit(on) swaps the front
+function makeFurnace(x, z) {
+  const front = (n) => { const m = new THREE.MeshBasicMaterial({ map: tex(imgs, n) }); m.color.setScalar(0.8); return m; };
+  const mats = ['furnace_side', 'furnace_side', 'furnace_top', 'furnace_top', 'furnace_front', 'furnace_side'].map((n, k) => {
+    const m = new THREE.MeshBasicMaterial({ map: tex(imgs, n) });
+    m.color.setScalar(SHADE[k]);
+    return m;
+  });
+  const on = front('furnace_front_on'), off = mats[4];
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), mats);
+  mesh.position.set(x, 0.5, z);
+  scene.add(mesh);
+  return { mesh, lit: (k) => { mesh.material[4] = k ? on : off; } };
+}
+
+// ---------- the storage room of the SQL short (same place, same table) ----------
+const HALL = new THREE.Group();
+for (let x = -9; x <= 9; x++) for (let y = 0; y <= 5; y++) put(imgs, HALL, y === 5 ? 'chiseled_stone_bricks' : 'stone_bricks', x, y, 6);
+for (const x of [-9, 9]) for (let z = 7; z <= 22; z++) for (let y = 0; y <= 3; y++) {
+  put(imgs, HALL, (y === 1 || y === 2) && z % 4 !== 3 ? 'bookshelf' : 'stone_bricks', x, y, z);
+}
+const hallFloor = tiled('smooth_stone', 17, 16);
+hallFloor.rotation.x = -Math.PI / 2;
+hallFloor.position.set(0, 0.012, 14.5);
+hallFloor.material.color.setScalar(0.85);
+HALL.add(hallFloor);
+scene.add(HALL);
+const ROWS = [['Steve', 12, 'plains'], ['Alex', 30, 'desert'], ['Noor', 4, 'taiga'], ['Kai', 18, 'plains'],
+              ['Zuri', 9, 'savanna'], ['Ren', 25, 'snowy']];
+const MIA = ['Mia', 0, 'plains'], REN = 5;
+const COLS = [-2.85, 0, 2.85], CELL_W = 2.7, CELL_H = 0.56, WALL_Z = 6.53;
+// One row more than in the SQL short (Mia, created by POST), so the rows sit a little tighter
+const HEAD_Y = 4.75, rowY = (k) => 4.1 - 0.59 * k;
+const cell = (text, w = CELL_W, h = CELL_H) => makeSign(imgs, [text], { w, h, post: false });
+const gold = (s) => { s.children[0].material.color.set(0xFFE9A0); return s; };
+const tableSign = gold(cell('players', 3.0, 0.66));
+tableSign.position.set(0, 5.55, WALL_Z);
+scene.add(tableSign);
+['name', 'emeralds', 'village'].forEach((s, c) => { const h = gold(cell(s)); h.position.set(COLS[c], HEAD_Y, WALL_Z); scene.add(h); });
+const rowCells = (row, k) => row.map((v, c) => {
+  const s = cell(String(v));
+  s.position.set(COLS[c], rowY(k), WALL_Z);
+  scene.add(s);
+  return s;
+});
+const cells = ROWS.map(rowCells);
+const miaCells = rowCells(MIA, 6);
+const ren30 = cell('30');
+ren30.position.set(COLS[1], rowY(REN), WALL_Z + 0.005);
+scene.add(ren30);
+const gemAt = (k) => { const e = makeItem(imgs, 'emerald', 0.36); e.position.set(COLS[1] + 0.9, rowY(k), WALL_Z + 0.03); scene.add(e); return e; };
+const gems = ROWS.map((_, k) => gemAt(k));
+const miaGem = gemAt(6);
+const renGlow = new THREE.Mesh(new THREE.PlaneGeometry(3 * CELL_W + 0.3, CELL_H), new THREE.MeshBasicMaterial({ color: 0x55FF55,
+  transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+renGlow.position.set(0, rowY(REN), WALL_Z + 0.03);
+renGlow.renderOrder = 5;
+scene.add(renGlow);
+// Pieces of Ren's row flying off when DELETE breaks it
+const chips = Array.from({ length: 12 }, (_, k) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.18), new THREE.MeshBasicMaterial({ map: tex(imgs, 'oak_planks') }));
+  m.userData.v = V(Math.cos(k * 2.1) * 2.2, 1.5 + (k % 3), 1.2 + (k % 4) * 0.4);
+  m.userData.x = COLS[(k % 3)];
+  scene.add(m);
+  return m;
+});
+
+// ---------- the workshop (the server), in front of the storage room ----------
+// Local frame: front wall at z = 7 with the slot, back wall at z = -6 with a door to the storage room, 15 wide.
+// Inside: the entrance line (z 6..3), the router row (z = 2) and three lanes (z 1..-3) to three workers.
+const WS = V(0, 0, 36);
+const LANES = [['/orders', -4], ['/players', 0], ['/messages', 4]];
+function makeWorkshop(full) {
+  const g = new THREE.Group();
+  for (let x = -7; x <= 7; x++) for (let y = 0; y <= 3; y++) {
+    const corner = Math.abs(x) === 7, n = corner || y === 3 ? 'log' : 'oak_planks';
+    if (!(x === 0 && y === 1)) put(imgs, g, n, x, y, 7);
+    if (!(x === 0 && y <= 1)) put(imgs, g, n, x, y, -6);
+  }
+  for (const x of [-7, 7]) for (let z = -5; z <= 6; z++) for (let y = 0; y <= 3; y++) put(imgs, g, y === 3 ? 'log' : 'oak_planks', x, y, z);
+  const fl = tiled('oak_planks', 13, 12);
+  fl.rotation.x = -Math.PI / 2;
+  fl.position.set(0, 0.012, 0.5);
+  fl.material.color.setScalar(0.85);
+  g.add(fl);
+  for (let z = 3; z <= 6; z++) makeHopper(g, 0, z);
+  for (let x = -4; x <= 4; x++) makeHopper(g, x, 2);
+  for (const [, x] of LANES) for (let z = -3; z <= 1; z++) makeHopper(g, x, z);
+  if (full) {
+    LANES.forEach(([s, x]) => {
+      const sg = makeSign(imgs, [s], { w: 2.0, h: 0.7 });
+      sg.position.set(x + 1.35, 1.25, 1.4);
+      g.add(sg);
+    });
+    // A stone button next to the slot, on the outside
+    const btn = new THREE.Mesh(new THREE.BoxGeometry(0.375, 0.25, 0.125), new THREE.MeshBasicMaterial({ map: tex(imgs, 'stone') }));
+    btn.position.set(1.3, 1.4, 7.56);
+    g.add(btn);
+  }
+  return g;
+}
+const SHOP = makeWorkshop(true);
+SHOP.position.copy(WS);
+scene.add(SHOP);
+const L = (x, y, z) => V(x, y, z).add(WS);
+const cover = makeSign(imgs, ['INSIDE A', 'SERVER'], { w: 3.4, h: 1.7 });
+cover.position.set(-3.4, 2.2, 49.5);
+scene.add(cover);
+// Ten identical workshops behind the storage room, for "no memory": any of them can answer
+const COPIES = [-24, -12, 0, 12, 24].flatMap((x) => [-6, -17].map((z) => V(x, 0, z)));
+const copyProto = makeWorkshop(false);
+COPIES.forEach((p) => { const c = copyProto.clone(); c.scale.setScalar(0.55); c.position.copy(p); scene.add(c); });
+
+// Desk of the /players worker: lectern, the 404 chest and the furnace that breaks (500)
+const desk = makeLectern(imgs);
+desk.g.position.copy(L(0, 0, -3.9));
+scene.add(desk.g);
+desk.setBook(['{"name": "Ren",', '"emeralds": 25}']);
+const emptyChest = makeChest(imgs, 0.85);
+emptyChest.g.position.copy(L(-1.6, 0, -4.8));
+scene.add(emptyChest.g);
+const furnace = makeFurnace(1.6, WS.z - 4.8);
+const fireFrames = Array.from({ length: 8 }, (_, k) => {
+  const c = document.createElement('canvas');
+  c.width = c.height = 16;
+  c.getContext('2d').drawImage(imgs.fire, 0, 16 * k, 16, 16, 0, 0, 16, 16);
+  return pixel(c);
+});
+const fire = new THREE.Sprite(new THREE.SpriteMaterial({ map: fireFrames[0], transparent: true, depthWrite: false }));
+fire.position.copy(L(1.6, 1.5, -4.8));
+fire.scale.set(1, 1, 1);
+scene.add(fire);
+const smoke = Array.from({ length: 8 }, (_, k) => {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ color: 0x555555, transparent: true, depthWrite: false }));
+  s.userData.k = k;
+  scene.add(s);
+  return s;
+});
+
+// ---------- the iron golem (IronGolemModel, 128 x 128) ----------
+function makeGolem() {
+  const mat = skinMat([imgs.mob_iron_golem]);
+  const S = [128, 128];
+  const g = new THREE.Group();
+  const head = entityPart(mat, [0, -7, -2], [[0, 0, -4, -12, -5.5, 8, 10, 8], [24, 0, -1, -5, -7.5, 2, 4, 2]], [0, 0, 0], S);
+  const body = entityPart(mat, [0, -7, 0], [[0, 40, -9, -2, -6, 18, 12, 11], [0, 70, -4.5, 10, -3, 9, 5, 6, 0.5]], [0, 0, 0], S);
+  const arms = [entityPart(mat, [0, -7, 0], [[60, 21, -13, -2.5, -3, 4, 30, 6]], [0, 0, 0], S),
+                entityPart(mat, [0, -7, 0], [[60, 58, 9, -2.5, -3, 4, 30, 6]], [0, 0, 0], S)];
+  const legs = [entityPart(mat, [-4, 11, 0], [[37, 0, -3.5, -3, -3, 6, 16, 5]], [0, 0, 0], S),
+                entityPart(mat, [5, 11, 0], [[60, 0, -3.5, -3, -3, 6, 16, 5]], [0, 0, 0], S)];
+  g.add(head, body, ...arms, ...legs);
+  scene.add(g);
+  return { g, head, arms };
+}
+const golem = makeGolem();
+golem.g.position.copy(L(-1.9, 0, -2.0));
+golem.g.rotation.y = Math.PI / 2;
+
+// ---------- people ----------
+const steve = makePlayer(imgs, { skin: 'steve' });
+const lib = makeVillager(imgs, { profession: 'librarian', type: 'plains' });
+const guard = makeVillager(imgs, { profession: 'cleric', type: 'plains' });
+const mason = makeVillager(imgs, { profession: 'mason', type: 'desert' });
+const carto = makeVillager(imgs, { profession: 'cartographer', type: 'snow' });
+const thief = makeIllager(imgs, { kind: 'illusioner' });
+const spammer = makeIllager(imgs, { kind: 'vindicator' });
+scene.add(steve.g, lib.g, guard.g, mason.g, carto.g, thief.g, spammer.g);
+const START = L(1.6, 0, 10.6), BACK = Math.PI;
+const DESK_AT = L(0, 0, -4.8), DOOR = L(0, 0, -5.6), AT_REN = V(0, 0, 8.6), AT_TABLE = V(1.8, 0, 8.8);
+// He walks to the back door and appears at the table (the camera cuts there at the same moment)
+const LIB = [[0, DESK_AT, 0], [ev(9, 0.15), DESK_AT, 0], [ev(9, 0.42), DOOR, BACK], [ev(9, 0.42), AT_REN, BACK],
+             [ev(10, 0.0), AT_REN, BACK], [ev(10, 0.0), DESK_AT, 0], [ev(14, 0.0), DESK_AT, 0], [ev(14, 0.0), AT_TABLE, 0],
+             [ev(16, 0.0), AT_TABLE, 0], [ev(16, 0.0), DESK_AT, 0]];
+guard.g.position.copy(L(1.3, 0, -0.4));
+guard.g.rotation.y = -Math.PI / 2;
+mason.g.position.copy(L(-4, 0, -4.8));
+carto.g.position.copy(L(4, 0, -4.8));
+const OUTSIDE = L(-1.6, 0, 9.4);
+
+// ---------- notes (requests) ----------
+// A paper slip with one big line: the verb in its color, then the path; tag / book draw a name tag or a book on it.
+// UI notes keep their size on screen (placeUI); the small ones of a flood are plain sprites of fixed size.
+const VERB = { GET: 0x1E7A1E, POST: 0x1F5FA8, PATCH: 0x9A7A00, DELETE: 0xA82020 };
+function makeNote(verb, path, { tag = false, ui = true, size = 0.028 } = {}) {
+  const scale = 6, pad = 5, icon = tag ? 14 : 0;
+  const vw = textWidth(verb), pw = textWidth(' ' + path);
+  const w = vw + pw + 2 * pad + icon, h = 8 + 2 * pad;
+  const c = document.createElement('canvas');
+  c.width = w * scale; c.height = h * scale;
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = '#e9dcb8'; ctx.fillRect(0, 0, c.width, c.height);
+  ctx.strokeStyle = '#6b4a2b'; ctx.lineWidth = scale; ctx.strokeRect(scale / 2, scale / 2, c.width - scale, c.height - scale);
+  const y = (h / 2) * scale;
+  drawText(ctx, verb, (pad + vw / 2) * scale, y, scale, VERB[verb], false);
+  drawText(ctx, ' ' + path, (pad + vw + pw / 2) * scale, y, scale, 0x222222, false);
+  if (tag) ctx.drawImage(imgs.name_tag, c.width - (icon + pad - 1) * scale, (h / 2 - 6) * scale, 12 * scale, 12 * scale);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: pixel(c), transparent: true, depthWrite: false, depthTest: false }));
+  const H = size * h;
+  s.scale.set(H * w / h, H, 1);
+  s.renderOrder = 28;
+  if (ui) uiSprite(s);
+  s.visible = false;
+  // place(pos, k): k is the pop scale (0..1, more for a close-up)
+  s.place = (pos, k = 1) => {
+    s.visible = k > 0.01;
+    if (ui) { s.userData.anchor.copy(pos); s.userData.k = k; } else { s.position.copy(pos); s.scale.set(H * w / h * k, H * k, 1); }
+  };
+  scene.add(s);
+  return s;
+}
+const main = makeNote('GET', '/players/ren');
+const mainTag = makeNote('GET', '/players/ren', { tag: true });
+const noTag = makeNote('GET', '/players/ren');
+const flood = Array.from({ length: 6 }, () => makeNote('GET', '/players', { tag: true, ui: false, size: 0.006 }));
+const rest = [['GET', '/players/ren'], ['POST', '/players'], ['PATCH', '/players/ren'], ['DELETE', '/players/ren']]
+  .map(([v, p]) => makeNote(v, p, { tag: true }));
+const again = [makeNote('GET', '/players/ren', { tag: true }), makeNote('GET', '/players/kai', { tag: true })];
+const toCopies = COPIES.map(() => makeNote('GET', '/players', { tag: true, ui: false, size: 0.012 }));
+
+// The way in: from Steve's hand, through the slot, along the hoppers to the router and down the /players lane
+const TOP = 1.35;
+const HAND = L(1.2, 1.5, 10.0), HOLD = L(0.7, 2.1, 8.6), SLOT = L(0, 1.5, 7), ROUTER = L(0, TOP, 2);
+const CHECK1 = L(0, TOP, -0.4), WAIT2 = L(0, TOP, -1.2), GOLEM_AT = L(0, TOP, -2.0), DESK = L(0, 1.7, -3.6);
+const IN = [SLOT, L(0, TOP, 6), L(0, TOP, 3), ROUTER];
+// Point along a polyline at k (0..1)
+function path(pts, k) {
+  const lens = pts.slice(1).map((p, i) => p.distanceTo(pts[i]));
+  let d = k * lens.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < lens.length; i++) {
+    if (d <= lens[i] || i === lens.length - 1) return pts[i].clone().lerp(pts[i + 1], Math.min(1, d / lens[i]));
+    d -= lens[i];
+  }
+  return pts[0].clone();
+}
+// Where the main request is at time t (null when it is not on screen)
+function mainAt(t) {
+  const seg = [
+    [ev(0, 0.35), ev(0, 0.75), (k) => arc(HAND, HOLD, k, 0.8)],
+    [ev(0, 0.75), ev(4, 0.15), () => HOLD],
+    [ev(4, 0.15), ev(4, 0.95), (k) => (k < 0.25 ? HOLD.clone().lerp(SLOT, k / 0.25) : path(IN.slice(0, 3), (k - 0.25) / 0.75))],
+    [ev(4, 0.95), ev(5, 0.4), (k) => L(0, TOP, 3).lerp(ROUTER, k)],
+    [ev(5, 0.4), ev(5, 0.55), () => ROUTER],
+    [ev(5, 0.55), ev(6, 0.6), (k) => ROUTER.clone().lerp(CHECK1, k)],
+    [ev(6, 0.6), ev(7, 0.12), () => CHECK1],
+    [ev(7, 0.12), ev(7, 0.3), (k) => CHECK1.clone().lerp(WAIT2, k)],
+    [ev(7, 0.3), ev(8, 0.0), () => WAIT2],
+    [ev(8, 0.0), ev(8, 0.25), (k) => WAIT2.clone().lerp(DESK, k)],
+    [ev(8, 0.25), ev(9, 0.12), () => DESK],
+  ];
+  for (const [a, b, f] of seg) if (t >= a && t < b) return f(easeInOut(prog(t, a, b)));
+  return null;
+}
+// The response: a written book from the desk, over the line, out of the slot to Steve
+const answer = makeItem(imgs, 'written_book', 0.6);
+scene.add(answer);
+const BACKWAY = [DESK, L(0, 2.6, 2), L(0, 2.2, 6.5), SLOT.clone().add(V(0, 0.4, 0)), HAND];
+
+// ---------- bubbles ----------
+const B_ = (lines, opts) => { const b = bubble(lines, opts); scene.add(b); return b; };
+const stamp = (s, color) => B_([s], { color, size: 0.04 });
+const bub = {
+  verb: B_(['verb'], { color: 0x55FF55 }), path: B_(['path: the thing'], { color: 0xFFFF55 }),
+  header: B_(['header: name tag'], { color: 0x55FFFF }), body: B_(['body: data (sometimes)'], { color: 0xAAAAAA }),
+  router: B_(['router: verb + path'], { color: 0xFFAA00 }),
+  mw: B_(['middleware'], { color: 0xB070FF }),
+  tagOk: B_(['tag ok'], { color: 0x55FF55 }),
+  s401: stamp('401 Unauthorized', 0xFF5555),
+  limit: B_(['limit: 3 per second'], { color: 0xAAAAAA }),
+  s429: stamp('429 Too Many Requests', 0xFF5555),
+  handler: B_(['handler'], { color: 0xFFAA00 }),
+  json: B_(['{"name": "Ren",', ' "emeralds": 25}'], { color: 0x55FFFF, size: 0.03 }),
+  s200: stamp('200 OK', 0x55FF55),
+  fast: B_(['a few milliseconds'], { color: 0xAAAAAA }),
+  rest: B_(['REST: a way to design', 'requests and paths'], { color: 0x55FFFF }),
+  res: LANES.map(([s]) => B_([s], { color: 0xFFFF55, size: 0.03 })),
+  same: [['GET /players/ren: read', 0x55FF55], ['POST /players: create', 0x55FFFF], ['PATCH /players/ren: change', 0xFFFF55],
+         ['DELETE /players/ren: remove', 0xFF5555]].map(([s, c]) => B_([s], { color: c, size: 0.021 })),
+  codes: [['200 OK', 0x55FF55], ['201 Created', 0x55FFFF], ['404 Not Found', 0xFFFF55], ['500 Server Error', 0xFF5555]]
+    .map(([s, c]) => stamp(s, c)),
+  forget: B_(["I don't remember you.", 'The tag says who you are.'], { color: 0xFFFFFF }),
+  tagOk2: [B_(['tag ok'], { color: 0x55FF55 }), B_(['tag ok'], { color: 0x55FF55 })],
+  ten: B_(['10 identical servers', 'any one can answer'], { color: 0x55FFFF }),
+};
+
+// ---------- the request through the workshop (lines 0 to 11) ----------
+function request(t) {
+  const p = mainAt(t);
+  const close = 1 + 0.5 * prog(t, ev(1, 0.0), ev(1, 0.3)) * (1 - prog(t, ev(3, 0.9), ev(4, 0.15)));
+  const tagged = t >= ev(3, 0.15);
+  main.visible = mainTag.visible = false;
+  if (p) (tagged ? mainTag : main).place(p, close * easeOutBack(Math.min(1, prog(t, ev(0, 0.35), ev(0, 0.55)))));
+  // The note without a tag (line 7) runs in, reaches the guard and bounces back out
+  noTag.visible = false;
+  const n0 = ev(7, 0.3), n1 = ev(7, 0.55), n2 = ev(7, 0.85);
+  if (t >= n0 && t < n1) noTag.place(path([...IN, CHECK1], easeInOut(prog(t, n0, n1))), 0.85);
+  else if (t >= n1 && t < n2) noTag.place(arc(CHECK1, SLOT, easeInOut(prog(t, n1, n2)), 2.0), 0.85);
+  // The flood (line 8): six notes in a row; the golem lets three through and swats the rest back
+  flood.forEach((n, i) => {
+    const a = ev(8, 0.25 + 0.05 * i), b = a + 0.9;
+    n.visible = false;
+    if (t < a) return;
+    if (i < 3 && t < b) n.place(path([...IN, CHECK1, GOLEM_AT, DESK], prog(t, a, b)));
+    else if (i >= 3) {
+      const hit = ev(8, 0.62), back = hit + 0.6;
+      if (t < hit) n.place(path([...IN, CHECK1, GOLEM_AT], prog(t, a, hit)));
+      else if (t < back) n.place(arc(GOLEM_AT, SLOT, prog(t, hit, back), 1.6 + 0.3 * i));
+    }
+  });
+  // The answer: written at the desk (line 10), stamped and sent back (line 11)
+  desk.open(prog(t, ev(10, 0.3), ev(10, 0.45)) * (1 - prog(t, ev(11, 0.05), ev(11, 0.15))));
+  const a0 = ev(11, 0.15), a1 = ev(11, 0.75);
+  answer.visible = t >= a0 && t < end(11);
+  answer.position.copy(path(BACKWAY, easeInOut(prog(t, a0, a1))));
+  answer.glow(prog(t, ev(11, 0.05), ev(11, 0.15)), t);
+}
+
+// ---------- REST on the table (lines 13 to 16) ----------
+const ARRIVE = [0.2, 0.42, 0.62, 0.84].map((f) => ev(14, f));
+const FROM_SHOP = V(0, 3.4, 23);
+const TARGET = [V(0, rowY(REN) + 0.5, 7.2), V(0, rowY(6) + 0.5, 7.2), V(COLS[1], rowY(REN) + 0.5, 7.2), V(0, rowY(REN) + 0.5, 7.2)];
+function restTable(t) {
+  const restored = t >= ev(17, 0.0) || t < ARRIVE[0];
+  rest.forEach((n, i) => {
+    const a = ARRIVE[i] - 0.9;
+    n.visible = false;
+    if (t >= a && t < ARRIVE[i]) n.place(arc(FROM_SHOP, TARGET[i], easeInOut(prog(t, a, ARRIVE[i])), 1.0), 0.85);
+  });
+  // GET reads Ren's row (it glows), as the handler did in line 9
+  const read = Math.max(prog(t, ev(9, 0.5), ev(9, 0.65)) * (1 - prog(t, end(9) - 0.3, end(9))),
+                        prog(t, ARRIVE[0], ARRIVE[0] + 0.2) * (1 - prog(t, ARRIVE[0] + 1.0, ARRIVE[0] + 1.3)));
+  renGlow.material.opacity = 0.4 * read;
+  // POST adds Mia's row, PATCH turns 25 into 30, DELETE breaks Ren's row
+  const mia = restored ? 0 : easeOutBack(prog(t, ARRIVE[1], ARRIVE[1] + 0.35));
+  [...miaCells, miaGem].forEach((m) => { m.visible = mia > 0.01; m.scale.setScalar(Math.max(mia, 1e-4) * (m === miaGem ? 0.36 : 1)); });
+  const patched = !restored && t >= ARRIVE[2];
+  const gone = !restored && t >= ARRIVE[3];
+  cells[REN].forEach((m, c) => { m.visible = !gone && !(c === 1 && patched); });
+  ren30.visible = patched && !gone;
+  ren30.scale.setScalar(patched ? Math.max(easeOutBack(prog(t, ARRIVE[2], ARRIVE[2] + 0.35)), 1e-4) : 1);
+  gems[REN].visible = !gone;
+  const kd = t - ARRIVE[3];
+  chips.forEach((m) => {
+    m.visible = !restored && kd > 0 && kd < 1.4;
+    if (!m.visible) return;
+    const v = m.userData.v;
+    m.position.set(m.userData.x + v.x * kd, rowY(REN) + v.y * kd - 4.9 * kd * kd, WALL_Z + v.z * kd);
+    m.rotation.set(kd * 6, kd * 4, 0);
+  });
+}
+
+// ---------- status codes at the desk (line 16), no memory (17) and ten copies (18) ----------
+function desk2(t) {
+  emptyChest.open(prog(t, ev(16, 0.5), ev(16, 0.6)) * (1 - prog(t, end(16) - 0.4, end(16))));
+  const burn = t >= ev(16, 0.74) && t < end(16);
+  furnace.lit(burn);
+  fire.visible = burn;
+  fire.material.map = fireFrames[Math.floor(t * 12) % 8];
+  smoke.forEach((s) => {
+    const u = ((t - ev(16, 0.74)) * 0.9 + s.userData.k / 8) % 1;
+    s.visible = burn;
+    s.position.copy(L(1.6 + 0.3 * Math.sin(s.userData.k * 2.3 + t), 1.6 + 2.2 * u, -4.8));
+    s.scale.setScalar(0.3 + 0.6 * u);
+    s.material.opacity = 0.7 * (1 - u);
+  });
+  // Two notes in a row, each with its tag
+  again.forEach((n, i) => {
+    const a = ev(17, 0.1 + 0.32 * i), b = a + 1.4;
+    n.visible = false;
+    if (t >= a && t < b) n.place(path([HAND, SLOT, ...IN.slice(1), CHECK1], easeInOut(prog(t, a, b))), 0.85);
+  });
+  // Notes flying into the ten copies
+  toCopies.forEach((n, i) => {
+    const a = ev(18, 0.1 + 0.06 * i), b = a + 0.8;
+    n.visible = false;
+    if (t >= a && t < b) n.place(arc(V(0, 6, 12), COPIES[(i * 7) % COPIES.length].clone().add(V(0, 1.5, 3)), easeInOut(prog(t, a, b)), 4));
+  });
+}
+
+function bubbles(t) {
+  const notePos = (mainAt(t) ?? HOLD).clone();
+  bub.verb.show(t, ev(2, 0.45), ev(2, 0.75), notePos.clone().add(V(-0.9, 0.9, 0)));
+  bub.path.show(t, ev(2, 0.68), end(2), notePos.clone().add(V(0.6, -0.9, 0)));
+  bub.header.show(t, ev(3, 0.15), end(3), notePos.clone().add(V(0.4, 1.0, 0)));
+  bub.body.show(t, ev(3, 0.55), end(3), notePos.clone().add(V(0, -1.1, 0)));
+  bub.router.show(t, ev(5, 0.05), end(5), ROUTER.clone().add(V(0, 1.6, 0)));
+  bub.mw.show(t, ev(6, 0.2), end(6), L(0, 3.2, -1.2));
+  bub.tagOk.show(t, ev(7, 0.02), ev(7, 0.3), guard.g.position.clone().add(V(0, 2.4, 0)));
+  bub.s401.show(t, ev(7, 0.55), end(7), CHECK1.clone().add(V(0, 1.4, 0.6)));
+  bub.limit.show(t, ev(8, 0.2), end(8), golem.g.position.clone().add(V(0, 3.4, 0)));
+  bub.s429.show(t, ev(8, 0.62), end(8), GOLEM_AT.clone().add(V(0.4, 1.4, 1.0)));
+  bub.handler.show(t, ev(9, 0.02), ev(9, 0.4), lib.g.position.clone().add(V(0, 2.4, 0)));
+  bub.json.show(t, ev(10, 0.35), ev(11, 0.15), DESK.clone().add(V(0, 1.4, 0)));
+  bub.s200.show(t, ev(11, 0.05), ev(11, 0.7), DESK.clone().add(V(0, 1.1, 0.3)));
+  bub.fast.show(t, ev(11, 0.72), end(11), HAND.clone().add(V(0, 1.1, 0)));
+  bub.rest.show(t, ev(12, 0.05), end(12), L(0, 4.5, 1));
+  bub.res.forEach((b, k) => b.show(t, ev(13, 0.4 + 0.17 * k), end(13), L(LANES[k][1], 2.6, 0.5)));
+  const legend = V(0, 7.4, 7.5);
+  const gap = 0.021 * 21 * camera.position.distanceTo(legend) / 7;
+  bub.same.forEach((b, k) => b.show(t, ev(15, 0.05 + 0.12 * k), end(15), legend.clone().add(V(0, -k * gap, 0))));
+  const deskTop = L(0, 4.3, -4);
+  const gap2 = 0.04 * 19 * camera.position.distanceTo(deskTop) / 7;
+  bub.codes.forEach((b, k) => b.show(t, ev(16, [0.12, 0.3, 0.5, 0.74][k]), end(16), deskTop.clone().add(V(0, -k * gap2, 0))));
+  bub.tagOk2.forEach((b, i) => { const a = ev(17, 0.1 + 0.32 * i) + 1.3; b.show(t, a, a + 0.9, guard.g.position.clone().add(V(0, 2.4, 0))); });
+  bub.forget.show(t, ev(17, 0.62), end(17), lib.g.position.clone().add(V(0, 2.5, 0)));
+  bub.ten.show(t, ev(18, 0.05), end(18), V(0, 5, -11));
+}
+
+// ---------- people ----------
+function people(t) {
+  steve.g.position.copy(START);
+  steve.g.rotation.y = BACK;
+  // Steve presses the button (line 0) and sends the two notes of line 17
+  const press = (a) => Math.sin(Math.PI * prog(t, a, a + 0.4));
+  steve.arms[1].rotation.x = -1.3 * Math.max(press(ev(0, 0.3)), press(ev(17, 0.08)), press(ev(17, 0.4)));
+  steve.look(0, 0);
+  moveAlong(lib, LIB, t);
+  // At the table he looks at Ren's row; at the desk, down at the book; with the fire, he shakes his head
+  const atTable = t >= ev(9, 0.45) && t < ev(10, 0.0);
+  lib.look(t >= ev(16, 0.74) && t < end(16) ? 0.4 * Math.sin(t * 20) : 0, atTable ? 0.35 : 0.3 * prog(t, ev(10, 0.2), ev(10, 0.4)));
+  // The guard follows the notes in front of him; the golem swats the flood
+  guard.look(0, 0.35);
+  const swat = Math.sin(Math.PI * prog(t, ev(8, 0.58), ev(8, 0.78)));
+  golem.arms.forEach((a) => { a.rotation.x = -1.8 * swat; });
+  golem.head.rotation.y = 0.3 * Math.sin(t * 0.7);
+  // The illusioner and the vindicator wait outside while their notes go in
+  thief.g.visible = t >= ev(7, 0.2) && t < end(7);
+  spammer.g.visible = t >= ev(8, 0.15) && t < end(8);
+  for (const m of [thief, spammer]) { m.g.position.copy(OUTSIDE); m.g.rotation.y = BACK; }
+}
+
+// ---------- camera ----------
+const look = (p, q) => pose(p, q);
+const COVER = look(L(0, 3.0, 21), L(-0.6, 2.4, 10));
+const OUTV = look(L(4.2, 2.8, 15.5), L(0.6, 1.8, 8));
+const NOTE = look(L(2.6, 2.6, 12.4), HOLD);
+const INSIDE = look(L(0, 9.5, 12), L(0, 0.6, 0.5));
+const ROUTERV = look(L(3, 5.2, 7.5), L(0, 1.2, 1.5));
+const CHECKV = look(L(5, 4.8, 3.6), L(0, 1.3, -1.2));
+const DESKV = look(L(2.6, 3.8, 0.8), L(0, 1.6, -4.2));
+const TABLE = look(V(0, 3.2, 24.5), V(0, 2.8, 6.5));
+const AERIAL_WS = look(L(0, 20, 16), L(0, 0, -1));
+const STATE = look(L(5.5, 6.5, 12), L(0, 1.2, 2));
+const COPIESV = look(V(0, 26, 22), V(0, 0, -11));
+const AERIAL = look(L(0, 32, 30), V(0, 0, 18));
+const CAM = [
+  [0, COVER],
+  [ev(0, 0.25), OUTV, 1.4],
+  [ev(1, 0.1), NOTE, 1.2],
+  [ev(4, 0.0), INSIDE, 1.6],
+  [ev(5, 0.0), ROUTERV, 1.2],
+  [ev(6, 0.3), CHECKV, 1.2],
+  [ev(9, 0.0), DESKV, 1.0],
+  [ev(9, 0.42), TABLE, 0.6],
+  [ev(10, 0.0), DESKV, 0.6],
+  [ev(11, 0.3), () => look(answer.position.clone().add(V(3.5, 2.2, 5.5)), answer.position.clone()), 1.0],
+  [ev(12, 0.0), AERIAL_WS, 1.6],
+  [ev(14, 0.0), TABLE, 1.6],
+  [ev(16, 0.0), DESKV, 1.2],
+  [ev(17, 0.0), STATE, 1.2],
+  [ev(18, 0.0), COPIESV, 1.6],
+  [ev(19, 0.0), AERIAL, 1.6],
+  [ev(20, 0.0), COVER, Math.min(2.0, subs[20].duration_s * 0.5)],
+];
+
+// ---------- sound cues ----------
+window.sfxCues = [
+  [ev(0, 0.32), 'click', 0.35], [ev(0, 0.4), 'pop', 0.3], [ev(2, 0.45), 'book_flip1', 0.25], [ev(3, 0.15), 'pop', 0.3],
+  [ev(4, 0.2), 'click', 0.3], [ev(5, 0.45), 'click', 0.3], [ev(7, 0.02), 'villager_yes1', 0.35], [ev(7, 0.55), 'villager_no1', 0.35],
+  [ev(7, 0.56), 'anvil_land', 0.25], [ev(8, 0.62), 'golem_hit', 0.4], [ev(8, 0.63), 'anvil_land', 0.25],
+  [ev(9, 0.4), 'door_open', 0.3], [ev(9, 0.55), 'orb', 0.25], [ev(10, 0.3), 'book_flip2', 0.3], [ev(11, 0.05), 'anvil_land', 0.3],
+  [ev(11, 0.75), 'levelup', 0.25], [ev(12, 0.05), 'toast_in', 0.3],
+  ...ARRIVE.map((a, i) => [a, ['orb', 'pop', 'click', 'break'][i], 0.3]),
+  [ev(16, 0.12), 'anvil_land', 0.22], [ev(16, 0.3), 'anvil_land', 0.22], [ev(16, 0.5), 'chestopen', 0.3],
+  [ev(16, 0.74), 'fire', 0.45], [ev(16, 0.78), 'villager_no2', 0.35],
+  [ev(17, 0.08), 'click', 0.3], [ev(17, 0.4), 'click', 0.3], [ev(17, 0.62), 'villager_idle1', 0.3], [ev(18, 0.1), 'pop', 0.25],
+].map(([s, n, g]) => [Math.round(s * 1000) / 1000, n, g]);
+
+// Everything a camera key follows (the answer book, the people) is placed before the camera, so any frame renders alone
+window.renderAt = (t) => {
+  people(t);
+  request(t);
+  restTable(t);
+  desk2(t);
+  const cam = cameraAt(CAM, t);
+  world.look(cam.pos, cam.look);
+  camera.updateMatrixWorld();
+  bubbles(t);
+  placeUI(camera);
+  clouds.position.x = 4 * Math.sin(2 * Math.PI * t / TOTAL);
+  life.update(t);
+  world.draw(t, TOTAL, 0, 0);
+};
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

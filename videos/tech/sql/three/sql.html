@@ -1,0 +1,642 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+// "How SQL works": a storage room where a table is a shelf of signs and the database is a librarian who reads the
+// query. Then three tricks: an index (a tree of signs with rails), a transaction (a creeper in the middle of a payment)
+// and SQL injection (text pasted into the query opens every chest). Every event is tied to a narration line of
+// timestamps.json: ev(line, fraction).
+import { THREE, V, lerp, prog, easeInOut, easeOutBack, pose } from '/vendor/lib/stage.js';
+import { loadTheme, makeWorld, makeTerrain, makeClouds, makeSign, makeChest, makeFrame, tex } from '/vendor/tema/mc.js';
+import { loadMobs, planLife, makeLife, setTime } from '/vendor/tema/vida.js';
+import { loadPeople, makeVillager, makePlayer, makeIllager, moveAlong, entityPart, skinMat } from '/vendor/tema/gente.js';
+import { put, makeLectern, bubble, makeItem, arc, placeUI, cameraAt } from '/vendor/tema/aldea.js';
+import { makeTracks, makeMinecart, along, pathLength, distancesTo, distanceAt, timeAt } from '/vendor/tema/rieles.js';
+
+// ---------- timing ----------
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const TOTAL = subs[subs.length - 1].end_s;
+const ev = (line, f = 0) => subs[line].start_s + f * subs[line].duration_s;
+const end = (line) => subs[line].end_s;
+
+// ---------- world ----------
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'leaves', 'log_side', 'log_top', 'cobble', 'oak_planks',
+  'stone_bricks', 'chiseled_stone_bricks', 'smooth_stone', 'bookshelf', 'lectern_front', 'lectern_top', 'iron_block',
+  'emerald', 'emerald_block', 'writable_book', 'written_book', 'paper', 'name_tag', 'clock', 'rail', 'rail_corner',
+  'minecart']);
+await loadPeople(imgs, ['villager', 'type_plains', 'type_snow', 'prof_librarian', 'steve', 'illusioner']);
+const world = makeWorld({ fov: 40, offset: 0, fog: [60, 170] });
+const { scene, camera } = world;
+// Place still to confirm with --stills; once chosen, add it to mundos/lugares.json with this video
+const terrain = await makeTerrain('/vendor/tema/mundos/mac-02.json', { turn: 0, plot: [-32, 32, -34, 40], clear: [-36, 36, -38, 44] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+const LIFE = [{ kind: 'sheep', count: 3, graze: 1 }, { kind: 'chicken', count: 3 }, { kind: 'cow', count: 2, graze: 1 }];
+await loadMobs(imgs, [...LIFE.map((g) => g.kind), 'creeper']);
+const light = await setTime(world, 'day', { terrain, clouds, imgs });
+const life = makeLife(imgs, terrain, planLife(terrain, LIFE, { seed: 5, area: [-36, 36, -38, 44], avoid: [[-30, 30, -32, 24]] }), TOTAL, light);
+scene.add(life.g);
+
+// A flat textured plane laid on the ground or on a wall, the texture repeated once per block
+function tiled(name, w, h, rx = w, ry = h) {
+  const t = tex(imgs, name).clone();
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(rx, ry);
+  t.needsUpdate = true;
+  return new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t }));
+}
+
+// ---------- the storage room: open front and no roof, so the camera can stand back far enough in 9:16 ----------
+// Back wall at z = 6 (its face at z = 6.5) holds the table; side walls run to z = 22.
+const HALL = new THREE.Group();
+// Six blocks high, so the "players" sign over the header row hangs on the wall
+for (let x = -9; x <= 9; x++) for (let y = 0; y <= 5; y++) put(imgs, HALL, y === 5 ? 'chiseled_stone_bricks' : 'stone_bricks', x, y, 6);
+for (const x of [-9, 9]) for (let z = 7; z <= 22; z++) for (let y = 0; y <= 3; y++) {
+  put(imgs, HALL, (y === 1 || y === 2) && z % 4 !== 3 ? 'bookshelf' : 'stone_bricks', x, y, z);
+}
+const floor = tiled('smooth_stone', 17, 16);
+floor.rotation.x = -Math.PI / 2;
+floor.position.set(0, 0.012, 14.5);
+floor.material.color.setScalar(0.85);
+HALL.add(floor);
+scene.add(HALL);
+const cover = makeSign(imgs, ['HOW SQL', 'WORKS'], { w: 3.4, h: 1.7 });
+cover.position.set(0, 2.2, 27.5);
+scene.add(cover);
+
+// ---------- the table "players" on the back wall ----------
+const ROWS = [['Steve', 12, 'plains'], ['Alex', 30, 'desert'], ['Noor', 4, 'taiga'], ['Kai', 18, 'plains'],
+              ['Zuri', 9, 'savanna'], ['Ren', 25, 'snowy']];
+const COLS = [-2.85, 0, 2.85], CELL_W = 2.7, CELL_H = 0.62, WALL_Z = 6.53;
+const HEAD_Y = 4.45, rowY = (k) => 3.7 - 0.64 * k;
+const cell = (text, w = CELL_W, h = CELL_H) => makeSign(imgs, [text], { w, h, post: false });
+const tableSign = cell('players', 3.0, 0.7);
+tableSign.position.set(0, 5.45, WALL_Z);
+tableSign.children[0].material.color.set(0xFFE9A0);
+scene.add(tableSign);
+const heads = ['name', 'emeralds', 'village'].map((s, c) => {
+  const h = cell(s);
+  h.position.set(COLS[c], HEAD_Y, WALL_Z);
+  h.children[0].material.color.set(0xFFE9A0);
+  scene.add(h);
+  return h;
+});
+const cells = ROWS.map((row, k) => row.map((v, c) => {
+  const s = cell(String(v));
+  s.position.set(COLS[c], rowY(k), WALL_Z);
+  scene.add(s);
+  return s;
+}));
+const gems = ROWS.map((_, k) => {
+  const e = makeItem(imgs, 'emerald', 0.4);
+  e.position.set(COLS[1] + 0.9, rowY(k), WALL_Z + 0.03);
+  e.visible = true;
+  scene.add(e);
+  return e;
+});
+// One veil (dims a row) and one glow (marks a row) per row, plus the glow on the column headers
+const rowPlane = (color, blending) => {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(3 * CELL_W + 0.3, CELL_H), new THREE.MeshBasicMaterial({ color, transparent: true,
+    opacity: 0, depthWrite: false, blending }));
+  m.renderOrder = 5;
+  scene.add(m);
+  return m;
+};
+const veils = ROWS.map((_, k) => { const m = rowPlane(0x000000, THREE.NormalBlending); m.position.set(0, rowY(k), WALL_Z + 0.02); return m; });
+const glows = ROWS.map((_, k) => { const m = rowPlane(0x55FF55, THREE.AdditiveBlending); m.position.set(0, rowY(k), WALL_Z + 0.02); return m; });
+const headGlow = heads.map((h) => {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(CELL_W, CELL_H), new THREE.MeshBasicMaterial({ color: 0xFFFF55, transparent: true,
+    opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+  m.position.copy(h.position).add(V(0, 0, 0.02));
+  scene.add(m);
+  return m;
+});
+// The outline that walks down the emeralds column during WHERE
+const checker = makeFrame(1.004, 0.05, 0xFFFF55);
+checker.scale.set(CELL_W, CELL_H, 0.1);
+scene.add(checker);
+
+// ---------- the result stand: a plank board on the left, turned toward the camera ----------
+const STAND = new THREE.Group();
+STAND.position.set(-6.9, 0, 12.6);
+STAND.rotation.y = 0.75;
+for (let x = -1; x <= 1; x++) for (let y = 0; y <= 3; y++) put(imgs, STAND, 'oak_planks', x, y, -0.6);
+const resultSign = cell('result');
+resultSign.position.set(0, 3.55, -0.08);
+resultSign.children[0].material.color.set(0xFFE9A0);
+STAND.add(resultSign);
+scene.add(STAND);
+const SLOT_Y = [2.85, 2.2, 1.55, 0.9];
+const slotAt = (s) => STAND.localToWorld(V(0, SLOT_Y[s], -0.07));
+// The matching rows, in table order: Steve 12, Alex 30, Kai 18, Ren 25. Sorted: Alex, Ren, Kai, Steve. LIMIT 3 drops Steve.
+const PICKED = [0, 1, 3, 5];
+const SORTED_SLOT = { 0: 3, 1: 0, 3: 2, 5: 1 };
+const cards = PICKED.map((k) => {
+  const c = cell(ROWS[k][0]);
+  c.visible = false;
+  scene.add(c);
+  return { k, c, mat: c.children[0].material };
+});
+
+// ---------- the million rows and the index tree behind the room ----------
+// A wall of drawers (61 x 40 cells), each one a row; the rails of the index lead to it from the back of the room
+const BIG_Z = -29.45;
+const drawer = (() => {
+  const c = document.createElement('canvas');
+  c.width = 32; c.height = 16;
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(imgs.oak_planks, 0, 0, 16, 16);
+  ctx.drawImage(imgs.oak_planks, 16, 0, 16, 16);
+  ctx.fillStyle = '#4a3418'; ctx.fillRect(0, 0, 32, 1); ctx.fillRect(0, 15, 32, 1); ctx.fillRect(0, 0, 1, 16); ctx.fillRect(31, 0, 1, 16);
+  ctx.fillStyle = 'rgba(30,20,10,0.75)';
+  ctx.fillRect(4, 5, 10, 2); ctx.fillRect(17, 5, 5, 2); ctx.fillRect(25, 5, 4, 2); ctx.fillRect(4, 10, 16, 2);
+  const t = new THREE.CanvasTexture(c);
+  t.magFilter = t.minFilter = THREE.NearestFilter;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+})();
+const BIG_COLS = 61, BIG_ROWS = 40;
+const bigY = (r) => 0.25 + 0.5 * r;
+const big = new THREE.InstancedMesh(new THREE.PlaneGeometry(0.96, 0.46), new THREE.MeshBasicMaterial({ map: drawer }), BIG_COLS * BIG_ROWS);
+{
+  const m = new THREE.Matrix4(), col = new THREE.Color();
+  let i = 0;
+  for (let c = 0; c < BIG_COLS; c++) for (let r = 0; r < BIG_ROWS; r++) {
+    big.setMatrixAt(i, m.makeTranslation(c - 30, bigY(r), BIG_Z));
+    big.setColorAt(i++, col.setScalar(0.78 + 0.22 * (((c * 7 + r * 13) % 5) / 4)));
+  }
+}
+scene.add(big);
+const bigBack = tiled('stone_bricks', 63, 21);
+bigBack.position.set(0, 10.25, BIG_Z - 0.06);
+bigBack.material.color.setScalar(0.7);
+scene.add(bigBack);
+const scanFrame = makeFrame(1.004, 0.06, 0xFFFF55);
+scanFrame.scale.set(1, 0.5, 0.1);
+scene.add(scanFrame);
+const found = makeFrame(1.004, 0.08, 0x55FF55);
+found.scale.set(1, 0.5, 0.1);
+scene.add(found);
+
+// The index: a root, three branches, three more under each, then straight to the wall. Each branch starts with a sign
+// naming the first letters it holds (a B-tree node holds several keys, so three ways out, not two).
+const ROOT = V(0, 0, 1), TURN = [-2, -11, -20], NODE_Z = [-8, -17];
+const AZ = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const thirds = (s) => { const n = Math.ceil(s.length / 3); return [s.slice(0, n), s.slice(n, 2 * n), s.slice(2 * n)]; };
+const label = (s) => (s.length === 1 ? s : `${s[0]}-${s[s.length - 1]}`);
+const edge = (a, b, turnZ) => [a, V(a.x, 0, turnZ), V(b.x, 0, turnZ), b].filter((p, i, arr) => i === 0 || p.distanceTo(arr[i - 1]) > 1e-6);
+const TRACKS = [[V(0, 0, 4), ROOT]];
+const SIGNS = [];
+thirds(AZ).forEach((g1, i) => {
+  const n1 = V((i - 1) * 12, 0, NODE_Z[0]);
+  TRACKS.push(edge(ROOT, n1, TURN[0]));
+  SIGNS.push({ text: label(g1), at: V(n1.x + 1.3, 0, TURN[0] - 1.5) });
+  thirds(g1).forEach((g2, j) => {
+    const n2 = V(n1.x + (j - 1) * 4, 0, NODE_Z[1]);
+    TRACKS.push(edge(n1, n2, TURN[1]));
+    SIGNS.push({ text: label(g2), at: V(n2.x + 1.3, 0, TURN[1] - 1.5) });
+    // Last level: one track per letter, side by side, each to its own drawer
+    [...g2].forEach((_, l) => TRACKS.push(edge(n2, V(n2.x + l - 1, 0, -29), TURN[2])));
+    SIGNS.push({ text: g2.split('').join(' '), at: V(n2.x + 2.3, 0, TURN[2] + 1.5) });
+  });
+});
+scene.add(makeTracks(imgs, TRACKS));
+SIGNS.forEach((s) => {
+  const g = makeSign(imgs, [s.text], { w: 1.4, h: 0.7 });
+  g.position.copy(s.at).add(V(0, 1.25, 0));
+  scene.add(g);
+});
+// Ren: R is in J-R (middle), then P-R (right), then R (the third track). Path from the back of the room to its drawer
+const REN = V(5, 0, -29), REN_CELL = V(5, bigY(2), BIG_Z + 0.04);
+const RIDE = [V(0, 0, 4), ROOT, V(0, 0, TURN[0]), V(0, 0, NODE_Z[0]), V(0, 0, TURN[1]), V(4, 0, TURN[1]), V(4, 0, NODE_Z[1]),
+              V(4, 0, TURN[2]), V(5, 0, TURN[2]), REN];
+const RIDE_KEYS = [[ev(11, 0.35), 0], [ev(12, 0.6), pathLength(RIDE)]];
+const JUMPS = [ROOT, V(0, 0, NODE_Z[0]), V(4, 0, NODE_Z[1])].map((p) => timeAt(RIDE_KEYS, distancesTo(RIDE, p)[0]));
+const cart = makeMinecart(imgs, { chest: false });
+scene.add(cart.g);
+
+// ---------- the payment (transaction) to the right of the room ----------
+const TX = V(21, 0, 14);
+const chestAt = (dx) => { const c = makeChest(imgs, 0.9); c.g.position.copy(TX).add(V(dx, 0, 0)); scene.add(c.g); return c; };
+const steveChest = chestAt(-3), alexChest = chestAt(3);
+[['Steve', -3], ['Alex', 3]].forEach(([s, dx]) => {
+  const g = makeSign(imgs, [s], { w: 1.6, h: 0.7 });
+  g.position.copy(TX).add(V(dx, 1.85, -0.9));
+  scene.add(g);
+});
+const GEM_S = TX.clone().add(V(-3, 1.2, 0)), GEM_A = TX.clone().add(V(3, 1.2, 0)), GEM_MID = TX.clone().add(V(0, 2.2, 0.3));
+const txGems = Array.from({ length: 5 }, () => { const e = makeItem(imgs, 'emerald', 0.45); scene.add(e); return e; });
+const txBox = makeFrame(1.004, 0.012, 0xFFAA00);
+txBox.scale.set(9, 2.8, 3);
+txBox.position.copy(TX).add(V(0, 1.4, 0));
+scene.add(txBox);
+
+// The creeper (CreeperModel, 64 x 32): head and body on one pivot, four short legs
+function makeCreeper() {
+  const mat = skinMat([imgs.mob_creeper]);
+  const S = [64, 32];
+  const g = new THREE.Group();
+  g.add(entityPart(mat, [0, 6, 0], [[0, 0, -4, -8, -4, 8, 8, 8]], [0, 0, 0], S),
+        entityPart(mat, [0, 6, 0], [[16, 16, -4, 0, -2, 8, 12, 4]], [0, 0, 0], S));
+  for (const [x, z] of [[-2, 4], [2, 4], [-2, -4], [2, -4]]) g.add(entityPart(mat, [x, 18, z], [[0, 16, -2, 0, -2, 4, 6, 4]], [0, 0, 0], S));
+  g.visible = false;
+  scene.add(g);
+  return { g, mat };
+}
+const creeper = makeCreeper();
+const CREEPER_AT = TX.clone().add(V(0, 0, 1.6));
+// Blast: a flash and flying debris (like the TNT bank of the DNS short)
+const flash = new THREE.Sprite(new THREE.SpriteMaterial({ map: (() => {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 128;
+  const ctx = c.getContext('2d'); const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  g.addColorStop(0, 'rgba(255,250,220,1)'); g.addColorStop(0.45, 'rgba(255,190,90,0.8)'); g.addColorStop(1, 'rgba(255,120,40,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c);
+})(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+flash.position.copy(CREEPER_AT).add(V(0, 1.2, 0));
+flash.renderOrder = 28;
+scene.add(flash);
+const debris = Array.from({ length: 14 }, (_, k) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.26, 0.26), new THREE.MeshBasicMaterial({ color: k % 3 ? 0x8a8a8a : 0x4f9a3a }));
+  const a = k * 2.4;
+  m.userData.v = V(Math.cos(a) * 3.0, 3 + (k % 4), Math.sin(a) * 2.0 + 1.2);
+  scene.add(m);
+  return m;
+});
+const BOOM1 = ev(14, 0.4), BOOM2 = ev(15, 0.55);
+
+// ---------- the vault (SQL injection) to the left of the room ----------
+const VA = V(-21, 0, 15);
+const VAULT = new THREE.Group();
+for (let x = -3; x <= 3; x++) for (let y = 0; y <= 3; y++) for (let z = -5; z <= -1; z++) {
+  const shell = Math.abs(x) === 3 || z === -5 || y === 3;
+  if (shell) put(imgs, VAULT, 'iron_block', x, y, z);
+}
+VAULT.position.copy(VA);
+scene.add(VAULT);
+const vaultChests = [-2, -1, 0, 1, 2].map((x) => {
+  const c = makeChest(imgs, 0.8);
+  c.g.position.copy(VA).add(V(x, 0, -4));
+  scene.add(c.g);
+  return c;
+});
+const vaultLectern = makeLectern(imgs);
+vaultLectern.g.position.copy(VA).add(V(1.6, 0, -1.6));
+scene.add(vaultLectern.g);
+const login = makeSign(imgs, ['LOGIN'], { w: 1.6, h: 0.75 });
+login.position.copy(VA).add(V(-2.2, 1.25, 0.6));
+scene.add(login);
+const vaultSign = makeSign(imgs, ['users'], { w: 2.0, h: 0.75, post: false });
+vaultSign.position.copy(VA).add(V(0, 3.5, -0.45));
+scene.add(vaultSign);
+
+// ---------- people ----------
+const steve = makePlayer(imgs, { skin: 'steve' });
+const lib = makeVillager(imgs, { profession: 'librarian', type: 'plains' });
+const scanner = makeVillager(imgs, { profession: 'librarian', type: 'plains' });
+const rider = makeVillager(imgs, { profession: 'librarian', type: 'plains' });
+const keeper = makeVillager(imgs, { profession: 'librarian', type: 'snow' });
+const thief = makeIllager(imgs, { kind: 'illusioner' });
+scene.add(steve.g, lib.g, scanner.g, rider.g, keeper.g, thief.g);
+const START = V(1.6, 0, 30.5), HALL_IN = V(3.6, 0, 14.6), BACK = Math.PI;
+const STEVE = [[0, START, BACK], [ev(0, 0.75), START, BACK], [ev(1, 0.95), HALL_IN, BACK + 0.35],
+               [ev(20, 0), HALL_IN, BACK + 0.35], [ev(20, 0), START, BACK]];
+const LIB_HOME = V(1.8, 0, 8.7), AT_NAME = V(COLS[0], 0, 8.1), AT_GEMS = V(COLS[1], 0, 8.1), AT_STAND = V(-4.4, 0, 11.4);
+const LIB = [[0, LIB_HOME, 0], [ev(6, 0.0), LIB_HOME, 0], [ev(6, 0.28), AT_NAME, BACK], [ev(6, 0.38), AT_NAME, BACK],
+             [ev(6, 0.5), AT_GEMS, BACK], [ev(7, 0.02), AT_GEMS, BACK], [ev(7, 0.3), AT_STAND, -1.2], [ev(8, 0.6), AT_STAND, -1.2],
+             [ev(9, 0.6), LIB_HOME, 0]];
+const SCAN_AT = V(-7.5, 0, -27.6), KEEPER_AT = VA.clone().add(V(1.6, 0, -2.6)), THIEF_AT = VA.clone().add(V(-2.2, 0, 2.2));
+
+// ---------- items ----------
+const ITEM = (name, size) => { const it = makeItem(imgs, name, size); scene.add(it); return it; };
+const jobs = [ITEM('name_tag', 0.6), ITEM('paper', 0.6), ITEM('writable_book', 0.6)];
+const note = ITEM('writable_book', 0.55);
+const clock = ITEM('clock', 0.7);
+
+// ---------- bubbles ----------
+const B_ = (lines, opts) => { const b = bubble(lines, opts); scene.add(b); return b; };
+const bub = {
+  jobs: ['account', 'orders', 'messages'].map((s) => B_([s], { color: 0x55FFFF })),
+  db: B_(['DATABASE'], { color: 0xFFAA00, size: 0.03 }), sql: B_(['SQL'], { color: 0x55FFFF, size: 0.034 }),
+  rows: B_(['each row = one record'], { color: 0x55FF55 }),
+  ask: B_(['Names of players with', 'more than 10 emeralds?']),
+  smaller: B_(['a new, smaller table'], { color: 0x55FF55 }),
+  how: B_(['You say WHAT.', 'The database picks HOW.'], { color: 0xFFFF55 }),
+  million: B_(['1,000,000 rows'], { color: 0xFFAA00, size: 0.03 }),
+  scan: B_(['FULL SCAN'], { color: 0xFF5555 }),
+  count: ['rows checked: 1', 'rows checked: 2,048', 'rows checked: 310,000', 'rows checked: 1,000,000']
+    .map((s) => B_([s], { color: 0xAAAAAA })),
+  index: B_(['INDEX: a sorted tree'], { color: 0x55FFFF }),
+  find: B_(['find: Ren'], { color: 0xFFFF55 }),
+  jump: ['J-R', 'P-R', 'R'].map((s, k) => B_([`jump ${k + 1}: ${s}`], { color: 0xFFFF55 })),
+  ren: B_(['Ren  25  snowy', '3 jumps, not a million'], { color: 0x55FF55 }),
+  // Steve's chest count, one bubble per stretch: 12, 7 after the loss, 12 again for the retry, 7 in the middle of the
+  // transaction and 12 after the rollback
+  steveCount: [12, 7, 12, 7, 12].map((n) => B_([`Steve: ${n}`], { color: 0xFFFFFF })),
+  alex30: B_(['Alex: 30'], { color: 0xFFFFFF }),
+  steps: B_(['1. take 5 from Steve', '2. give 5 to Alex']),
+  lost: B_(['5 emeralds gone!'], { color: 0xFF5555 }),
+  tx: B_(['TRANSACTION', 'both steps, or neither'], { color: 0xFFAA00 }),
+  rollback: B_(['ROLLBACK', 'nothing lost'], { color: 0x55FF55 }),
+  form: ['', "'", "' OR 1=1", "' OR 1=1 --"].map((s) => B_(['LOGIN', `name: ${s}`, 'password: ...'], { color: 0xFFFF55 })),
+  always: B_(['always true: every row!'], { color: 0xFF5555 }),
+  no: B_(['No user named', "' OR 1=1 --"], { color: 0xFF5555 }),
+};
+// The query: one bubble per clause, normal and lit. Written order first; the database runs FROM, WHERE, SELECT,
+// ORDER BY, LIMIT (the logical order), so SELECT moves from the top to the middle.
+const CLAUSES = ['SELECT name', 'FROM players', 'WHERE emeralds > 10', 'ORDER BY emeralds DESC', 'LIMIT 3'];
+const RUN_SLOT = [2, 0, 1, 3, 4];
+const qNormal = CLAUSES.map((s) => B_([s], { color: 0xFFFFFF, size: 0.021 }));
+const qLit = CLAUSES.map((s) => B_([s], { color: 0xFFFF55, size: 0.021 }));
+// When each clause runs (lit) during lines 6 and 7
+const RUN = [[ev(7, 0.0), ev(7, 0.32)], [ev(6, 0.0), ev(6, 0.38)], [ev(6, 0.4), end(6)], [ev(7, 0.32), ev(7, 0.64)], [ev(7, 0.64), end(7)]];
+// The query of the login form, stacked over the vault lectern
+const inj = {
+  select: B_(['SELECT * FROM users'], { size: 0.021 }),
+  name: B_(["WHERE name = '<your text>'"], { size: 0.021 }),
+  pass: B_(["AND password = '<your text>'"], { size: 0.021 }),
+  bad: B_(["WHERE name = '' OR 1=1 --'"], { color: 0xFF5555, size: 0.021 }),
+  gone: B_(['AND password = ...  (ignored)'], { color: 0x777777, size: 0.021 }),
+  safe: B_(['WHERE name = ? AND password = ?'], { color: 0x55FF55, size: 0.021 }),
+  slot: B_(['value in its own slot:', "' OR 1=1 --"], { color: 0x55FFFF, size: 0.021 }),
+};
+
+// ---------- table, result stand and query ----------
+const CHECK = ROWS.map((_, k) => ev(6, 0.44 + 0.085 * k));
+const PASS = ROWS.map(([, e]) => e > 10);
+function table(t) {
+  const lit = (a, z) => prog(t, a, a + 0.3) * (1 - prog(t, z - 0.3, z));
+  // Column names when the narration names them; the whole header during FROM
+  headGlow.forEach((m, c) => { m.material.opacity = 0.45 * Math.max(lit(ev(2, 0.62 + 0.12 * c), ev(3, 0.0)), lit(ev(6, 0.05), ev(6, 0.38))); });
+  // Line 3: Steve, Alex, then every other row
+  const intro = (k) => (k === 0 ? lit(ev(3, 0.12), ev(3, 0.35)) : k === 1 ? lit(ev(3, 0.3), ev(3, 0.52)) : lit(ev(3, 0.55), ev(3, 0.95)));
+  ROWS.forEach((_, k) => {
+    const checked = prog(t, CHECK[k], CHECK[k] + 0.15) * (1 - prog(t, end(8) - 0.4, end(8)));
+    glows[k].material.opacity = 0.35 * intro(k) + (PASS[k] ? 0.28 * checked : 0);
+    veils[k].material.opacity = PASS[k] ? 0 : 0.55 * checked;
+  });
+  const k = CHECK.findLastIndex((c) => t >= c - 0.1);
+  checker.visible = t >= CHECK[0] - 0.1 && t < end(6);
+  if (checker.visible) checker.position.set(COLS[1], rowY(Math.max(k, 0)), WALL_Z + 0.05);
+  // SELECT: the names of the matching rows fly to the stand; ORDER BY sorts them; LIMIT drops the fourth
+  const sel = RUN[0], ord = RUN[3], lim = RUN[4];
+  cards.forEach((cd, i) => {
+    const t0 = sel[0] + 0.15 + 0.12 * i;
+    const fly = easeInOut(prog(t, t0, t0 + 0.55));
+    const sort = easeInOut(prog(t, ord[0] + 0.1, ord[0] + 0.6));
+    const fall = prog(t, lim[0] + 0.15, lim[0] + 0.8);
+    const drop = SORTED_SLOT[cd.k] === 3 ? fall : 0;
+    cd.c.visible = t >= t0 && t < end(8) && drop < 1;
+    if (!cd.c.visible) return;
+    const from = V(COLS[0], rowY(cd.k), WALL_Z + 0.06);
+    const slot = slotAt(i).lerp(slotAt(SORTED_SLOT[cd.k]), sort);
+    cd.c.position.copy(fly < 1 ? arc(from, slot, fly, 1.2) : slot).add(V(0, -2.5 * drop * drop, 0.3 * drop));
+    cd.c.rotation.set(0.6 * drop, STAND.rotation.y * fly, 0);
+    cd.mat.opacity = 1 - drop;
+    // While sorting, the cards swing out in front of the board so they don't cross each other
+    if (sort > 0 && sort < 1) cd.c.position.add(STAND.localToWorld(V(0, 0, 0.9)).sub(STAND.position).multiplyScalar(Math.sin(Math.PI * sort) * (i % 2 ? 1 : -0.4)));
+  });
+  // The query stack floats over the librarian: written order until line 5, then the order it runs in
+  const reorder = easeInOut(prog(t, ev(5, 0.35), ev(5, 0.85)));
+  const top = lib.g.position.clone().add(V(0, 2.75, 0));
+  const gap = 0.021 * 21 * camera.position.distanceTo(top) / 7;
+  CLAUSES.forEach((_, c) => {
+    const slot = lerp(c, RUN_SLOT[c], reorder);
+    const at = top.clone().add(V(0, (4 - slot) * gap, 0));
+    const a = ev(4, 0.45 + 0.09 * c), z = end(8);
+    const on = t >= RUN[c][0] && t < RUN[c][1];
+    qNormal[c].show(t, a, z, at);
+    qLit[c].show(t, RUN[c][0], RUN[c][1], at);
+    if (on) qNormal[c].visible = false;
+  });
+}
+
+// ---------- index: full scan, then the ride down the tree ----------
+function index(t) {
+  // Full scan: the outline runs over the drawers faster and faster around the scanning librarian
+  const s0 = ev(10, 0.3), s1 = end(10);
+  scanFrame.visible = t >= s0 && t < s1;
+  if (scanFrame.visible) {
+    const x = t - s0, n = Math.floor(3 * x + 6 * x * x);
+    scanFrame.position.set(-13 + (n % 12), bigY(BIG_ROWS - 1 - (Math.floor(n / 12) % BIG_ROWS)), BIG_Z + 0.05);
+  }
+  clock.visible = t >= ev(10, 0.4) && t < s1;
+  clock.position.copy(SCAN_AT).add(V(0, 2.6, 0));
+  clock.material.rotation = -t * 6;
+  // The ride: the cart follows the rails; a jump at each node
+  const d = distanceAt(RIDE_KEYS, t);
+  cart.g.visible = t >= ev(11, 0.2) && t < end(12);
+  cart.place(RIDE, d);
+  const ahead = along(RIDE, d + 0.3).pos.sub(along(RIDE, d).pos);
+  rider.g.visible = cart.g.visible;
+  rider.g.position.copy(cart.g.position).add(V(0, 0.22, 0));
+  rider.g.rotation.y = Math.atan2(ahead.x, ahead.z);
+  rider.walk(0, 0);
+  found.visible = t >= ev(12, 0.62) && t < end(12);
+  found.position.copy(REN_CELL);
+}
+
+// ---------- payment and creeper ----------
+function payment(t) {
+  steveChest.open(Math.max(prog(t, ev(13, 0.45), ev(13, 0.55)) * (1 - prog(t, ev(13, 0.85), ev(13, 0.95))),
+                           prog(t, ev(15, 0.15), ev(15, 0.25)) * (1 - prog(t, ev(15, 0.9), ev(15, 1.0)))));
+  // Run 1 (lines 13-14): five emeralds leave Steve, hover in the middle and the blast takes them
+  // Run 2 (line 15, inside the transaction): they leave again, the blast comes, and they fly back to Steve
+  txGems.forEach((e, k) => {
+    const st = 0.04 * k;
+    const out1 = easeInOut(prog(t, ev(13, 0.55) + st, ev(13, 0.8) + st));
+    const out2 = easeInOut(prog(t, ev(15, 0.25) + st, ev(15, 0.45) + st));
+    const back = easeInOut(prog(t, ev(15, 0.66) + st, ev(15, 0.9) + st));
+    const spot = GEM_MID.clone().add(V((k - 2) * 0.45, 0.15 * Math.sin(t * 3 + k), 0));
+    e.visible = (t >= ev(13, 0.55) && t < BOOM1) || (t >= ev(15, 0.25) && t < ev(15, 0.92) + st);
+    if (t < end(14)) e.position.copy(arc(GEM_S, spot, out1, 1.0));
+    else if (back > 0) e.position.copy(arc(spot, GEM_S, back, 1.0));
+    else e.position.copy(arc(GEM_S, spot, out2, 1.0));
+    e.glow(t >= BOOM2 && back < 1 ? 1 : 0, t);
+  });
+  txBox.visible = t >= ev(15, 0.0) && t < end(15);
+  txBox.userData.mat.opacity = 0.85 * prog(t, ev(15, 0.0), ev(15, 0.12));
+  // The creeper: appears, swells and flashes white, then blows up
+  const boom = [BOOM1, BOOM2].find((b) => t >= b - 1.4 && t < b);
+  creeper.g.visible = boom !== undefined;
+  if (boom !== undefined) {
+    const f = prog(t, boom - 0.9, boom);
+    creeper.g.position.copy(CREEPER_AT);
+    creeper.g.rotation.y = 0.4;
+    creeper.g.scale.set(1 + 0.25 * f, 1 + 0.12 * f, 1 + 0.25 * f);
+    creeper.mat.color.setScalar(f > 0 && Math.floor(t * 8) % 2 === 0 ? 2.4 : 1);
+  }
+  const blast = [BOOM1, BOOM2].map((b) => t - b).find((x) => x >= 0 && x < 1.6);
+  const kf = blast === undefined ? 1 : prog(blast, 0, 0.7);
+  flash.visible = kf < 1;
+  flash.scale.setScalar(2 + 8 * kf);
+  flash.material.opacity = 1 - kf;
+  debris.forEach((m) => {
+    m.visible = blast !== undefined;
+    if (!m.visible) return;
+    const v = m.userData.v;
+    m.position.copy(flash.position).add(V(v.x * blast, v.y * blast - 4.9 * blast * blast, v.z * blast));
+    m.rotation.set(blast * 5, blast * 3, 0);
+  });
+}
+
+// ---------- vault: the login form and the injected query ----------
+function vault(t) {
+  const open = prog(t, ev(17, 0.72), ev(17, 0.9)) * (1 - prog(t, ev(18, 0.0), ev(18, 0.15)));
+  vaultChests.forEach((c, k) => c.open(prog(open, 0.12 * k, 0.12 * k + 0.5)));
+  const top = VA.clone().add(V(1.6, 3.3, -1.0));
+  const gap = 0.021 * 21 * camera.position.distanceTo(top) / 7;
+  const row = (r) => top.clone().add(V(0, -r * gap, 0));
+  inj.select.show(t, ev(16, 0.55), end(18), row(0));
+  inj.name.show(t, ev(16, 0.65), ev(17, 0.45), row(1));
+  inj.pass.show(t, ev(16, 0.72), ev(17, 0.55), row(2));
+  inj.bad.show(t, ev(17, 0.45), ev(18, 0.25), row(1));
+  inj.gone.show(t, ev(17, 0.55), ev(18, 0.25), row(2));
+  inj.safe.show(t, ev(18, 0.25), end(18), row(1));
+  inj.slot.show(t, ev(18, 0.4), end(18), row(2.6));
+}
+
+// ---------- bubbles that are not part of the query ----------
+function bubbles(t) {
+  const over = (p, h = 2.4) => p.g.position.clone().add(V(0, h, 0));
+  bub.jobs.forEach((b, k) => b.show(t, ev(0, 0.45 + 0.17 * k), ev(1, 0.3), jobs[k].position.clone().add(V(0, 0.55, 0))));
+  bub.db.show(t, ev(1, 0.15), ev(2, 0.1), V(0, 6.6, 8));
+  bub.sql.show(t, ev(1, 0.7), ev(2, 0.1), V(0, 7.6, 8));
+  bub.rows.show(t, ev(3, 0.15), end(3), V(4.2, 6.3, 7));
+  bub.ask.show(t, ev(4, 0.1), ev(4, 0.45), over(steve));
+  bub.smaller.show(t, ev(8, 0.15), end(8), STAND.localToWorld(V(0, 4.4, 0)));
+  bub.how.show(t, ev(9, 0.05), end(9), V(0, 7.2, 10));
+  bub.million.show(t, ev(10, 0.1), end(10), V(0, bigY(BIG_ROWS - 1) + 1.2, BIG_Z + 0.5));
+  bub.scan.show(t, ev(10, 0.55), end(10), SCAN_AT.clone().add(V(0, 3.6, 0)));
+  const cs = [0.3, 0.5, 0.7, 0.88].map((f) => ev(10, f));
+  bub.count.forEach((b, k) => b.show(t, cs[k], k < 3 ? cs[k + 1] : end(10), SCAN_AT.clone().add(V(0, 1.6, 1.2))));
+  bub.index.show(t, ev(11, 0.05), ev(11, 0.5), ROOT.clone().add(V(0, 2.2, 0)));
+  bub.find.show(t, ev(11, 0.3), JUMPS[0], cart.g.position.clone().add(V(0, 2.4, 0)));
+  bub.jump.forEach((b, k) => b.show(t, JUMPS[k], k < 2 ? JUMPS[k + 1] : ev(12, 0.62), cart.g.position.clone().add(V(0, 2.4, 0))));
+  bub.ren.show(t, ev(12, 0.62), end(12), REN_CELL.clone().add(V(0, 1.4, 0.4)));
+  const sTop = TX.clone().add(V(-3, 2.9, 0)), aTop = TX.clone().add(V(3, 2.9, 0));
+  const counts = [ev(13, 0.05), ev(13, 0.6), ev(15, 0.0), ev(15, 0.3), ev(15, 0.92), end(15)];
+  bub.steveCount.forEach((b, k) => b.show(t, counts[k], counts[k + 1], sTop));
+  bub.alex30.show(t, ev(13, 0.05), end(15), aTop);
+  bub.steps.show(t, ev(13, 0.3), ev(14, 0.1), TX.clone().add(V(0, 4.0, 0)));
+  bub.lost.show(t, BOOM1 + 0.4, end(14), GEM_MID.clone().add(V(0, 1.1, 0)));
+  bub.tx.show(t, ev(15, 0.05), end(15), TX.clone().add(V(0, 4.0, 0)));
+  bub.rollback.show(t, ev(15, 0.8), end(15), GEM_MID.clone().add(V(0, 1.1, 0)));
+  const typed = [ev(16, 0.5), ev(17, 0.08), ev(17, 0.22), ev(17, 0.36)];
+  bub.form.forEach((b, k) => b.show(t, typed[k], k < 3 ? typed[k + 1] : ev(18, 0.25), login.position.clone().add(V(0, 1.3, 0))));
+  bub.always.show(t, ev(17, 0.72), end(17), VA.clone().add(V(0, 2.2, -2.5)));
+  bub.no.show(t, ev(18, 0.62), end(18), over(keeper, 2.5));
+}
+
+// ---------- people ----------
+function people(t) {
+  moveAlong(steve, STEVE, t);
+  moveAlong(lib, LIB, t);
+  // The librarian looks up and down the rows he checks; Steve looks at the table
+  const k = CHECK.findLastIndex((c) => t >= c - 0.1);
+  lib.look(0, t >= CHECK[0] - 0.1 && t < end(6) ? 0.5 - 0.12 * (5 - Math.max(k, 0)) : 0);
+  steve.look(0, -0.1);
+  // Line 0: the three things the app keeps, over Steve; line 4: the note flies from Steve to the librarian
+  jobs.forEach((it, j) => {
+    const a = ev(0, 0.45 + 0.17 * j);
+    it.visible = t >= a && t < ev(1, 0.3);
+    it.position.copy(steve.g.position).add(V((j - 1) * 0.9, 2.55 + (j === 1 ? 0.3 : 0), 0));
+    it.scale.setScalar(0.6 * Math.max(easeOutBack(prog(t, a, a + 0.35)), 1e-4));
+  });
+  const nf = prog(t, ev(4, 0.12), ev(4, 0.42));
+  note.visible = nf > 0 && nf < 1;
+  note.position.copy(arc(steve.g.position.clone().add(V(0, 1.5, 0)), lib.g.position.clone().add(V(0, 1.5, 0)), easeInOut(nf), 1.0));
+  // The scanning librarian works along the drawers during line 10
+  scanner.g.visible = t >= ev(10, 0.0) && t < end(10);
+  scanner.g.position.copy(SCAN_AT).add(V(1.5 * prog(t, ev(10, 0.3), end(10)), 0, 0));
+  scanner.g.rotation.y = BACK;
+  scanner.walk(t * 9, prog(t, ev(10, 0.3), ev(10, 0.4)));
+  scanner.look(0, -0.4);
+  // The vault keeper behind the lectern, the illusioner at the login sign
+  keeper.g.position.copy(KEEPER_AT);
+  keeper.look(t >= ev(18, 0.62) && t < end(18) ? 0.4 * Math.sin(t * 20) : 0, 0);
+  thief.g.visible = t >= ev(16, 0.3) && t < end(18);
+  thief.g.position.copy(THIEF_AT);
+  thief.g.rotation.y = BACK + 0.5;
+}
+
+// ---------- camera ----------
+const look = (p, q) => pose(p, q);
+const COVER = look(V(0, 3.0, 36), V(0, 2.4, 27));
+const TABLE = look(V(0, 3.0, 24.5), V(0, 2.6, 6.5));
+const QUERY = look(V(2.6, 3.7, 18), V(1.8, 4.6, 8.7));
+const SELECTV = look(V(-1.8, 3.2, 21.5), V(-4.6, 2.2, 9));
+const RESULT = look(V(-2.6, 2.7, 18.2), V(-6.9, 2.0, 12.6));
+const WIDE = look(V(10, 14, 34), V(0, 1, 10));
+const SCAN = look(V(-4, 10, -3), V(-4, 7, BIG_Z));
+const INDEX_TOP = look(V(0, 21, 12), V(0, 0, -13));
+const TXV = look(TX.clone().add(V(0, 3.4, 11)), TX.clone().add(V(0, 1.6, 0)));
+const TXNEAR = look(TX.clone().add(V(2.2, 2.6, 7.5)), CREEPER_AT.clone().add(V(0, 1.2, 0)));
+const VAV = look(VA.clone().add(V(0.6, 3.0, 10.5)), VA.clone().add(V(0, 2.1, -1.5)));
+const AERIAL = look(V(0, 36, 48), V(0, 0, -2));
+const CAM = [
+  [0, COVER],
+  [ev(0, 0.35), () => look(steve.g.position.clone().add(V(4.2, 3.0, 6)), steve.g.position.clone().add(V(0, 2.0, -1))), 1.6],
+  [ev(1, 0.0), () => look(steve.g.position.clone().add(V(1.5, 3.6, 8)), steve.g.position.clone().add(V(0, 2.4, -6))), 1.4],
+  [ev(2, 0.0), TABLE, 1.6],
+  [ev(4, 0.0), QUERY, 1.4],
+  [ev(6, 0.0), TABLE, 1.2],
+  [ev(7, 0.0), SELECTV, 1.0],
+  [ev(7, 0.3), RESULT, 1.0],
+  [ev(9, 0.0), WIDE, 1.6],
+  [ev(10, 0.0), SCAN, 1.6],
+  [ev(11, 0.0), INDEX_TOP, 1.6],
+  [ev(11, 0.5), () => look(cart.g.position.clone().add(V(5, 4.5, 8)), cart.g.position.clone().add(V(0, 0.6, -2))), 1.4],
+  [ev(12, 0.6), look(V(4.5, 2.8, -22.5), REN_CELL), 1.0],
+  [ev(13, 0.0), TXV, 1.6],
+  [ev(14, 0.05), TXNEAR, 1.0],
+  [ev(14, 0.6), TXV, 1.0],
+  [ev(16, 0.0), VAV, 1.6],
+  [ev(19, 0.0), AERIAL, 1.8],
+  [ev(20, 0.0), COVER, Math.min(2.0, subs[20].duration_s * 0.5)],
+];
+
+// ---------- sound cues ----------
+window.sfxCues = [
+  [ev(0, 0.45), 'pop', 0.3], [ev(0, 0.62), 'pop', 0.3], [ev(0, 0.79), 'pop', 0.3], [ev(1, 0.15), 'chestopen', 0.3],
+  [ev(2, 0.62), 'click', 0.3], [ev(2, 0.74), 'click', 0.3], [ev(2, 0.86), 'click', 0.3],
+  [ev(4, 0.12), 'book_put', 0.35], [ev(4, 0.45), 'book_flip1', 0.3], [ev(5, 0.35), 'book_flip2', 0.3],
+  [ev(6, 0.05), 'villager_idle1', 0.3], ...CHECK.map((c, k) => [c, PASS[k] ? 'orb' : 'villager_no1', PASS[k] ? 0.25 : 0.22]),
+  [ev(7, 0.15), 'pop', 0.3], [ev(7, 0.4), 'wood_dig1', 0.3], [ev(7, 0.8), 'break', 0.3], [ev(8, 0.15), 'levelup', 0.25],
+  [ev(10, 0.3), 'stone_step1', 0.3], [ev(10, 0.6), 'stone_step3', 0.3], [ev(11, 0.35), 'minecart_roll', 0.35],
+  ...JUMPS.map((j) => [j, 'click', 0.35]), [ev(12, 0.62), 'challenge', 0.3],
+  [ev(13, 0.45), 'chestopen', 0.3], [ev(13, 0.6), 'orb', 0.25], [BOOM1 - 0.9, 'fuse', 0.45], [BOOM1, 'explode2', 0.5],
+  [ev(15, 0.05), 'toast_in', 0.35], [ev(15, 0.25), 'orb', 0.25], [BOOM2 - 0.9, 'fuse', 0.45], [BOOM2, 'explode3', 0.5],
+  [ev(15, 0.8), 'levelup', 0.3], [ev(15, 0.92), 'chestclosed', 0.3],
+  [ev(16, 0.3), 'illusioner_idle', 0.35], [ev(17, 0.08), 'click', 0.3], [ev(17, 0.22), 'click', 0.3], [ev(17, 0.36), 'click', 0.3],
+  [ev(17, 0.72), 'chestopen', 0.4], [ev(18, 0.05), 'chestclosed', 0.35], [ev(18, 0.62), 'villager_no2', 0.4],
+].map(([s, n, g]) => [Math.round(s * 1000) / 1000, n, g]);
+
+// The cart is placed before the camera (a camera key follows it), so any frame renders alone
+window.renderAt = (t) => {
+  people(t);
+  index(t);
+  payment(t);
+  const cam = cameraAt(CAM, t);
+  world.look(cam.pos, cam.look);
+  camera.updateMatrixWorld();
+  table(t);
+  vault(t);
+  bubbles(t);
+  placeUI(camera);
+  clouds.position.x = 4 * Math.sin(2 * Math.PI * t / TOTAL);
+  life.update(t);
+  world.draw(t, TOTAL, 0, 0);
+};
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

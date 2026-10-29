@@ -1,0 +1,438 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+// "How packets work": Steve sends a photo (the game's 2 x 2 painting "bust") to Alex. It is cut into four packets, one
+// block of the painting each, and every packet rides its own chest minecart across a rail network. Junctions are
+// routers (a cartographer with a routing book). One packet takes the long way and waits in line, one is thrown away at
+// a full station, Alex sorts them by number and asks for the missing one again (TCP). Then the time to live (a cart
+// stuck in a loop), ping and lag. Every event is tied to a narration line of timestamps.json: ev(line, fraction).
+import { THREE, V, prog, easeInOut, easeOutBack, pose } from '/vendor/lib/stage.js';
+import { loadTheme, makeWorld, makeTerrain, makeClouds, makeSign } from '/vendor/tema/mc.js';
+import { loadMobs, planLife, makeLife, setTime } from '/vendor/tema/vida.js';
+import { loadPeople, makeVillager, makePlayer } from '/vendor/tema/gente.js';
+import { makeHome, bubble, makeItem, arc, placeUI, cameraAt, put } from '/vendor/tema/aldea.js';
+import { makeTracks, makeMinecart, makeStation, pathLength, distancesTo, distanceAt, timeAt } from '/vendor/tema/rieles.js';
+
+// ---------- timing ----------
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const TOTAL = subs[subs.length - 1].end_s;
+const ev = (line, f = 0) => subs[line].start_s + f * subs[line].duration_s;
+const end = (line) => subs[line].end_s;
+
+// ---------- world ----------
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'leaves', 'log_side', 'log_top', 'cobble', 'oak_planks',
+  'lectern_front', 'lectern_top', 'rail', 'rail_corner', 'minecart', 'painting_bust', 'painting_back', 'paper', 'barrier',
+  'clock']);
+await loadPeople(imgs, ['villager', 'type_plains', 'prof_cartographer', 'steve', 'alex']);
+const world = makeWorld({ fov: 40, offset: 0, fog: [90, 220] });
+const { scene, camera } = world;
+// mac-13 of MacEntorno, renamed birch-terraces: birches on dirt terraces; the network sits on a leveled lot
+const terrain = await makeTerrain('/vendor/tema/mundos/birch-terraces.json',
+                                  { turn: 0.7854, plot: [-38, 30, -44, 34], clear: [-44, 36, -50, 44] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+const LIFE = [{ kind: 'sheep', count: 3, graze: 1 }, { kind: 'chicken', count: 3 }, { kind: 'cow', count: 2, graze: 1 },
+              { kind: 'wolf', count: 1 }];
+await loadMobs(imgs, LIFE.map((g) => g.kind));
+const light = await setTime(world, 'day', { terrain, clouds, imgs });
+const life = makeLife(imgs, terrain, planLife(terrain, LIFE, { seed: 13, area: [-60, 60, -60, 60], avoid: [[-40, 32, -46, 36]] }),
+                      TOTAL, light);
+scene.add(life.g);
+
+// ---------- the rail network (top view: Steve in front at +z, Alex at the back) ----------
+// Junctions with a router: A (Steve's provider), L and LB on the left way, R on the short way, B (Alex's provider)
+const S = V(0, 0, 22), A = V(0, 0, 8), L = V(-18, 0, -4), LB = V(-18, 0, -18), R = V(8, 0, -6), B = V(0, 0, -24), X = V(0, 0, -34);
+const cAL = V(-18, 0, 8), cAR = V(8, 0, 8), cLB = V(-18, 0, -24), cRB = V(8, 0, -24);
+const W1 = V(-26, 0, -4), W2 = V(-26, 0, -18), EAST = V(28, 0, 8), WEST = V(-36, 0, -18);
+// Steve's track starts a few blocks behind S: the four packets wait there in a row before leaving
+const TRACKS = [[V(0, 0, 27), A], [A, cAL, L], [L, LB], [LB, cLB, B], [A, cAR, R], [R, cRB, B], [B, X], [L, W1, W2, LB],
+                [EAST, cAR], [WEST, W2]];
+scene.add(makeTracks(imgs, TRACKS));
+// Routes the carts follow
+const SHORT = [S, A, cAR, R, cRB, B, X];
+const LONG = [S, A, cAL, L, LB, cLB, B, X];
+const THROUGH = [EAST, cAR, R, cRB, B, cLB, LB, W2, WEST];   // other people's traffic, east to west
+const BACKWARD = [...THROUGH].reverse();
+const LOOP = [cAL, L, W1, W2, LB, L, W1, W2, LB];               // the broken loop: two laps around L and LB
+const d = (pts, p) => distancesTo(pts, p)[0];
+const LEN = (pts) => pathLength(pts);
+
+// ---------- places ----------
+const at = (b, x, z, ry = 0) => { b.g.position.set(x, 0, z); b.g.rotation.y = ry; scene.add(b.g); b.pos = V(x, 0, z); return b; };
+const W = (b, v) => b.g.localToWorld(v.clone());
+const HOME_S = at(makeHome(imgs), -7, 25), HOME_A = at(makeHome(imgs), -5, -36);
+HOME_S.lectern.g.visible = HOME_A.lectern.g.visible = false;
+const ST = { A: at(makeStation(imgs), 4, 13), L: at(makeStation(imgs), -14, -2), LB: at(makeStation(imgs), -14, -16),
+             R: at(makeStation(imgs), 12, -4), B: at(makeStation(imgs), -4, -27) };
+const NODE = { A, L, LB, R, B };
+const ROUTES = {
+  A: ['198.51.100.* -> right', '203.0.113.* -> back', 'anything else -> left'],
+  L: ['198.51.100.* -> back', 'anything else -> front'], LB: ['198.51.100.* -> right', 'anything else -> left'],
+  R: ['198.51.100.* -> back', 'anything else -> left'], B: ['198.51.100.7 -> Alex', 'anything else -> front'],
+};
+for (const [k, s] of Object.entries(ST)) s.lectern.setBook(ROUTES[k]);
+// The sign's text has a fixed size on a 384 px canvas: "HOW PACKETS" doesn't fit on one line
+const cover = makeSign(imgs, ['HOW', 'PACKETS', 'WORK'], { w: 3.4, h: 2.2 });
+cover.position.set(0, 2.2, 29);
+scene.add(cover);
+// It stands between the camera and Steve: it sinks into the ground when the camera leaves the cover and rises again
+// for the last shot, so the video loops
+const COVER_OUT = ev(0, 0.15), COVER_IN = ev(21, 0.8);
+const coverY = (t) => 2.2 - 4.5 * easeInOut(prog(t, COVER_OUT, COVER_OUT + 0.8)) * (1 - easeInOut(prog(t, COVER_IN, COVER_IN + 0.8)));
+
+// ---------- the painting: on Steve's wall, and the empty frame on Alex's wall ----------
+const tileTex = (k, name = 'painting_bust') => {
+  const c = document.createElement('canvas');
+  c.width = c.height = 16;
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  const img = imgs[name], s = img.width / 2;
+  ctx.drawImage(img, (k % 2) * s, Math.floor(k / 2) * s, s, s, 0, 0, 16, 16);
+  const t = new THREE.CanvasTexture(c);
+  t.magFilter = t.minFilter = THREE.NearestFilter;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+};
+// Tile k (0..3 = packets 1..4): 0 top left, 1 top right, 2 bottom left, 3 bottom right
+const wall = (x0, z) => {
+  for (const x of [x0, x0 + 1]) for (let y = 0; y <= 2; y++) put(imgs, scene, 'oak_planks', x, y, z);
+  return (k) => V(x0 + (k % 2), 2.5 - Math.floor(k / 2), z + 0.52);
+};
+const slotS = wall(-4, 20), slotA = wall(3, -38);
+const plane = (map, p) => {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map, transparent: true }));
+  m.position.copy(p);
+  scene.add(m);
+  return m;
+};
+const steveTiles = [0, 1, 2, 3].map((k) => plane(tileTex(k), slotS(k)));
+const emptyA = [0, 1, 2, 3].map((k) => plane(tileTex(k, 'painting_back'), slotA(k).add(V(0, 0, -0.004))));
+const alexTiles = [0, 1, 2, 3].map((k) => plane(tileTex(k), slotA(k)));
+// Flying copies of the four pieces (sprites), and the shelf where Alex's computer keeps them as they arrive
+const piece = [0, 1, 2, 3].map((k) => {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tileTex(k), transparent: true, depthWrite: false }));
+  s.scale.set(0.8, 0.8, 1);
+  s.renderOrder = 24;
+  s.visible = false;
+  scene.add(s);
+  return s;
+});
+const piece3b = piece[2].clone();
+piece3b.material = piece[2].material.clone();
+scene.add(piece3b);
+const SHELF = [0, 1, 2, 3].map((k) => V(1.2 + 1.05 * k, 4.3, -37.2));
+
+// ---------- people ----------
+const STEVE_AT = V(-1.6, 0, 21.2), ALEX_AT = V(1.7, 0, -35.6);
+const steve = makePlayer(imgs, { skin: 'steve' }), alex = makePlayer(imgs, { skin: 'alex' });
+steve.g.position.copy(STEVE_AT);
+steve.g.rotation.y = -2.2;
+alex.g.position.copy(ALEX_AT);
+alex.g.rotation.y = 0.5;
+scene.add(steve.g, alex.g);
+const keeper = {};
+for (const [k, s] of Object.entries(ST)) {
+  keeper[k] = makeVillager(imgs, { profession: 'cartographer', type: 'plains' });
+  keeper[k].g.position.copy(W(s, s.keeper));
+  scene.add(keeper[k].g);
+}
+
+// ---------- carts ----------
+// Packet carts carry a chest; other people's traffic and the looping cart are empty minecarts
+const cart = (chest = true) => { const c = makeMinecart(imgs, { chest }); scene.add(c.g); return c; };
+const P = [cart(), cart(), cart(), cart()], P3b = cart(), PING = cart(false);
+const QR = [V(8, 0, -4.5), V(8, 0, -3), V(8, 0, -1.5)];            // the full line in front of router R
+const SPOT3 = V(8, 0, 0);                                              // where packet 3 stops behind it
+const SPOT2 = V(-18, 0, -13.5);                                          // packet 2 waits its turn at LB
+// Before leaving, packet k waits 1.5 k blocks behind S, so its route starts there
+const WAIT = [0, 1, 2, 3].map((k) => V(0, 0, S.z + 1.5 * k));
+const from = (k, route) => (k ? [WAIT[k], ...route] : route);
+const R1 = from(0, SHORT), R2 = from(1, LONG), R3 = from(2, SHORT), R4 = from(3, SHORT);
+// [route, keys [[time, distance]], shown from, shown until]
+const PACKET = [
+  [R1, [[ev(6, 0.05), 0], [ev(7, 0.1), LEN(R1)]], ev(2, 0.0), ev(7, 0.3)],
+  [R2, [[ev(7, 0.2), 0], [ev(8, 0.15), d(R2, SPOT2)], [ev(10, 0.5), d(R2, SPOT2)], [ev(11, 0.7), LEN(R2)]],
+   ev(2, 0.0), ev(11, 0.85)],
+  [R3, [[ev(8, 0.45), 0], [ev(9, 0.35), d(R3, SPOT3)]], ev(2, 0.0), ev(9, 0.8)],
+  [R4, [[ev(9, 0.85), 0], [ev(11, 0.3), LEN(R4)]], ev(2, 0.0), ev(11, 0.45)],
+];
+const RESEND = [SHORT, [[ev(14, 0.05), 0], [ev(14, 0.6), LEN(SHORT)]], ev(14, 0.0), ev(14, 0.75)];
+// Other people's traffic: the line at R, the cars ahead of packet 2 at LB, and carts crossing the network
+const OTHER = [];
+const other = (route, keys, a, z) => OTHER.push({ c: cart(false), route, keys, a, z });
+const dR = (k) => d(THROUGH, QR[k]);
+// They leave front first and keep their spacing until they fade out past the corner
+QR.forEach((q, k) => other(THROUGH, [[ev(7, 0.6 + 0.1 * k), 0], [ev(8, 0.2 + 0.1 * k), dR(k)], [ev(9, 0.85 + 0.07 * k), dR(k)],
+                                     [ev(10, 0.6 + 0.07 * k), d(THROUGH, cRB) + 4 - 1.5 * k]], ev(7, 0.6 + 0.1 * k), ev(10, 0.6 + 0.07 * k)));
+for (const k of [0, 1]) {
+  const spot = d(BACKWARD, LB) - 1.5 - 1.5 * k;
+  other(BACKWARD, [[ev(7, 0.3 + 0.15 * k), spot - 14], [ev(8, 0.1 + 0.1 * k), spot], [ev(9, 0.6 + 0.4 * k), spot],
+                   [ev(10, 0.3 + 0.2 * k), spot + 18]], ev(7, 0.3 + 0.15 * k), ev(10, 0.3 + 0.2 * k));
+}
+// Crossing traffic in the wide shots: a few carts east to west in each span. One way and one speed, so they keep their
+// spacing (both ways on the same single track, they went through each other head-on)
+const CROSS_V = 0.8 * LEN(THROUGH) / 5.5, CROSS_GAP = 6;
+for (const [a, z] of [[ev(3, 0.0), end(3)], [ev(18, 0.0), end(18)], [ev(21, 0.0), ev(21, 0.85)]]) {
+  for (let k = 0; k < 3; k++) {
+    const t0 = a + k * CROSS_GAP / CROSS_V, t1 = t0 + 5.5;
+    if (t0 + 0.6 < z) other(THROUGH, [[t0, 0], [t1, 0.8 * LEN(THROUGH)]], t0, Math.min(z, t1));
+  }
+}
+// Line 20: a long line at R makes the ping go up
+const LAG = [0, 1, 2, 3, 4, 5].map((k) => ({ c: cart(false), p: V(8, 0, -4.5 + 1.5 * k) }));
+// The looping cart and its time to live
+const TTL_KEYS = [[ev(16, 0.4), 0], [ev(17, 0.85), LEN(LOOP)]];
+const LOOPER = cart(false);
+// Times when it passes L, LB, L, LB: the counter goes 4 -> 3 -> 2 -> 1 -> 0 and the cart is removed at the last one
+const TTL_PASS = [L, LB, L, LB].map((p, k) => timeAt(TTL_KEYS, distancesTo(LOOP, p)[k >> 1]));
+const GONE = TTL_PASS[3] + 0.35;
+const PING_KEYS = [[ev(19, 0.1), 0], [ev(19, 0.5), LEN(SHORT)]];
+
+// Pop-in scale for a cart shown from a until z
+const popScale = (t, a, z) => Math.max(1e-4, Math.min(easeOutBack(prog(t, a, a + 0.35)), 1 - prog(t, z - 0.25, z)));
+function carts(t) {
+  PACKET.forEach(([route, keys, a, z], k) => {
+    const c = P[k];
+    c.g.visible = t >= a && t < z;
+    if (!c.g.visible) return;
+    c.place(route, distanceAt(keys, t));
+    c.g.scale.setScalar(popScale(t, a, z));
+    c.chest.open(prog(t, ev(2, 0.1 + 0.12 * k), ev(2, 0.2 + 0.12 * k)) * (1 - prog(t, ev(2, 0.25 + 0.12 * k), ev(2, 0.32 + 0.12 * k))));
+  });
+  // Packet 3 is thrown away by R: it shrinks and spins
+  if (t >= ev(9, 0.55) && t < ev(9, 0.8)) {
+    P[2].g.scale.setScalar(Math.max(1 - prog(t, ev(9, 0.55), ev(9, 0.8)), 1e-4));
+    P[2].g.rotation.y += 6 * prog(t, ev(9, 0.55), ev(9, 0.8));
+  }
+  {
+    const [route, keys, a, z] = RESEND;
+    P3b.g.visible = t >= a && t < z;
+    P3b.place(route, distanceAt(keys, t));
+    P3b.g.scale.setScalar(popScale(t, a, z));
+  }
+  for (const o of OTHER) {
+    o.c.g.visible = t >= o.a && t < o.z;
+    if (!o.c.g.visible) continue;
+    o.c.place(o.route, distanceAt(o.keys, t));
+    o.c.g.scale.setScalar(popScale(t, o.a, o.z));
+  }
+  LAG.forEach(({ c, p }, k) => {
+    c.g.visible = t >= ev(20, 0.0) && t < end(20);
+    c.g.position.copy(p);
+    c.g.rotation.y = Math.PI / 2;
+    c.g.scale.setScalar(popScale(t, ev(20, 0.05 * k), end(20)));
+  });
+  LOOPER.g.visible = t >= ev(16, 0.2) && t < GONE;
+  LOOPER.place(LOOP, distanceAt(TTL_KEYS, t));
+  LOOPER.g.scale.setScalar(popScale(t, ev(16, 0.2), GONE));
+  PING.g.visible = t >= ev(19, 0.05) && t < ev(19, 0.6);
+  PING.place(SHORT, distanceAt(PING_KEYS, t));
+  PING.g.scale.setScalar(popScale(t, ev(19, 0.05), ev(19, 0.6)));
+}
+
+// ---------- the four pieces: cut, loaded, carried, shelved, sorted ----------
+const arrive = PACKET.map(([route, keys]) => keys[keys.length - 1][0]);   // when each cart reaches Alex (3 never does)
+const ON_SHELF = [0, 2, null, 1];                                          // shelf place by arrival order: 1, 4, 2
+function pieces(t) {
+  // Line 1: the painting splits into four blocks and closes again
+  const gap = 0.12 * Math.sin(Math.PI * prog(t, ev(1, 0.1), ev(1, 0.95)));
+  steveTiles.forEach((m, k) => {
+    m.position.copy(slotS(k)).add(V(((k % 2) - 0.5) * 2 * gap, (0.5 - Math.floor(k / 2)) * 2 * gap, 0));
+  });
+  piece.forEach((s, k) => {
+    s.visible = false;
+    const top = P[k].g.position.clone().add(V(0, 1.15 + 0.08 * Math.sin(t * 4 + k), 0));
+    // Copies fly from the painting into the carts' chests (the painting stays with Steve)
+    const t0 = ev(2, 0.08 + 0.12 * k), t1 = ev(2, 0.22 + 0.12 * k);
+    if (t >= t0 && t < t1) { s.visible = true; s.position.copy(arc(slotS(k), WAIT[k].clone().add(V(0, 0.9, 0)), easeInOut(prog(t, t0, t1)), 1.2)); return; }
+    // Riding: the piece floats over its cart
+    const keys = PACKET[k][1];
+    if (P[k].g.visible && t >= keys[0][0] - 0.01 && (k === 2 ? t < ev(9, 0.55) : t < arrive[k])) {
+      s.visible = true; s.position.copy(top); return;
+    }
+    if (k === 2) return;
+    // Hop to the shelf, then (line 12) to its place in the painting
+    const shelf = SHELF[ON_SHELF[k]], hop = prog(t, arrive[k], arrive[k] + 0.4), sort = prog(t, ev(12, 0.15 + 0.1 * k), ev(12, 0.45 + 0.1 * k));
+    if (t >= arrive[k] && sort < 1 && t < ev(21, 0.9)) {
+      s.visible = true;
+      s.position.copy(sort > 0 ? arc(shelf, slotA(k).add(V(0, 0, 0.1)), easeInOut(sort), 0.8)
+                               : arc(X.clone().add(V(0, 1.15, 0)), shelf, easeInOut(hop), 1.0));
+    }
+  });
+  // The resent piece 3
+  piece3b.visible = false;
+  if (P3b.g.visible && t < ev(14, 0.62)) { piece3b.visible = true; piece3b.position.copy(P3b.g.position).add(V(0, 1.15, 0)); }
+  const land3 = prog(t, ev(14, 0.62), ev(14, 0.82));
+  if (land3 > 0 && land3 < 1) { piece3b.visible = true; piece3b.position.copy(arc(X.clone().add(V(0, 1.15, 0)), slotA(2), easeInOut(land3), 1.0)); }
+  // Alex's wall: a piece shows once it's sorted into place; everything clears for the loop back to the cover
+  const placed = [ev(12, 0.45), ev(12, 0.55), ev(14, 0.82), ev(12, 0.75)];
+  alexTiles.forEach((m, k) => { m.visible = t >= placed[k] && t < ev(21, 0.9); });
+}
+
+// ---------- items ----------
+const paper = makeItem(imgs, 'paper', 0.8), barrier3 = makeItem(imgs, 'barrier', 0.9), barrierSlot = makeItem(imgs, 'barrier', 0.8);
+const clock = makeItem(imgs, 'clock', 0.7), pingPaper = makeItem(imgs, 'paper', 0.6);
+scene.add(paper, barrier3, barrierSlot, clock, pingPaper);
+function items(t) {
+  barrier3.visible = t >= ev(9, 0.8) && t < end(10);
+  barrier3.position.copy(SPOT3).add(V(0, 0.9, 0));
+  barrierSlot.visible = t >= ev(12, 0.8) && t < ev(14, 0.8);
+  barrierSlot.position.copy(slotA(2)).add(V(0, 0, 0.15));
+  // "Send three again" flies from Alex back to Steve over the network
+  const k = prog(t, ev(13, 0.35), ev(13, 0.9));
+  paper.visible = k > 0 && k < 1;
+  paper.position.copy(arc(X.clone().add(V(0, 2, 0)), S.clone().add(V(0, 2, 0)), easeInOut(k), 14));
+  // Ping: a cart goes, the answer comes back, the clock reads the round trip
+  const back = prog(t, ev(19, 0.5), ev(19, 0.8));
+  pingPaper.visible = back > 0 && back < 1;
+  pingPaper.position.copy(arc(X.clone().add(V(0, 2, 0)), S.clone().add(V(0, 2, 0)), easeInOut(back), 10));
+  clock.visible = t >= ev(19, 0.0) && t < end(20);
+  clock.position.copy(STEVE_AT).add(V(0.9, 2.6, 0));
+}
+
+// ---------- bubbles ----------
+const B_ = (lines, opts) => { const b = bubble(lines, opts); scene.add(b); return b; };
+const bub = {
+  send: B_(['Send this photo to Alex'], { color: 0xFFFF55 }),
+  cut: B_(['1 photo = thousands of packets', '(here: 4)'], { color: 0x55FFFF }),
+  label: B_(['packet 2 of 4', 'to: 198.51.100.7', 'from: 203.0.113.5'], { color: 0xFFAA00 }),
+  idea: B_(['The whole way to Alex?', 'No idea.'], { color: 0xFFFFFF }),
+  book: B_(['only the next track'], { color: 0x55FFFF }),
+  longWay: B_(['the long way'], { color: 0xFFAA00 }),
+  wait: B_(['wait your turn'], { color: 0xAAAAAA }), busy: B_(['busy!'], { color: 0xFFAA00 }),
+  full: B_(['Line is full.', 'Thrown away!'], { color: 0xFF5555 }), lost: B_(['packet 3: lost'], { color: 0xFF5555 }),
+  got: B_(['got 1, 4, 2'], { color: 0xFFFF55 }), missing: B_(['missing: 3'], { color: 0xFF5555 }),
+  ask: B_(['Got everything up to 2.', 'Send 3 again!'], { color: 0xFFFF55 }), done: B_(['photo complete'], { color: 0x55FF55 }),
+  tcp: B_(['TCP', 'numbers, order,', 'resend what was lost'], { color: 0x55FFFF, size: 0.03 }),
+  rule: B_(['time to live'], { color: 0xFFAA00 }),
+  ttl: [4, 3, 2, 1, 0].map((n) => B_([`TTL ${n}`], { color: n ? 0xFFAA00 : 0xFF5555 })),
+  removed: B_(['removed'], { color: 0xFF5555 }), clear: B_(['no endless loops'], { color: 0x55FF55 }),
+  ping: B_(['ping: 40 ms'], { color: 0x55FF55 }), lag: B_(['long line = lag', 'ping: 180 ms'], { color: 0xFF5555 }),
+  router: Object.keys(ST).map(() => B_(['router'], { color: 0x55FFFF })),
+  hop: [1, 2, 3].map((n) => B_([`hop ${n}`], { color: 0x55FFFF })),
+  num: [1, 2, 3, 4].map((n) => B_([String(n)], { color: [0xFFFF55, 0xFFAA00, 0xFF5555, 0x55FF55][n - 1], size: 0.03 })),
+  num3b: B_(['3'], { color: 0xFF5555, size: 0.03 }),
+};
+const HOPS = [A, R, B].map((p) => timeAt(PACKET[0][1], d(R1, p)));
+// TTL bubble k (value 4 - k) shows from the pass that set it until just after the next one
+const TTL_SHOW = [0, 1, 2, 3, 4].map((k) => [k ? TTL_PASS[k - 1] : ev(16, 0.45), k < 4 ? TTL_PASS[k] + 0.15 : GONE + 0.3]);
+function bubbles(t) {
+  const over = (p, h = 2.35) => p.g.position.clone().add(V(0, h, 0));
+  bub.send.show(t, ev(0, 0.2), end(0), over(steve));
+  bub.cut.show(t, ev(1, 0.2), end(1), slotS(1).add(V(0, 1.4, 0)));
+  bub.label.show(t, ev(2, 0.6), end(2), V(S.x, 2.6, S.z + 1.5));
+  Object.values(ST).forEach((s, k) => bub.router[k].show(t, ev(3, 0.35 + 0.08 * k), end(3), W(s, V(0, 5.2, -2))));
+  bub.idea.show(t, ev(4, 0.2), end(4), over(keeper.A, 2.5));
+  bub.book.show(t, ev(5, 0.55), end(5), W(ST.A, V(0, 2.4, -1.4)));
+  HOPS.forEach((h, k) => bub.hop[k].show(t, h, h + 1.0, Object.values(NODE)[[0, 3, 4][k]].clone().add(V(0, 2.4, 0))));
+  bub.longWay.show(t, ev(7, 0.45), end(7), over(P[1], 2.0));
+  bub.wait.show(t, ev(8, 0.15), ev(8, 0.6), over(P[1], 2.0));
+  bub.busy.show(t, ev(8, 0.55), end(8), over(keeper.R, 2.5));
+  bub.full.show(t, ev(9, 0.4), end(9), over(keeper.R, 2.5));
+  bub.lost.show(t, ev(10, 0.0), end(10), SPOT3.clone().add(V(0, 2.2, 0)));
+  bub.got.show(t, ev(11, 0.75), end(11), SHELF[1].clone().add(V(0.5, 1.0, 0)));
+  bub.missing.show(t, ev(12, 0.8), end(12), slotA(2).add(V(-1.6, 0, 0.3)));
+  bub.ask.show(t, ev(13, 0.05), ev(13, 0.85), over(alex, 2.4));
+  bub.done.show(t, ev(14, 0.85), end(14), slotA(1).add(V(0.4, 1.3, 0.3)));
+  bub.tcp.show(t, ev(15, 0.1), end(15), slotA(0).add(V(0.5, 2.4, 0.3)));
+  bub.rule.show(t, ev(16, 0.35), end(16), over(LOOPER, 2.6));
+  // TTL value over the looping cart: one less at each station it passes
+  bub.ttl.forEach((b, k) => b.show(t, TTL_SHOW[k][0], TTL_SHOW[k][1], over(LOOPER, 1.7)));
+  bub.removed.show(t, TTL_PASS[3] + 0.2, end(17), LB.clone().add(V(0, 2.6, 0)));
+  bub.clear.show(t, ev(18, 0.3), end(18), V(0, 4, -6));
+  bub.ping.show(t, ev(19, 0.8), end(19), STEVE_AT.clone().add(V(0, 3.4, 0)));
+  bub.lag.show(t, ev(20, 0.3), end(20), V(8, 3.2, -1));
+  // Packet numbers over the carts (while they wait and ride)
+  PACKET.forEach(([, keys, a, z], k) => bub.num[k].show(t, a + 0.2, k === 2 ? ev(9, 0.55) : Math.min(z, arrive[k] + 0.2),
+                                                        P[k].g.position.clone().add(V(0, 1.9, 0))));
+  bub.num3b.show(t, RESEND[2] + 0.2, ev(14, 0.62), P3b.g.position.clone().add(V(0, 1.9, 0)));
+}
+
+function people(t) {
+  // Keepers face the track; the one at R turns to the cart it throws away
+  for (const [k, v] of Object.entries(keeper)) v.look(0.25 * Math.sin(t * 0.7 + k.length), 0.1);
+  if (t >= ev(9, 0.3) && t < end(9)) keeper.R.look(0.5 * Math.sin(t * 18) * prog(t, ev(9, 0.4), ev(9, 0.5)), 0);
+  if (t >= ev(4, 0.3) && t < end(4)) keeper.A.look(0.45 * Math.sin(t * 14), 0);
+  steve.look(t >= ev(19, 0.0) && t < end(19) ? 0.3 : 0, 0.15);
+  alex.look(0, t >= ev(11, 0.0) && t < end(13) ? -0.2 : 0.1);
+}
+
+// ---------- camera ----------
+const look = (p, q) => pose(p, q);
+const COVER = look(V(0, 3.0, 35.5), V(0, 2.3, 27));
+const AERIAL = look(V(-4, 62, 40), V(-4, 0, -8));
+const STEVE_SHOT = look(V(2.5, 3.6, 30.5), V(-1.5, 1.8, 20.5));
+const ALEX_SHOT = look(V(3.5, 4.2, -26), V(3, 2.6, -37));
+const station = (s, dx = 4, dy = 3.4, dz = 7) => look(W(s, V(dx, dy, dz)), W(s, V(0, 1.8, -2)));
+const follow = (getter, dx = 6, dy = 4, dz = 7) => () => { const p = getter(); return look(p.clone().add(V(dx, dy, dz)), p.clone()); };
+const CAM = [
+  [0, COVER],
+  [ev(0, 0.15), STEVE_SHOT, 2.0],
+  [ev(2, 0.55), look(V(3, 3.4, 27.5), V(0, 1.2, 21.5)), 1.2],
+  [ev(3, 0.0), AERIAL, 1.8],
+  [ev(4, 0.0), station(ST.A), 1.6],
+  [ev(5, 0.0), look(W(ST.A, V(1.2, 2.6, 1.0)), W(ST.A, V(0, 1.1, -1.8))), 1.2],
+  [ev(6, 0.0), follow(() => P[0].g.position, 7, 5, 8), 1.4],
+  [ev(7, 0.0), look(V(-6, 34, 26), V(-8, 0, -6)), 1.4],
+  [ev(8, 0.0), look(V(-10, 4.5, -7), SPOT2.clone().add(V(0, 0.6, -2))), 1.2],
+  [ev(8, 0.5), look(V(14, 5, 5), V(8, 0.8, -3)), 1.2],
+  [ev(10, 0.4), look(V(2, 30, 2), V(0, 0, -20)), 1.4],
+  [ev(11, 0.0), ALEX_SHOT, 1.4],
+  [ev(13, 0.3), AERIAL, 1.6],
+  [ev(14, 0.65), ALEX_SHOT, 1.2],
+  [ev(16, 0.0), look(V(-12, 22, 12), V(-22, 0, -11)), 1.6],
+  [ev(18, 0.0), AERIAL, 1.4],
+  [ev(19, 0.0), STEVE_SHOT, 1.2],
+  [ev(19, 0.2), AERIAL, 1.0],
+  [ev(19, 0.75), STEVE_SHOT, 1.0],
+  [ev(20, 0.0), look(V(15, 6, 9), V(8, 0.8, -1)), 1.2],
+  [ev(21, 0.0), AERIAL, 1.4],
+  // Lands on the cover a little before the last frame, so the video loops
+  [ev(21, 0.8), COVER, Math.min(2.2, subs[21].duration_s * 0.2 + subs[22].duration_s - 0.15)],
+];
+
+// ---------- sound cues ----------
+const leave = (keys) => keys[0][0];
+window.sfxCues = [
+  [ev(1, 0.1), 'painting_place', 0.35],
+  ...[0, 1, 2, 3].map((k) => [ev(2, 0.1 + 0.12 * k), 'chestopen', 0.25]),
+  [ev(3, 0.3), 'bell', 0.25], [ev(4, 0.3), 'villager_no1', 0.3], [ev(5, 0.1), 'book_flip1', 0.35],
+  ...PACKET.map(([, keys]) => [leave(keys), 'minecart_roll', 0.3]),
+  ...HOPS.map((h) => [h, 'pop', 0.3]),
+  [ev(8, 0.55), 'villager_idle1', 0.3], [ev(9, 0.45), 'villager_no2', 0.35], [ev(9, 0.6), 'fizz', 0.35],
+  ...[0, 1, 3].map((k) => [arrive[k] + 0.35, 'frame_add', 0.3]),
+  ...[0, 1, 3].map((k) => [ev(12, 0.45 + 0.1 * k), 'painting_place', 0.3]),
+  [ev(12, 0.8), 'villager_no3', 0.3], [ev(13, 0.35), 'book_put', 0.35], [leave(RESEND[1]), 'minecart_roll', 0.3],
+  [ev(14, 0.82), 'painting_place', 0.35], [ev(14, 0.85), 'levelup', 0.3], [ev(16, 0.4), 'minecart_roll', 0.3],
+  ...TTL_PASS.slice(0, 3).map((p) => [p, 'click', 0.35]), [TTL_PASS[3], 'fizz', 0.35],
+  [ev(19, 0.1), 'minecart_roll', 0.3], [ev(19, 0.8), 'orb', 0.3], [ev(20, 0.3), 'villager_no1', 0.3],
+].map(([s, n, g]) => [Math.round(s * 1000) / 1000, n, g]);
+
+window.renderAt = (t) => {
+  people(t);
+  carts(t);
+  pieces(t);
+  items(t);
+  bubbles(t);
+  cover.position.y = coverY(t);
+  const cam = cameraAt(CAM, t);
+  world.look(cam.pos, cam.look);
+  camera.updateMatrixWorld();
+  placeUI(camera);
+  clouds.position.x = 4 * Math.sin(2 * Math.PI * t / TOTAL);
+  life.update(t);
+  world.draw(t, TOTAL, 0, 0);
+};
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>
