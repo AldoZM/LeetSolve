@@ -18,7 +18,7 @@ subtitles:
   - The ad never loads. The same list can block any site you choose, for kids or for your own focus.
   - Second, the dangerous one: spoofing. A fake librarian jumps in with the wrong coordinates.
   - Your bank's name, but a fake bank, full of T N T.
-  - The fix is D N S SEC. Signed names carry an enchanted seal that nobody can forge, so a fake answer gets thrown out.
+  - Here's the fix: D N S SEC. Signed names carry an enchanted seal that nobody can forge, so a fake answer gets thrown out.
   - Third, privacy. Normally your questions travel open, and your internet provider can read every one.
   - Encrypted D N S locks each question in a chest. And with your own resolver, like Unbound, you stop using the provider's librarian and ask the source libraries yourself.
   - Last, speed. google dot com isn't one place. There are copies of it all over the world.

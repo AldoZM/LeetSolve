@@ -143,7 +143,7 @@ scene.add(bub.coords);
 // Names over the buildings for the aerial shots
 const TAGS = [[P, 'PROVIDER', 0xFFFFFF], [R, 'ROOT', 0xFFFF55], [C, '.com', 0xFFFF55], [N, 'ns.google.com', 0xFFFF55],
               [S, 'google.com', 0x55FFFF], [H, 'home', 0xAAAAAA]].map(([b, name, color]) => [b, B_([name], { color })]);
-const AERIALS = [[ev(3, 0.3), end(3)], [ev(13, 0.3), end(13)], [ev(24, 0.15), end(24)]];
+const AERIALS = [[ev(3, 0.3), end(3)], [ev(13, 0.3), end(13)], [ev(24, 0.15), ev(24, 0.65)]];
 bub.coords.renderOrder = 30;
 bub.coords.material.depthTest = false;
 uiSprite(bub.coords);
@@ -378,7 +378,7 @@ const CAM = [
   [ev(21, 0.5), look(V(-4, 40, 36), V(0, 0, -14)), 1.6],
   [ev(22, 0.0), look(V(0, 95, 85), V(0, 0, -6)), 3.0],
   [ev(24, 0.0), look(V(0, 78, 30), V(0, 0, -10)), 2.0],
-  [ev(25, 0.0), COVER, Math.min(2.2, subs[25].duration_s * 0.9)],
+  [ev(24, 0.55), COVER, end(25) - ev(24, 0.55) - 0.3],
 ];
 
 // ---------- sound cues: [seconds, sound, gain] ----------

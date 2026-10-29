@@ -2,6 +2,32 @@
 
 Registro de lo que se hizo en cada sesión, de la más reciente a la más antigua. El cómo trabajar está en `GUIA.md`.
 
+## 2026-10-28 (PC de Windows)
+
+### Línea nueva: shorts de tecnología, todo en 3D
+
+- Aldo quiere explicar cómo funcionan las tecnologías, no solo ejercicios. Le gustan más las partes 3D que las 2D, así que estos shorts son **100 % 3D** y todo se cuenta con Minecraft. Carpeta `videos/tech/`.
+- Prueba de 15 s aprobada ("Se ve muy bien"): `pruebas/dns-3d/`.
+- Luz verde total de Aldo para DNS y luego HTTPS/TLS sin supervisión, con commit y push al terminar cada sección.
+- Piezas nuevas (ver "Videos solo 3D" en `GUIA.md`):
+  - `gente.js`: aldeanos con capas de bioma y oficio, jugadores (Steve, Alex), illagers y el vendedor ambulante. También `moveAlong`.
+  - `aldea.js`: construcciones por código, libros de atril, globos tipo tooltip con `placeUI`, objetos que vuelan y `cameraAt`.
+  - Modo `"solo3d"` en `build.py` y `--cues` en `render.mjs`. Comprobado que el short 02-dfs sale con el mismo audio (MD5 igual).
+  - `extraer.py` copia personajes (`gente/`), bloques, objetos y sonidos nuevos.
+- **Voz madura en esta PC:** venv `.venv-tts` con torch de CPU; `tts_qwen_clone.py` tarda unos 4 minutos por línea. Nuevo `pruebas/voces_demo/check_voice.py`: transcribe cada línea con Whisper y la compara con el guion.
+
+### DNS (`videos/tech/dns`)
+
+- Diseño en `DISENO.md` (revisado por un subagente: se corrigió la exactitud de unbound, DNSSEC y CDN). Lugar nuevo `flower-plain`.
+- 26 líneas, 155.6 s, 27 efectos, Subwoofer Lullaby. Loop: diferencia media 0.52.
+- Voz: ningún silencio de más de 0.45 s; Whisper oye el guion en todas las líneas. En la 19, Whisper no oía el "The" del inicio; con 0.3 s de margen sí estaba (Whisper pierde palabras átonas sin contexto). Aun así se cambió a "Here's the fix: D N S SEC.", que arranca más claro.
+- Correcciones en el camino: globos enormes y cortados (ahora tamaño fijo en pantalla y dentro del cuadro), la toma aérea no mostraba toda la aldea (cámara a 78 de altura y nombres flotantes), sendero enterrado, casa tapando la cámara, destello cuadrado, la barra del TTL orientada con la cámara del cuadro anterior y el final bajando de golpe a la portada.
+
+### HTTPS y TLS (`videos/tech/https-tls`)
+
+- Metáfora: certificado = etiqueta de nombre sellada por un clérigo (la CA); intercambio de llaves = mezclar tintes (amarillo público, rojo y azul secretos, los dos llegan a café); después, cofres cerrados con el café. El candado no prueba que el sitio sea honesto ("myb4nk.com").
+- Lugar nuevo `south-plain`. 21 líneas, 119.7 s. Voz: sin silencios largos; las líneas 7, 15, 19 y 20 parecían sin la primera palabra para Whisper, pero con margen se oyen completas y el inicio no está recortado (medido en los primeros 120 ms).
+
 ## 2026-10-25 (PC de Windows)
 
 - Aldo aprobó la muestra `shorts/02-dfs`.
