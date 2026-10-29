@@ -126,6 +126,7 @@ Secciones (por tema de LeetCode): `arrays-hashing`, `linked-list`, `sliding-wind
 - `pruebas/voces_demo/`: muestras de referencia femeninas diseñadas desde cero con `Qwen3-TTS-12Hz-1.7B-VoiceDesign` (`01_joven_youtuber.mp3`, `02_calida_storyteller.mp3`, `03_clara_directa.mp3`, `04_madura_sensual.mp3`) y los scripts de diseño, clonación y limpieza de silencios.
 - `pruebas/0004-joven-youtuber` y `pruebas/0004-madura-sensual`: pruebas completas del ejercicio #4 (Median of Two Sorted Arrays) con voz clonada en la GPU local (`Qwen3-TTS-12Hz-0.6B-Base`), de 93.12 s y 103.73 s respectivamente.
 - `videos/tech/dns`: **How DNS Works** (155.6 s), el primer short de tecnología, todo en 3D: bibliotecarios de una aldea como servidores DNS, caché con TTL, Pi-hole, suplantación y DNSSEC, DNS cifrado y unbound, CDN.
+- `videos/tech/https-tls`: **How HTTPS Works** (119.7 s), segundo short de tecnología: el saludo de TLS, el certificado como etiqueta de nombre sellada por una CA, el intercambio de llaves mezclando tintes, cofres cerrados y el candado que no prueba honestidad.
 
 Al terminar un video nuevo, agrégalo a esta lista.
 

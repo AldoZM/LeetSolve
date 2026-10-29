@@ -27,6 +27,8 @@ Registro de lo que se hizo en cada sesión, de la más reciente a la más antigu
 
 - Metáfora: certificado = etiqueta de nombre sellada por un clérigo (la CA); intercambio de llaves = mezclar tintes (amarillo público, rojo y azul secretos, los dos llegan a café); después, cofres cerrados con el café. El candado no prueba que el sitio sea honesto ("myb4nk.com").
 - Lugar nuevo `south-plain`. 21 líneas, 119.7 s. Voz: sin silencios largos; las líneas 7, 15, 19 y 20 parecían sin la primera palabra para Whisper, pero con margen se oyen completas y el inicio no está recortado (medido en los primeros 120 ms).
+- 27 efectos, Subwoofer Lullaby. Loop: diferencia media 0.42.
+- Correcciones con la hoja del video: la cabeza de Steve en la portada (ahora empieza detrás de la cámara), la toma inicial lo sigue, cortes directos entre el caldero de Steve y el del banco (la mezcla de cámara pasaba junto al espía) y una toma desde atrás del camino para ver pasar los cofres.
 
 ## 2026-10-25 (PC de Windows)
 
