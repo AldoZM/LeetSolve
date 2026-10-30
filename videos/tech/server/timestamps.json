@@ -1,0 +1,152 @@
+{
+  "total_duration_s": 121.882,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "You tap a button, and somewhere a server gets a note. What happens inside before you get an answer?",
+      "start_s": 0.0,
+      "end_s": 6.527,
+      "duration_s": 6.527
+    },
+    {
+      "index": 1,
+      "text": "That note is a request. It says what you want to do, and to what.",
+      "start_s": 6.527,
+      "end_s": 11.186,
+      "duration_s": 4.659
+    },
+    {
+      "index": 2,
+      "text": "Like this: get, slash players, slash Ren. Get is the verb. The path names the thing.",
+      "start_s": 11.186,
+      "end_s": 17.88,
+      "duration_s": 6.694
+    },
+    {
+      "index": 3,
+      "text": "It can also carry headers, like your name tag, and sometimes a body with data.",
+      "start_s": 17.88,
+      "end_s": 23.006,
+      "duration_s": 5.126
+    },
+    {
+      "index": 4,
+      "text": "Picture the server as a workshop. The note drops into a line of hoppers.",
+      "start_s": 23.006,
+      "end_s": 28.105,
+      "duration_s": 5.099
+    },
+    {
+      "index": 5,
+      "text": "First, the router reads the verb and the path, and sends the note to the right worker.",
+      "start_s": 28.105,
+      "end_s": 33.361,
+      "duration_s": 5.256
+    },
+    {
+      "index": 6,
+      "text": "On the way, it passes checkpoints called middleware.",
+      "start_s": 33.361,
+      "end_s": 36.929,
+      "duration_s": 3.568
+    },
+    {
+      "index": 7,
+      "text": "One checks your name tag. No valid tag, and the note bounces back: four oh one, unauthorized.",
+      "start_s": 36.929,
+      "end_s": 44.106,
+      "duration_s": 7.177
+    },
+    {
+      "index": 8,
+      "text": "Another counts your notes. Too many, too fast, and the golem stops you.",
+      "start_s": 44.106,
+      "end_s": 48.972,
+      "duration_s": 4.867
+    },
+    {
+      "index": 9,
+      "text": "Then the handler, the worker who does the real job. He asks the database for Ren's row.",
+      "start_s": 48.972,
+      "end_s": 55.282,
+      "duration_s": 6.31
+    },
+    {
+      "index": 10,
+      "text": "He writes the answer as jay-son, a simple text format: name Ren, emeralds twenty-five.",
+      "start_s": 55.282,
+      "end_s": 61.352,
+      "duration_s": 6.07
+    },
+    {
+      "index": 11,
+      "text": "He stamps a status code on top, two hundred, OK, and sends it back. Often in a few milliseconds.",
+      "start_s": 61.352,
+      "end_s": 68.55,
+      "duration_s": 7.197
+    },
+    {
+      "index": 12,
+      "text": "Now, rest. It's a common way to design these notes, so apps talk to servers the same way.",
+      "start_s": 68.55,
+      "end_s": 74.866,
+      "duration_s": 6.317
+    },
+    {
+      "index": 13,
+      "text": "Everything is a resource with its own path. Players, orders, messages.",
+      "start_s": 74.866,
+      "end_s": 79.902,
+      "duration_s": 5.036
+    },
+    {
+      "index": 14,
+      "text": "And a few verbs do the work. Get reads. Post creates. Put or patch changes. Delete removes.",
+      "start_s": 79.902,
+      "end_s": 87.33,
+      "duration_s": 7.428
+    },
+    {
+      "index": 15,
+      "text": "Same path, different verb, different job.",
+      "start_s": 87.33,
+      "end_s": 90.431,
+      "duration_s": 3.102
+    },
+    {
+      "index": 16,
+      "text": "The status code says what happened. Two hundred, it worked. Two oh one, created. Four oh four, not found. Five hundred, the server broke.",
+      "start_s": 90.431,
+      "end_s": 101.052,
+      "duration_s": 10.621
+    },
+    {
+      "index": 17,
+      "text": "And the server doesn't remember you between notes. Each request brings everything it needs, name tag included.",
+      "start_s": 101.052,
+      "end_s": 107.788,
+      "duration_s": 6.736
+    },
+    {
+      "index": 18,
+      "text": "That's what lets one server become ten identical ones, and any of them can answer.",
+      "start_s": 107.788,
+      "end_s": 113.27,
+      "duration_s": 5.482
+    },
+    {
+      "index": 19,
+      "text": "So every tap is a note: a verb, a path, a few checkpoints, a worker and a stamped answer.",
+      "start_s": 113.27,
+      "end_s": 119.978,
+      "duration_s": 6.707
+    },
+    {
+      "index": 20,
+      "text": "That's what a server does inside.",
+      "start_s": 119.978,
+      "end_s": 121.882,
+      "duration_s": 1.905
+    }
+  ]
+}

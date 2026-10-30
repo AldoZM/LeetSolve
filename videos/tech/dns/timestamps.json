@@ -1,0 +1,187 @@
+{
+  "total_duration_s": 164.35,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Every time you open a website, your computer asks a question you never see.",
+      "start_s": 0.0,
+      "end_s": 5.411,
+      "duration_s": 5.411
+    },
+    {
+      "index": 1,
+      "text": "Computers don't find each other by name. They use numbers, like coordinates in a Minecraft world.",
+      "start_s": 5.411,
+      "end_s": 11.948,
+      "duration_s": 6.537
+    },
+    {
+      "index": 2,
+      "text": "google dot com is a name for people. Your computer needs something like one-forty-two, dot two-fifty, dot one-ninety, dot forty-six.",
+      "start_s": 11.948,
+      "end_s": 20.556,
+      "duration_s": 8.609
+    },
+    {
+      "index": 3,
+      "text": "Turning names into numbers is the job of D N S, the Domain Name System. Think of it as the village librarians.",
+      "start_s": 20.556,
+      "end_s": 28.045,
+      "duration_s": 7.489
+    },
+    {
+      "index": 4,
+      "text": "Steve wants google dot com, so he asks a librarian called the resolver. Usually, your internet provider runs this one.",
+      "start_s": 28.045,
+      "end_s": 35.623,
+      "duration_s": 7.578
+    },
+    {
+      "index": 5,
+      "text": "First, the librarian checks his notebook. Nothing there yet, so he starts asking around.",
+      "start_s": 35.623,
+      "end_s": 41.789,
+      "duration_s": 6.165
+    },
+    {
+      "index": 6,
+      "text": "He asks the root library. The root doesn't know google, but it knows who runs every dot com.",
+      "start_s": 41.789,
+      "end_s": 48.123,
+      "duration_s": 6.334
+    },
+    {
+      "index": 7,
+      "text": "The dot com library doesn't know the address either, but it knows which library belongs to google.",
+      "start_s": 48.123,
+      "end_s": 54.446,
+      "duration_s": 6.323
+    },
+    {
+      "index": 8,
+      "text": "And google's own library has the real coordinates, written on its lectern.",
+      "start_s": 54.446,
+      "end_s": 59.552,
+      "duration_s": 5.106
+    },
+    {
+      "index": 9,
+      "text": "The answer travels back, and the librarian hands Steve the coordinates.",
+      "start_s": 59.552,
+      "end_s": 64.604,
+      "duration_s": 5.052
+    },
+    {
+      "index": 10,
+      "text": "He also writes them in his notebook, with a timer called the T T L.",
+      "start_s": 64.604,
+      "end_s": 69.528,
+      "duration_s": 4.924
+    },
+    {
+      "index": 11,
+      "text": "So when Alex asks for google dot com a minute later, the answer is instant. No trip at all.",
+      "start_s": 69.528,
+      "end_s": 76.395,
+      "duration_s": 6.867
+    },
+    {
+      "index": 12,
+      "text": "When the timer runs out, the note is erased, so old addresses don't stay forever.",
+      "start_s": 76.395,
+      "end_s": 82.19,
+      "duration_s": 5.796
+    },
+    {
+      "index": 13,
+      "text": "That simple question and answer powers some clever tricks.",
+      "start_s": 82.19,
+      "end_s": 86.166,
+      "duration_s": 3.976
+    },
+    {
+      "index": 14,
+      "text": "First, blocking ads. Ads come from their own names, like ads dot tracker dot com.",
+      "start_s": 86.166,
+      "end_s": 92.01,
+      "duration_s": 5.844
+    },
+    {
+      "index": 15,
+      "text": "A blocker like Pi-hole gives the librarian a blacklist. Ask for an ad, and he sends you to a room of barrier blocks.",
+      "start_s": 92.01,
+      "end_s": 99.421,
+      "duration_s": 7.411
+    },
+    {
+      "index": 16,
+      "text": "The ad never loads. The same list can block any site you choose, for kids or for your own focus.",
+      "start_s": 99.421,
+      "end_s": 106.397,
+      "duration_s": 6.976
+    },
+    {
+      "index": 17,
+      "text": "Second, the dangerous one: spoofing. A fake librarian jumps in with the wrong coordinates.",
+      "start_s": 106.397,
+      "end_s": 112.713,
+      "duration_s": 6.316
+    },
+    {
+      "index": 18,
+      "text": "Your bank's name, but a fake bank, full of T N T.",
+      "start_s": 112.713,
+      "end_s": 116.534,
+      "duration_s": 3.821
+    },
+    {
+      "index": 19,
+      "text": "Here's the fix: D N S SEC. Signed names carry an enchanted seal that nobody can forge, so a fake answer gets thrown out.",
+      "start_s": 116.534,
+      "end_s": 125.834,
+      "duration_s": 9.3
+    },
+    {
+      "index": 20,
+      "text": "Third, privacy. Normally your questions travel open, and your internet provider can read every one.",
+      "start_s": 125.834,
+      "end_s": 132.75,
+      "duration_s": 6.917
+    },
+    {
+      "index": 21,
+      "text": "Encrypted D N S locks each question in a chest. And with your own resolver, like Unbound, you stop using the provider's librarian and ask the source libraries yourself.",
+      "start_s": 132.75,
+      "end_s": 144.347,
+      "duration_s": 11.597
+    },
+    {
+      "index": 22,
+      "text": "Last, speed. google dot com isn't one place. There are copies of it all over the world.",
+      "start_s": 144.347,
+      "end_s": 150.185,
+      "duration_s": 5.837
+    },
+    {
+      "index": 23,
+      "text": "So the librarian points you to the closest copy. That's why it loads fast here and in Tokyo.",
+      "start_s": 150.185,
+      "end_s": 156.673,
+      "duration_s": 6.489
+    },
+    {
+      "index": 24,
+      "text": "So every link you click starts with a librarian, a notebook and a few trips around the village.",
+      "start_s": 156.673,
+      "end_s": 162.673,
+      "duration_s": 6.0
+    },
+    {
+      "index": 25,
+      "text": "That's D N S.",
+      "start_s": 162.673,
+      "end_s": 164.35,
+      "duration_s": 1.677
+    }
+  ]
+}

@@ -1,0 +1,152 @@
+{
+  "total_duration_s": 126.68,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "When you log in to your bank, your password travels through many machines you don't control.",
+      "start_s": 0.0,
+      "end_s": 5.619,
+      "duration_s": 5.619
+    },
+    {
+      "index": 1,
+      "text": "With plain H T T P, it travels like an open book. Anyone along the road can read it.",
+      "start_s": 5.619,
+      "end_s": 11.526,
+      "duration_s": 5.907
+    },
+    {
+      "index": 2,
+      "text": "H T T P S fixes that. It's the same H T T P, wrapped in a protocol called T L S.",
+      "start_s": 11.526,
+      "end_s": 19.001,
+      "duration_s": 7.475
+    },
+    {
+      "index": 3,
+      "text": "T L S gives you three things: privacy, proof that nothing was changed, and proof of who you're talking to.",
+      "start_s": 19.001,
+      "end_s": 26.765,
+      "duration_s": 7.764
+    },
+    {
+      "index": 4,
+      "text": "It starts with a handshake. Steve says hello to the bank, and the bank says hello back.",
+      "start_s": 26.765,
+      "end_s": 32.425,
+      "duration_s": 5.66
+    },
+    {
+      "index": 5,
+      "text": "Then the bank shows its certificate, a name tag that says mybank dot com.",
+      "start_s": 32.425,
+      "end_s": 37.949,
+      "duration_s": 5.524
+    },
+    {
+      "index": 6,
+      "text": "Anyone can write a name tag, so this one is stamped by a certificate authority, a cleric that Steve's browser already trusts.",
+      "start_s": 37.949,
+      "end_s": 46.278,
+      "duration_s": 8.329
+    },
+    {
+      "index": 7,
+      "text": "The bank also proves it holds the secret key that matches the tag. A thief with a copy of the tag can't do that.",
+      "start_s": 46.278,
+      "end_s": 53.382,
+      "duration_s": 7.104
+    },
+    {
+      "index": 8,
+      "text": "Now they need a shared secret, but the road is full of eyes. So they mix colors.",
+      "start_s": 53.382,
+      "end_s": 58.997,
+      "duration_s": 5.615
+    },
+    {
+      "index": 9,
+      "text": "They agree on a public color, yellow. Everyone can see it.",
+      "start_s": 58.997,
+      "end_s": 62.981,
+      "duration_s": 3.984
+    },
+    {
+      "index": 10,
+      "text": "Steve adds his secret red and sends orange. The bank adds its secret blue and sends green.",
+      "start_s": 62.981,
+      "end_s": 69.46,
+      "duration_s": 6.479
+    },
+    {
+      "index": 11,
+      "text": "The spy on the road sees yellow, orange and green. Never red, never blue.",
+      "start_s": 69.46,
+      "end_s": 75.116,
+      "duration_s": 5.656
+    },
+    {
+      "index": 12,
+      "text": "Steve adds his red to the bank's green. The bank adds its blue to Steve's orange.",
+      "start_s": 75.116,
+      "end_s": 80.756,
+      "duration_s": 5.64
+    },
+    {
+      "index": 13,
+      "text": "Both end up with the same brown. The spy can't unmix the paint, so he can't make it.",
+      "start_s": 80.756,
+      "end_s": 86.608,
+      "duration_s": 5.853
+    },
+    {
+      "index": 14,
+      "text": "That brown becomes the key. From now on, every message travels in a chest locked with it.",
+      "start_s": 86.608,
+      "end_s": 93.03,
+      "duration_s": 6.421
+    },
+    {
+      "index": 15,
+      "text": "The spy sees boxes going back and forth, and nothing inside.",
+      "start_s": 93.03,
+      "end_s": 97.441,
+      "duration_s": 4.411
+    },
+    {
+      "index": 16,
+      "text": "And if anyone tampers with a box, the seal breaks and the message is thrown away.",
+      "start_s": 97.441,
+      "end_s": 102.857,
+      "duration_s": 5.416
+    },
+    {
+      "index": 17,
+      "text": "All of that happens in milliseconds, and your browser shows it as a padlock.",
+      "start_s": 102.857,
+      "end_s": 107.42,
+      "duration_s": 4.563
+    },
+    {
+      "index": 18,
+      "text": "But careful. The padlock means the line is private and the name checks out, not that the site is honest.",
+      "start_s": 107.42,
+      "end_s": 113.94,
+      "duration_s": 6.52
+    },
+    {
+      "index": 19,
+      "text": "A fake bank at my b four n k dot com can get a padlock too. So read the name.",
+      "start_s": 113.94,
+      "end_s": 120.294,
+      "duration_s": 6.354
+    },
+    {
+      "index": 20,
+      "text": "That's H T T P S. A handshake, a stamped name tag, some paint, and locked chests all the way.",
+      "start_s": 120.294,
+      "end_s": 126.68,
+      "duration_s": 6.386
+    }
+  ]
+}

@@ -1,0 +1,152 @@
+{
+  "total_duration_s": 122.108,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Every app you use keeps its data somewhere. Your account, your orders, your messages.",
+      "start_s": 0.0,
+      "end_s": 5.651,
+      "duration_s": 5.651
+    },
+    {
+      "index": 1,
+      "text": "Much of it lives in a database, and you talk to it with a language called S Q L.",
+      "start_s": 5.651,
+      "end_s": 11.32,
+      "duration_s": 5.669
+    },
+    {
+      "index": 2,
+      "text": "Picture a storage room. A table is a long shelf. Each column has a sign: name, emeralds, village.",
+      "start_s": 11.32,
+      "end_s": 18.553,
+      "duration_s": 7.233
+    },
+    {
+      "index": 3,
+      "text": "Each row is one record. Steve, Alex, and every other player.",
+      "start_s": 18.553,
+      "end_s": 23.431,
+      "duration_s": 4.878
+    },
+    {
+      "index": 4,
+      "text": "To get data, you write a query, like a note for the librarian: select the names of players with more than ten emeralds.",
+      "start_s": 23.431,
+      "end_s": 30.88,
+      "duration_s": 7.449
+    },
+    {
+      "index": 5,
+      "text": "The database reads it, but not in the order you wrote it.",
+      "start_s": 30.88,
+      "end_s": 34.079,
+      "duration_s": 3.198
+    },
+    {
+      "index": 6,
+      "text": "First, from: find the right shelf. Then where: walk the rows and keep only the ones that match.",
+      "start_s": 34.079,
+      "end_s": 40.056,
+      "duration_s": 5.977
+    },
+    {
+      "index": 7,
+      "text": "Then select keeps just the columns you asked for. Order by sorts them, and limit cuts the list.",
+      "start_s": 40.056,
+      "end_s": 46.43,
+      "duration_s": 6.374
+    },
+    {
+      "index": 8,
+      "text": "The answer comes back as a new, smaller table.",
+      "start_s": 46.43,
+      "end_s": 49.566,
+      "duration_s": 3.136
+    },
+    {
+      "index": 9,
+      "text": "You say what you want, not how to find it. The database decides the how, and that's where the tricks are.",
+      "start_s": 49.566,
+      "end_s": 55.654,
+      "duration_s": 6.088
+    },
+    {
+      "index": 10,
+      "text": "First, speed. With a million players, checking every row takes forever. That's a full scan.",
+      "start_s": 55.654,
+      "end_s": 62.411,
+      "duration_s": 6.758
+    },
+    {
+      "index": 11,
+      "text": "An index is a sorted guide, built like a tree. Each sign tells the librarian which way to go.",
+      "start_s": 62.411,
+      "end_s": 68.164,
+      "duration_s": 5.752
+    },
+    {
+      "index": 12,
+      "text": "A few jumps, and he's at the right row out of a million.",
+      "start_s": 68.164,
+      "end_s": 71.333,
+      "duration_s": 3.17
+    },
+    {
+      "index": 13,
+      "text": "Second, safety. Steve pays Alex five emeralds: take five from Steve, give five to Alex.",
+      "start_s": 71.333,
+      "end_s": 77.898,
+      "duration_s": 6.564
+    },
+    {
+      "index": 14,
+      "text": "But a creeper blows up the room right in the middle. Steve lost his emeralds, and Alex got nothing.",
+      "start_s": 77.898,
+      "end_s": 84.187,
+      "duration_s": 6.289
+    },
+    {
+      "index": 15,
+      "text": "A transaction fixes that. Both steps happen, or neither does. If anything fails, it all rolls back.",
+      "start_s": 84.187,
+      "end_s": 91.037,
+      "duration_s": 6.85
+    },
+    {
+      "index": 16,
+      "text": "Third, the dangerous one: S Q L injection. A bad login form pastes your text straight into the query.",
+      "start_s": 91.037,
+      "end_s": 98.526,
+      "duration_s": 7.489
+    },
+    {
+      "index": 17,
+      "text": "So someone types a quote, then or one equals one, and two dashes to hide the rest. Now the check is always true.",
+      "start_s": 98.526,
+      "end_s": 106.786,
+      "duration_s": 8.261
+    },
+    {
+      "index": 18,
+      "text": "The fix: never paste text into a query. Send it as a value in its own slot, so it can never become a command.",
+      "start_s": 106.786,
+      "end_s": 114.853,
+      "duration_s": 8.067
+    },
+    {
+      "index": 19,
+      "text": "So every time an app remembers you, a librarian is reading a note and walking down a shelf.",
+      "start_s": 114.853,
+      "end_s": 120.759,
+      "duration_s": 5.905
+    },
+    {
+      "index": 20,
+      "text": "That's S Q L.",
+      "start_s": 120.759,
+      "end_s": 122.108,
+      "duration_s": 1.35
+    }
+  ]
+}

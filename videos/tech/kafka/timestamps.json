@@ -1,0 +1,173 @@
+{
+  "total_duration_s": 147.667,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Every big app is full of tiny news. Someone buys a sword. Someone logs in. Someone clicks.",
+      "start_s": 0.0,
+      "end_s": 6.931,
+      "duration_s": 6.931
+    },
+    {
+      "index": 1,
+      "text": "And lots of programs want that news. The shop, the email sender, the stats page.",
+      "start_s": 6.931,
+      "end_s": 12.794,
+      "duration_s": 5.863
+    },
+    {
+      "index": 2,
+      "text": "If every program called every other program directly, you'd get this. A tangle nobody can fix.",
+      "start_s": 12.794,
+      "end_s": 19.474,
+      "duration_s": 6.679
+    },
+    {
+      "index": 3,
+      "text": "Kafka puts a library in the middle. Programs drop news in, and other programs read it out.",
+      "start_s": 19.474,
+      "end_s": 25.154,
+      "duration_s": 5.681
+    },
+    {
+      "index": 4,
+      "text": "Each piece of news is an event, written in a book. A program that writes them is a producer.",
+      "start_s": 25.154,
+      "end_s": 30.948,
+      "duration_s": 5.794
+    },
+    {
+      "index": 5,
+      "text": "Books go to the end of a shelf, numbered in order. And here's the twist. Reading a book doesn't remove it.",
+      "start_s": 30.948,
+      "end_s": 37.434,
+      "duration_s": 6.486
+    },
+    {
+      "index": 6,
+      "text": "A program that reads is a consumer. Each one keeps a bookmark, called the offset, so it knows where it left off.",
+      "start_s": 37.434,
+      "end_s": 44.168,
+      "duration_s": 6.734
+    },
+    {
+      "index": 7,
+      "text": "The email sender is on book five. The stats page is still on book two. Neither one slows the other down.",
+      "start_s": 44.168,
+      "end_s": 52.039,
+      "duration_s": 7.871
+    },
+    {
+      "index": 8,
+      "text": "News about one subject goes in a topic. This aisle is the topic called purchases.",
+      "start_s": 52.039,
+      "end_s": 57.52,
+      "duration_s": 5.481
+    },
+    {
+      "index": 9,
+      "text": "One shelf would be too slow, so a topic is split into shelves, called partitions.",
+      "start_s": 57.52,
+      "end_s": 63.392,
+      "duration_s": 5.872
+    },
+    {
+      "index": 10,
+      "text": "The player's name picks the shelf. All of Steve's books land on the same one, so his purchases stay in order.",
+      "start_s": 63.392,
+      "end_s": 70.88,
+      "duration_s": 7.488
+    },
+    {
+      "index": 11,
+      "text": "But order is only promised inside a shelf, not across the whole aisle.",
+      "start_s": 70.88,
+      "end_s": 75.756,
+      "duration_s": 4.877
+    },
+    {
+      "index": 12,
+      "text": "To read faster, consumers team up in a group. Each shelf goes to just one reader of the group.",
+      "start_s": 75.756,
+      "end_s": 81.734,
+      "duration_s": 5.978
+    },
+    {
+      "index": 13,
+      "text": "Each library is a server, called a broker. Every shelf has copies in other brokers, called replicas.",
+      "start_s": 81.734,
+      "end_s": 88.019,
+      "duration_s": 6.285
+    },
+    {
+      "index": 14,
+      "text": "If one library burns down, a copy takes over, and the books are still there.",
+      "start_s": 88.019,
+      "end_s": 93.75,
+      "duration_s": 5.732
+    },
+    {
+      "index": 15,
+      "text": "Books don't stay forever, though. After a set time, often seven days, the oldest ones are cleared.",
+      "start_s": 93.75,
+      "end_s": 100.281,
+      "duration_s": 6.53
+    },
+    {
+      "index": 16,
+      "text": "So what do people use it for?",
+      "start_s": 100.281,
+      "end_s": 102.241,
+      "duration_s": 1.96
+    },
+    {
+      "index": 17,
+      "text": "First, one event, many readers. Steve buys a sword, and the stock, the receipt and the stats all react. The shop doesn't even know they exist.",
+      "start_s": 102.241,
+      "end_s": 110.863,
+      "duration_s": 8.622
+    },
+    {
+      "index": 18,
+      "text": "Second, rush hour. On Black Friday, books arrive faster than anyone can read them. The library keeps them, and the readers catch up.",
+      "start_s": 110.863,
+      "end_s": 120.106,
+      "duration_s": 9.242
+    },
+    {
+      "index": 19,
+      "text": "Third, a time machine. A brand new program can start at the oldest book on the shelf and read the whole history.",
+      "start_s": 120.106,
+      "end_s": 127.14,
+      "duration_s": 7.035
+    },
+    {
+      "index": 20,
+      "text": "Fourth, live tracking. A taxi sends its location every few seconds, and the map on your phone moves right away.",
+      "start_s": 127.14,
+      "end_s": 135.302,
+      "duration_s": 8.162
+    },
+    {
+      "index": 21,
+      "text": "Kafka was born at LinkedIn, and now it runs inside most of the world's biggest companies.",
+      "start_s": 135.302,
+      "end_s": 141.085,
+      "duration_s": 5.783
+    },
+    {
+      "index": 22,
+      "text": "A library in the middle, books that stay, and a bookmark for every reader.",
+      "start_s": 141.085,
+      "end_s": 146.323,
+      "duration_s": 5.238
+    },
+    {
+      "index": 23,
+      "text": "That's Kafka.",
+      "start_s": 146.323,
+      "end_s": 147.667,
+      "duration_s": 1.344
+    }
+  ]
+}
