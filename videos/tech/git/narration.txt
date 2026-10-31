@@ -1,0 +1,23 @@
+subtitles:
+  - You spend all day building a house. One wrong move, and the roof is gone. Can you get the old one back?
+  - With Git, you can. Git is a time machine for your project. Here's how it really works.
+  - When you save with Git, it takes a snapshot of the whole house. That snapshot is called a commit.
+  - But first you choose what goes in. Changed blocks go into a chest, called the staging area. That's git add.
+  - Then git commit turns the chest into a little model of the house, with a note saying what changed.
+  - Each new model is tied to the one before it. Together, the commits are a history you can walk back.
+  - Blocks that didn't change aren't saved twice. The new model just points to the old ones, so history stays small.
+  - Every commit gets a name made from its content, like a one f three. Change one block, and the name changes.
+  - Now, branches. A branch is just a banner standing on a commit. This one is called main.
+  - When you commit, the banner moves up to the new model. That's all a branch is. A label that moves.
+  - Want to try a crazy roof without risking the house? Make a branch called roof, and switch to it.
+  - Steve stands where he's working. Git calls that HEAD. Switch branches, and the real house changes to match.
+  - The new roof works. Time to merge. Git makes a new model with two parents, main and roof.
+  - If both branches changed the same block, Git won't guess. That's a conflict, and you pick which one stays.
+  - So far, all of this lives in Steve's house. That's his local repository.
+  - The bell square is the remote, like GitHub. It holds a shared copy everyone can see.
+  - git push carries Steve's new commits to the square, and the main banner there moves up.
+  - Alex doesn't have them yet. git pull brings the new models to her house and moves her banner too.
+  - But if Alex pushed first, Steve's push is rejected. He pulls her work, merges, and then pushes again.
+  - That's how a whole team builds the same village without wiping out each other's work.
+  - A chain of snapshots, banners that move, and a square everyone shares.
+  - That's Git.

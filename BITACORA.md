@@ -2,6 +2,60 @@
 
 Registro de lo que se hizo en cada sesión, de la más reciente a la más antigua. El cómo trabajar está en `GUIA.md`.
 
+## 2026-10-31 (Mac): short de Git, lugar real, shaders y muestra
+
+- Aldo pidió un short de tecnología sobre **Git**: por dentro + uso diario, con la metáfora de maquetas de la casa. Diseño aprobado en `videos/tech/git/DISENO.md`.
+- **Aldea real:** Aldo pidió usar una aldea del mundo. No había ninguna generada en ClaudeEntorno ni en MacEntorno; Aldo usó `/locate` y fue a una de sabana en MacEntorno (−1472, 864). Exportada como `mundos/savanna-village.json` (radio 80) y anotada en `lugares.json`.
+- **`mundo.py`:**
+  - `--bioma savanna`, con texturas teñidas con sufijo para no pisar las de llanura.
+  - `retexture` para rehacer `mundos/tex/` en otra PC.
+  - Escaleras, losas y cercas con la textura de su material y su forma.
+  - La madera usa la corteza del tronco, el trigo su etapa y los estandartes no se dibujan.
+  - Los lugares viejos no cambian.
+- **`mc.js`:**
+  - Forma de losas, escaleras y cercas.
+  - **Iluminación tipo shaders** opcional (`makeWorld({ shaders: true })`, elegida por Aldo entre tres versiones): oclusión por esquina horneada, sol con sombras y tone mapping.
+  - `makeTerrain` acepta `data`.
+  - `faceMatsFor` exportada.
+  - Sin la opción, los cuadros del #3644 salen idénticos byte por byte.
+- **Animaciones del juego (regla de Aldo):** nuevo `objetos.js`. Tiene el estandarte con su vaivén de 100 ticks, la rienda (`LeashRenderer`), el nudo, el poste de cerca, el objeto tirado que flota y gira, las grietas con la mezcla del juego, el brazo de Steve al colocar y el "no" del aldeano. Assets nuevos en `extraer.py`.
+- `render.mjs --start` renderiza un tramo (para muestras).
+- **Muestra para luz verde:** `videos/tech/git/muestra/Git muestra.mp4`, líneas 2 a 9 (commit, staging, maquetas, riendas, bloques que no se repiten, nombre del commit, estandarte `main` que avanza). Son 62.8 s con tiempos provisionales, sin voz, con 30 sonidos y Subwoofer Lullaby. 1884 cuadros en 90 s.
+- En esta Mac se corrió `extraer.py 26.3`: faltaban los assets de los shorts de tecnología que se hicieron en Windows.
+- **Aldo aprobó la muestra (🟢).** Se completó la página con las 22 líneas:
+  - La casa de Steve sale del terreno y se dibuja por estados (S1 a S9), para poder cambiarla.
+  - Gancho: Steve rompe el techo con las grietas del juego y lo regresa con `git restore`.
+  - Ramas: estandarte naranja `roof`, techo de lana roja, HEAD, `switch`, la lámpara en `main`, el merge con dos riendas y el conflicto en la punta del techo.
+  - Remoto: el mismo acomodo en la plaza (−10, −18) y en el patio de Alex (−30, −13). Las copias vuelan entre las tres; el push rechazado rebota y el aldeano dice que no.
+  - Loop: en la última línea todo vuelve al estado del cuadro 0 detrás de la portada (diferencia 0.003).
+  - Cuadros revisados y corregidos: cámaras dentro de un árbol (se usa `clear`), letreros fuera de cuadro, globos encimados con las etiquetas de los estandartes y portada que llegaba tarde.
+- **Voz:** 22 líneas, 131.75 s. Whisper `small.en` con margen confirmó las líneas 13 y 15 (`base.en` oía "it" y perdía "The"). En la 20, "Snapshots" al inicio salía "Step shots" en tres tomas; se cambió a "A chain of snapshots…" (anotado en GUIA).
+- **Parte 2 (`videos/tech/git-workflow`):** AGY escribió el diseño (`videos/tech/git/DisenoShort.md`).
+  - Claude propuso cinco correcciones y Aldo las aprobó. AGY reescribió su diseño mientras tanto (agregó reflog y rebase y ya corrigió tres de ellas); se construye esa versión con dos ajustes (reset con push forzado, reflog "local").
+  - Escritos `narration.txt` (23 líneas), `video.json`, `descripcion.txt` (96) y `three/git2.html` completo con tiempos provisionales, todavía sin probar.
+  - Assets nuevos en `extraer.py`: escalera y cofre de Ender. `mundos/tex/fire.png` es el primer cuadro del fuego.
+- **Localizador de mapas de AGY:** copiado de `~/minecraft_tools` a `herramientas/mapas/`. Se le quitaron las rutas con el usuario y ahora busca el juego en Windows, Mac o Linux. Sección nueva en GUIA ("Lugares del mundo").
+- **Parte 1, render:**
+  - Primer render completo: 131.77 s (audio 131.75), 87 efectos, Subwoofer Lullaby y 151 bloques de subtítulos (23 movidos para esquivar globos). Revisado con 66 cuadros (20, 55 y 90 % de cada línea).
+  - Único error encontrado: al ir a la plaza (línea 15), la cámara atravesaba el techo de la casa de Steve. Se agregó una llave alta en (−2, 16, 6) y se revisó en cuadros sueltos.
+  - El segundo render con ese arreglo se estaba haciendo cuando Aldo pidió cerrar la sesión: no quedó revisado.
+- **Cámara suave (pedido de Aldo para la Parte 2):** nuevo `smoothCamera` en `aldea.js` (recorrido de `cameraAt` difuminado en el tiempo y con un vaivén lento). La Parte 2 ya lo usa. Detalles en GUIA.
+- **Falta (Aldo pidió commit y push para renderizar en otro momento):**
+  - **Parte 1:** si en `videos/tech/git` no hay un `video.mp4` más nuevo que el arreglo de la línea 15, correr `python ../../../herramientas/build.py`. Después revisar el paso a la plaza (líneas 14 y 15), renombrar a `How Git Works.mp4` y copiarlo a `export/` con su descripción.
+  - **Parte 2 (`videos/tech/git-workflow`):** `three/git2.html` todavía no se ha probado ni una vez. Pasos:
+    1. Cuadros fijos con el `three/timestamps.json` provisional (157.6 s) y corregir.
+    2. Voz: `tts_qwen_clone.py videos/tech/git-workflow`, unos 22 minutos.
+    3. Revisar con Whisper `small.en` y margen.
+    4. Borrar `three/timestamps.json`.
+    5. `palabras.py`; `"ocultar"` de los subtítulos donde sube la portada.
+    6. Render, revisar con hojas de cuadros, renombrar a `How Teams Really Use Git.mp4` y copiar a `export/`.
+  - En otra PC:
+    - `voiceover.mp3` y `.tts-cache/` no se suben, así que la voz de la Parte 1 se tendría que regenerar (las tomas y los tiempos cambian).
+    - Las texturas extra de `mundos/tex/` (`glass`, `red_wool`, `glowstone`, `bricks`, `gold_block` y `fire`) se copian con `block_textures`. `fire` es el primer cuadro de `tex/fire.png`.
+  - Líneas 0 y 1 (el techo roto) y 10 a 21 (ramas, merge, conflicto, remoto en la plaza de la campana, push rechazado).
+  - Voz, subtítulos, render final y revisión.
+  - `three/timestamps.json` es provisional y hay que borrarlo antes del render final.
+
 ## 2026-10-29 (tarde, PC de Windows): subtítulos y arreglo del audio
 
 - Aldo pidió subtítulos como los de un short de referencia (bloques cortos con rebote, palabras clave en color, contorno negro), pero con la fuente de Minecraft, y que revisara el audio porque notaba un error.

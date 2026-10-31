@@ -48,6 +48,13 @@ BLOCKS = {  # output name -> texture inside the jar
     'fire': 'block/fire_0',
     # Kafka (videos/tech/kafka): the sword Steve buys, the event of the shop
     'iron_sword': 'item/iron_sword',
+    # Git (videos/tech/git): banners (branches), leads between fence posts (history), block cracks, pedestals, glass
+    'banner_base': 'entity/banner/banner_base', 'banner_pattern_base': 'entity/banner/base',
+    'lead_knot': 'entity/lead_knot/lead_knot',
+    **{f'destroy_stage_{i}': f'block/destroy_stage_{i}' for i in range(10)},
+    **{n: f'block/{n}' for n in ('polished_andesite', 'acacia_planks', 'acacia_log', 'acacia_log_top', 'yellow_terracotta')},
+    # Git, part 2 (videos/tech/git-workflow): the temporary ladder (.gitignore) and the stash box (ender chest atlas)
+    'ladder': 'block/ladder', 'ender_atlas': 'entity/chest/ender',
 }
 GUI = {
     'generic_54': 'gui/container/generic_54', 'hotbar': 'gui/sprites/hud/hotbar',

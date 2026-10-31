@@ -143,14 +143,15 @@ AIR = {'air', 'cave_air', 'void_air'}
 SEE_THROUGH = ('leaves', 'glass', 'grass', 'fern', 'flower', 'poppy', 'dandelion', 'tulip', 'orchid', 'allium', 'bluet',
                'daisy', 'cornflower', 'lily', 'water', 'snow', 'vine', 'sapling', 'bush', 'dead_bush', 'sugar_cane',
                'kelp', 'seagrass', 'torch', 'mushroom', 'rose', 'peony', 'lilac', 'sunflower', 'petals', 'leaf_litter',
-               'firefly', 'cactus', 'pumpkin', 'melon', 'carpet', 'moss_carpet', 'bamboo', 'berry')
+               'firefly', 'cactus', 'pumpkin', 'melon', 'carpet', 'moss_carpet', 'bamboo', 'berry',
+               'stairs', 'slab', 'fence', 'door', 'pane', 'banner', 'wheat', 'bed', 'bell', 'lantern')
 
 
 def see_through(name):
     return name in AIR or any(w in name for w in SEE_THROUGH)
 
 
-def export(world, X, Y, Z, R, out, depth=40):
+def export(world, X, Y, Z, R, out, depth=40, bioma=None):
     # All blocks of the columns around (X, Z) from Y + 48 down to Y - depth, keeping only the ones touching air
     y0, y1 = Y - depth, Y + 48
     grid = {}
@@ -188,9 +189,12 @@ def export(world, X, Y, Z, R, out, depth=40):
                 vis.append([x - X, y - Y, z - Z, name])
                 break
     names = sorted({v[3] for v in vis})
-    looks = block_textures(names, os.path.join(os.path.dirname(os.path.abspath(out)), 'tex'))
-    json.dump({'center': [X, Y, Z], 'radius': R, 'names': names, 'looks': looks,
-               'blocks': [[x, y, z, names.index(n)] for x, y, z, n in vis]}, open(out, 'w'))
+    looks = block_textures(names, os.path.join(os.path.dirname(os.path.abspath(out)), 'tex'), bioma)
+    data = {'center': [X, Y, Z], 'radius': R, 'names': names, 'looks': looks,
+            'blocks': [[x, y, z, names.index(n)] for x, y, z, n in vis]}
+    if bioma:
+        data['bioma'] = bioma
+    json.dump(data, open(out, 'w'))
     counts = {}
     for v in vis:
         counts[v[3]] = counts.get(v[3], 0) + 1
@@ -205,10 +209,15 @@ CROSS = ('short_grass', 'tall_grass', 'fern', 'bush', 'dandelion', 'poppy', 'cor
          'allium', 'tulip', 'orchid', 'lily_of_the_valley', 'sapling', 'dead_bush', 'sugar_cane', 'sweet_berry', 'mushroom',
          'firefly_bush', 'pink_petals', 'wildflowers', 'leaf_litter')
 TINTED_PLANTS = ('short_grass', 'tall_grass', 'fern', 'bush', 'sugar_cane')
+# Grass and foliage colors of other biomes (the game's values). Without a biome, the plains colors above are used.
+# Their tinted textures get a "_<biome>" suffix so they never overwrite the plains ones other places use.
+BIOMES = {'savanna': {'grass': (191, 183, 85), 'foliage': (174, 164, 42)}}
 
 
-def block_textures(names, out_dir):
+def block_textures(names, out_dir, bioma=None):
     # Copies the textures each block needs from the newest game jar; returns name -> {kind, top, side, bottom}
+    grass, foliage = (BIOMES[bioma]['grass'], BIOMES[bioma]['foliage']) if bioma else (GRASS_TINT, FOLIAGE_TINT)
+    suffix = '_' + bioma if bioma else ''
     from PIL import Image, ImageChops
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import extraer
@@ -234,10 +243,11 @@ def block_textures(names, out_dir):
         # 26.3 leaves out properties at their default value, and the default half is the lower one
         lower = 'half=upper' not in full
         if base == 'grass_block':
-            top = save('grass_block_top', extraer.tint(get('grass_block_top'), GRASS_TINT))
+            top = save('grass_block_top' + suffix, extraer.tint(get('grass_block_top'), grass))
             side = get('grass_block_side')
-            side.alpha_composite(extraer.tint(get('grass_block_side_overlay'), GRASS_TINT))
-            looks[full] = {'kind': 'cube', 'top': top, 'side': save('grass_block_side', side), 'bottom': save('dirt', get('dirt'))}
+            side.alpha_composite(extraer.tint(get('grass_block_side_overlay'), grass))
+            looks[full] = {'kind': 'cube', 'top': top, 'side': save('grass_block_side' + suffix, side),
+                           'bottom': save('dirt', get('dirt'))}
         elif base == 'leaf_litter':
             # A flat layer on the ground, colored like dry foliage (a gray cross without it)
             looks[full] = {'kind': 'flat', 'top': save('leaf_litter', extraer.tint(get('leaf_litter'), DRY_FOLIAGE_TINT))}
@@ -249,18 +259,36 @@ def block_textures(names, out_dir):
                 name = 'tall_grass_bottom' if lower else 'tall_grass_top'
             img = get(name) or get(base + ('_bottom' if lower else '_top')) or get('short_grass')
             if base.startswith(TINTED_PLANTS):
-                img = extraer.tint(img, GRASS_TINT)
+                img = extraer.tint(img, grass)
+                name += suffix
             looks[full] = {'kind': 'cross', 'side': save(name, img)}
+        elif base.endswith('_wood') and get(base) is None:
+            # "Wood" blocks have the log's bark on all six faces (the jar has no texture of their own)
+            bark = base[:-len('_wood')] + '_log'
+            looks[full] = {'kind': 'cube', 'side': save(bark, get(bark))}
         elif base.endswith('_log') or base.endswith('_wood'):
             looks[full] = {'kind': 'cube', 'axis': full.split('axis=')[1][0] if 'axis=' in full else 'y',
                            'top': save(base + '_top', get(base + '_top') or get(base)), 'side': save(base, get(base))}
         elif base.endswith('leaves'):
-            img = get(base)
+            img, key = get(base), base
             if base in ('oak_leaves', 'jungle_leaves', 'acacia_leaves', 'dark_oak_leaves', 'mangrove_leaves'):
-                img = extraer.tint(img, FOLIAGE_TINT)
+                img, key = extraer.tint(img, foliage), base + suffix
             elif base in FIXED_LEAF_TINT:
                 img = extraer.tint(img, FIXED_LEAF_TINT[base])
-            looks[full] = {'kind': 'cube', 'side': save(base, img), 'cutout': True}
+            looks[full] = {'kind': 'cube', 'side': save(key, img), 'cutout': True}
+        elif base == 'wheat':
+            # Crops are crosses; the texture follows the growth stage
+            stage = full.split('age=')[1][0] if 'age=' in full else '0'
+            looks[full] = {'kind': 'cross', 'side': save(f'wheat_stage{stage}', get(f'wheat_stage{stage}'))}
+        elif base.endswith('_banner'):
+            looks[full] = {'kind': 'skip'}  # banners need their pattern; not drawn
+        elif base.endswith(('_stairs', '_slab', '_fence')) and get(base) is None:
+            # Shaped blocks use their material's texture: acacia_stairs -> acacia_planks, stone_brick_slab -> stone_bricks
+            shape = base.rsplit('_', 1)[1]
+            mat = base[:-len(shape) - 1]
+            key = next((k for k in (mat + '_planks', mat, mat + 's', mat.replace('brick', 'bricks')) if get(k)), 'stone')
+            props = dict(p.split('=') for p in full.split('[')[1].rstrip(']').split(',')) if '[' in full else {}
+            looks[full] = {'kind': shape, 'side': save(key, get(key)), 'props': props}
         else:
             img = get(base) or get(base + '_side') or get('stone')
             top = get(base + '_top')
@@ -268,6 +296,19 @@ def block_textures(names, out_dir):
             if top:
                 looks[full]['top'] = save(base + '_top', top)
     return looks
+
+
+def retexture(mundos_dir):
+    # Rebuilds mundos/tex/ for every exported place from the game jar, each one with its own biome colors
+    import glob
+    groups = {}
+    for f in glob.glob(os.path.join(mundos_dir, '*.json')):
+        d = json.load(open(f, encoding='utf8'))
+        if isinstance(d, dict) and 'names' in d:
+            groups.setdefault(d.get('bioma'), set()).update(d['names'])
+    for bioma, names in groups.items():
+        block_textures(sorted(names), os.path.join(mundos_dir, 'tex'), bioma)
+        print(bioma or 'plains', len(names), 'blocks')
 
 
 def info(world):
@@ -290,8 +331,12 @@ def info(world):
 
 if __name__ == '__main__':
     cmd, world = sys.argv[1], sys.argv[2]
-    if cmd == 'info':
+    if cmd == 'retexture':
+        retexture(world)  # here the argument is the mundos/ folder
+    elif cmd == 'info':
         info(world)
     else:
+        # export <world> X Y Z R out.json [--bioma savanna]
         X, Y, Z, R = map(int, sys.argv[3:7])
-        export(world, X, Y, Z, R, sys.argv[7])
+        bioma = sys.argv[sys.argv.index('--bioma') + 1] if '--bioma' in sys.argv else None
+        export(world, X, Y, Z, R, sys.argv[7], bioma=bioma)

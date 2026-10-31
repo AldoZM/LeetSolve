@@ -1,0 +1,90 @@
+{
+  "world": {
+    "world_name": "MacEntorno",
+    "world_path": "~/Library/Application Support/minecraft/saves/MacEntorno",
+    "seed": -8850467306991264225,
+    "spawn": [
+      0,
+      73,
+      0
+    ],
+    "player_pos": [
+      -1471.5,
+      67.0,
+      864.5
+    ],
+    "version": "26.3",
+    "data_version": 5023
+  },
+  "dimension": "nether",
+  "reference_position": [
+    -184,
+    108
+  ],
+  "total_found": 7,
+  "results": [
+    {
+      "target": "minecraft:crimson_forest",
+      "x": -184,
+      "z": 108,
+      "dimension": "nether",
+      "raw_output": "[13:37:36] [Server thread/INFO]: System chat: The nearest minecraft:crimson_forest is at [-184, 64, 108] (0 blocks away)",
+      "dist_ref": 0.0,
+      "tp_command": "/execute in minecraft:the_nether run tp -184 ~ 108"
+    },
+    {
+      "target": "minecraft:nether_wastes",
+      "x": -248,
+      "z": 172,
+      "dimension": "nether",
+      "raw_output": "[13:37:36] [Server thread/INFO]: System chat: The nearest minecraft:nether_wastes is at [-248, 64, 172] (90 blocks away)",
+      "dist_ref": 90.5,
+      "tp_command": "/execute in minecraft:the_nether run tp -248 ~ 172"
+    },
+    {
+      "target": "minecraft:bastion_remnant",
+      "x": -208,
+      "z": 336,
+      "dimension": "nether",
+      "raw_output": "[13:37:36] [Server thread/INFO]: System chat: The nearest minecraft:bastion_remnant is at [-208, ~, 336] (229 blocks away)",
+      "dist_ref": 229.3,
+      "tp_command": "/execute in minecraft:the_nether run tp -208 ~ 336"
+    },
+    {
+      "target": "minecraft:warped_forest",
+      "x": -312,
+      "z": 364,
+      "dimension": "nether",
+      "raw_output": "[13:37:36] [Server thread/INFO]: System chat: The nearest minecraft:warped_forest is at [-312, 64, 364] (286 blocks away)",
+      "dist_ref": 286.2,
+      "tp_command": "/execute in minecraft:the_nether run tp -312 ~ 364"
+    },
+    {
+      "target": "minecraft:soul_sand_valley",
+      "x": 168,
+      "z": 108,
+      "dimension": "nether",
+      "raw_output": "[13:37:36] [Server thread/INFO]: System chat: The nearest minecraft:soul_sand_valley is at [168, 64, 108] (352 blocks away)",
+      "dist_ref": 352.0,
+      "tp_command": "/execute in minecraft:the_nether run tp 168 ~ 108"
+    },
+    {
+      "target": "minecraft:basalt_deltas",
+      "x": -664,
+      "z": -276,
+      "dimension": "nether",
+      "raw_output": "[13:37:36] [Server thread/INFO]: System chat: The nearest minecraft:basalt_deltas is at [-664, 64, -276] (614 blocks away)",
+      "dist_ref": 614.7,
+      "tp_command": "/execute in minecraft:the_nether run tp -664 ~ -276"
+    },
+    {
+      "target": "minecraft:fortress",
+      "x": -864,
+      "z": -128,
+      "dimension": "nether",
+      "raw_output": "[13:37:36] [Server thread/INFO]: System chat: The nearest minecraft:fortress is at [-864, ~, -128] (719 blocks away)",
+      "dist_ref": 719.8,
+      "tp_command": "/execute in minecraft:the_nether run tp -864 ~ -128"
+    }
+  ]
+}

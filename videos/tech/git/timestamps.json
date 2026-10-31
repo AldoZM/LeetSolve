@@ -1,0 +1,159 @@
+{
+  "total_duration_s": 131.752,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "You spend all day building a house. One wrong move, and the roof is gone. Can you get the old one back?",
+      "start_s": 0.0,
+      "end_s": 6.842,
+      "duration_s": 6.842
+    },
+    {
+      "index": 1,
+      "text": "With Git, you can. Git is a time machine for your project. Here's how it really works.",
+      "start_s": 6.842,
+      "end_s": 12.738,
+      "duration_s": 5.896
+    },
+    {
+      "index": 2,
+      "text": "When you save with Git, it takes a snapshot of the whole house. That snapshot is called a commit.",
+      "start_s": 12.738,
+      "end_s": 18.479,
+      "duration_s": 5.741
+    },
+    {
+      "index": 3,
+      "text": "But first you choose what goes in. Changed blocks go into a chest, called the staging area. That's git add.",
+      "start_s": 18.479,
+      "end_s": 25.8,
+      "duration_s": 7.321
+    },
+    {
+      "index": 4,
+      "text": "Then git commit turns the chest into a little model of the house, with a note saying what changed.",
+      "start_s": 25.8,
+      "end_s": 31.542,
+      "duration_s": 5.742
+    },
+    {
+      "index": 5,
+      "text": "Each new model is tied to the one before it. Together, the commits are a history you can walk back.",
+      "start_s": 31.542,
+      "end_s": 37.285,
+      "duration_s": 5.743
+    },
+    {
+      "index": 6,
+      "text": "Blocks that didn't change aren't saved twice. The new model just points to the old ones, so history stays small.",
+      "start_s": 37.285,
+      "end_s": 44.257,
+      "duration_s": 6.972
+    },
+    {
+      "index": 7,
+      "text": "Every commit gets a name made from its content, like a one f three. Change one block, and the name changes.",
+      "start_s": 44.257,
+      "end_s": 52.09,
+      "duration_s": 7.833
+    },
+    {
+      "index": 8,
+      "text": "Now, branches. A branch is just a banner standing on a commit. This one is called main.",
+      "start_s": 52.09,
+      "end_s": 58.354,
+      "duration_s": 6.264
+    },
+    {
+      "index": 9,
+      "text": "When you commit, the banner moves up to the new model. That's all a branch is. A label that moves.",
+      "start_s": 58.354,
+      "end_s": 64.231,
+      "duration_s": 5.877
+    },
+    {
+      "index": 10,
+      "text": "Want to try a crazy roof without risking the house? Make a branch called roof, and switch to it.",
+      "start_s": 64.231,
+      "end_s": 70.481,
+      "duration_s": 6.251
+    },
+    {
+      "index": 11,
+      "text": "Steve stands where he's working. Git calls that HEAD. Switch branches, and the real house changes to match.",
+      "start_s": 70.481,
+      "end_s": 77.495,
+      "duration_s": 7.013
+    },
+    {
+      "index": 12,
+      "text": "The new roof works. Time to merge. Git makes a new model with two parents, main and roof.",
+      "start_s": 77.495,
+      "end_s": 84.013,
+      "duration_s": 6.518
+    },
+    {
+      "index": 13,
+      "text": "If both branches changed the same block, Git won't guess. That's a conflict, and you pick which one stays.",
+      "start_s": 84.013,
+      "end_s": 90.63,
+      "duration_s": 6.617
+    },
+    {
+      "index": 14,
+      "text": "So far, all of this lives in Steve's house. That's his local repository.",
+      "start_s": 90.63,
+      "end_s": 96.262,
+      "duration_s": 5.632
+    },
+    {
+      "index": 15,
+      "text": "The bell square is the remote, like GitHub. It holds a shared copy everyone can see.",
+      "start_s": 96.262,
+      "end_s": 101.926,
+      "duration_s": 5.664
+    },
+    {
+      "index": 16,
+      "text": "git push carries Steve's new commits to the square, and the main banner there moves up.",
+      "start_s": 101.926,
+      "end_s": 107.618,
+      "duration_s": 5.692
+    },
+    {
+      "index": 17,
+      "text": "Alex doesn't have them yet. git pull brings the new models to her house and moves her banner too.",
+      "start_s": 107.618,
+      "end_s": 113.604,
+      "duration_s": 5.986
+    },
+    {
+      "index": 18,
+      "text": "But if Alex pushed first, Steve's push is rejected. He pulls her work, merges, and then pushes again.",
+      "start_s": 113.604,
+      "end_s": 120.124,
+      "duration_s": 6.52
+    },
+    {
+      "index": 19,
+      "text": "That's how a whole team builds the same village without wiping out each other's work.",
+      "start_s": 120.124,
+      "end_s": 125.193,
+      "duration_s": 5.069
+    },
+    {
+      "index": 20,
+      "text": "A chain of snapshots, banners that move, and a square everyone shares.",
+      "start_s": 125.193,
+      "end_s": 130.927,
+      "duration_s": 5.734
+    },
+    {
+      "index": 21,
+      "text": "That's Git.",
+      "start_s": 130.927,
+      "end_s": 131.752,
+      "duration_s": 0.825
+    }
+  ]
+}

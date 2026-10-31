@@ -1,0 +1,24 @@
+subtitles:
+  - You know how Git saves your house as a chain of models. Now, how do real teams use it every day without chaos?
+  - When a new builder joins the village, she starts with an empty yard.
+  - git clone copies the entire chain of models from the bell square, so she has the full project and its history.
+  - Back at Steve's house, before saving, git diff compares the real house to the last model: green for added blocks, red for removed ones.
+  - But not everything in your yard belongs in Git. Temporary ladders and secret keys should never go into the chest.
+  - A file called dot gitignore blocks them at the lid, so junk and passwords never enter a commit.
+  - Now, what if you're halfway through building a porch, and the emergency bell rings? You don't want to commit half a porch.
+  - git stash tucks your unfinished blocks into a side chest, leaving the house clean. Fix the problem, then pop them right back.
+  - What if a bad commit is already in the chain, like a fireplace that sets the roof on fire?
+  - In the first video, git restore fixed the house before a commit. Here, the mistake is already saved on a pedestal.
+  - If you rewind with git reset and force the push, anyone who pulled it gets broken links.
+  - Instead, git revert adds a brand new model at the end that does the exact opposite, putting the fire out without erasing history.
+  - What if someone deletes a branch banner by mistake? The model isn't gone.
+  - Git keeps a local diary of every step HEAD took, called the reflog. Read the diary, find the pedestal, and plant the banner again.
+  - Next, keeping history tidy. Merging branches creates diamond knots with two leads.
+  - If your branch is still local, git rebase picks up your new models and replays them straight in front of main: one clean line.
+  - Just never rebase models you already pushed to the square, or your teammates' leads won't match.
+  - Finally, how teams protect the bell square. In real projects, nobody pushes straight to main.
+  - Steve pushes his branch to the square and opens a Pull Request on the lectern.
+  - Automated checks test that the model doesn't break, and Alex inspects the changes block by block.
+  - Once she approves, the square merges the branch into main, and everyone pulls the update.
+  - Clone, ignore the junk, stash, revert, and review every change in the square.
+  - That's how teams really use Git.

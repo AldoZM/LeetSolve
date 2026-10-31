@@ -1,0 +1,188 @@
+{
+  "world": {
+    "world_name": "MacEntorno",
+    "world_path": "~/Library/Application Support/minecraft/saves/MacEntorno",
+    "seed": -8850467306991264225,
+    "spawn": [
+      0,
+      73,
+      0
+    ],
+    "player_pos": [
+      -1471.5,
+      67.0,
+      864.5
+    ],
+    "version": "26.3",
+    "data_version": 5023
+  },
+  "reference_position": [
+    -1471.5,
+    864.5
+  ],
+  "total_found": 18,
+  "structures": [
+    {
+      "structure": "minecraft:trial_chambers",
+      "x": -1328,
+      "z": 560,
+      "raw_output": "[13:34:52] [Server thread/INFO]: System chat: The nearest minecraft:trial_chambers is at [-1328, ~, 560] (335 blocks away)",
+      "dist_ref": 336.6,
+      "dist_spawn": 1441.2,
+      "tp_command": "/tp -1328 ~ 560"
+    },
+    {
+      "structure": "minecraft:pillager_outpost",
+      "x": -2000,
+      "z": 1056,
+      "raw_output": "[13:34:53] [Server thread/INFO]: System chat: The nearest minecraft:pillager_outpost is at [-2000, ~, 1056] (562 blocks away)",
+      "dist_ref": 562.1,
+      "dist_spawn": 2261.7,
+      "tp_command": "/tp -2000 ~ 1056"
+    },
+    {
+      "structure": "minecraft:stronghold",
+      "x": -2144,
+      "z": 976,
+      "raw_output": "[13:34:52] [Server thread/INFO]: System chat: The nearest minecraft:stronghold is at [-2144, ~, 976] (682 blocks away)",
+      "dist_ref": 681.7,
+      "dist_spawn": 2355.7,
+      "tp_command": "/tp -2144 ~ 976"
+    },
+    {
+      "structure": "minecraft:village_plains",
+      "x": -1520,
+      "z": 32,
+      "raw_output": "[13:34:49] [Server thread/INFO]: System chat: The nearest #minecraft:village (minecraft:village_plains) is at [-1520, ~, 32] (833 blocks away)",
+      "dist_ref": 833.9,
+      "dist_spawn": 1520.3,
+      "tp_command": "/tp -1520 ~ 32"
+    },
+    {
+      "structure": "minecraft:village_plains",
+      "x": -1632,
+      "z": 1792,
+      "raw_output": "[13:34:50] [Server thread/INFO]: System chat: The nearest #minecraft:village (minecraft:village_plains) is at [-1632, ~, 1792] (176 blocks away)",
+      "dist_ref": 941.3,
+      "dist_spawn": 2423.8,
+      "tp_command": "/tp -1632 ~ 1792"
+    },
+    {
+      "structure": "minecraft:village_plains",
+      "x": -480,
+      "z": 704,
+      "raw_output": "[13:34:50] [Server thread/INFO]: System chat: The nearest #minecraft:village (minecraft:village_plains) is at [-480, ~, 704] (160 blocks away)",
+      "dist_ref": 1004.4,
+      "dist_spawn": 852.1,
+      "tp_command": "/tp -480 ~ 704"
+    },
+    {
+      "structure": "minecraft:village_taiga",
+      "x": -1248,
+      "z": -272,
+      "raw_output": "[13:34:50] [Server thread/INFO]: System chat: The nearest #minecraft:village (minecraft:village_taiga) is at [-1248, ~, -272] (261 blocks away)",
+      "dist_ref": 1158.3,
+      "dist_spawn": 1277.3,
+      "tp_command": "/tp -1248 ~ -272"
+    },
+    {
+      "structure": "minecraft:monument",
+      "x": -816,
+      "z": -432,
+      "raw_output": "[13:34:52] [Server thread/INFO]: System chat: The nearest minecraft:monument is at [-816, ~, -432] (1452 blocks away)",
+      "dist_ref": 1452.8,
+      "dist_spawn": 923.3,
+      "tp_command": "/tp -816 ~ -432"
+    },
+    {
+      "structure": "minecraft:village_plains",
+      "x": -2384,
+      "z": -288,
+      "raw_output": "[13:34:51] [Server thread/INFO]: System chat: The nearest #minecraft:village (minecraft:village_plains) is at [-2384, ~, -288] (290 blocks away)",
+      "dist_ref": 1470.0,
+      "dist_spawn": 2401.3,
+      "tp_command": "/tp -2384 ~ -288"
+    },
+    {
+      "structure": "minecraft:village_plains",
+      "x": -480,
+      "z": 2016,
+      "raw_output": "[13:34:50] [Server thread/INFO]: System chat: The nearest #minecraft:village (minecraft:village_plains) is at [-480, ~, 2016] (214 blocks away)",
+      "dist_ref": 1519.5,
+      "dist_spawn": 2072.4,
+      "tp_command": "/tp -480 ~ 2016"
+    },
+    {
+      "structure": "minecraft:mansion",
+      "x": -1888,
+      "z": -656,
+      "raw_output": "[13:34:52] [Server thread/INFO]: System chat: The nearest minecraft:mansion is at [-1888, ~, -656] (1576 blocks away)",
+      "dist_ref": 1576.5,
+      "dist_spawn": 1998.7,
+      "tp_command": "/tp -1888 ~ -656"
+    },
+    {
+      "structure": "minecraft:village_taiga",
+      "x": -432,
+      "z": -432,
+      "raw_output": "[13:34:51] [Server thread/INFO]: System chat: The nearest #minecraft:village (minecraft:village_taiga) is at [-432, ~, -432] (187 blocks away)",
+      "dist_ref": 1661.8,
+      "dist_spawn": 610.9,
+      "tp_command": "/tp -432 ~ -432"
+    },
+    {
+      "structure": "minecraft:village_plains",
+      "x": -1872,
+      "z": 2576,
+      "raw_output": "[13:34:52] [Server thread/INFO]: System chat: The nearest #minecraft:village (minecraft:village_plains) is at [-1872, ~, 2576] (493 blocks away)",
+      "dist_ref": 1757.7,
+      "dist_spawn": 3184.4,
+      "tp_command": "/tp -1872 ~ 2576"
+    },
+    {
+      "structure": "minecraft:village_plains",
+      "x": -2624,
+      "z": 2256,
+      "raw_output": "[13:34:51] [Server thread/INFO]: System chat: The nearest #minecraft:village (minecraft:village_plains) is at [-2624, ~, 2256] (197 blocks away)",
+      "dist_ref": 1806.8,
+      "dist_spawn": 3460.5,
+      "tp_command": "/tp -2624 ~ 2256"
+    },
+    {
+      "structure": "minecraft:ancient_city",
+      "x": -2064,
+      "z": 2816,
+      "raw_output": "[13:34:52] [Server thread/INFO]: System chat: The nearest minecraft:ancient_city is at [-2064, ~, 2816] (2040 blocks away)",
+      "dist_ref": 2039.5,
+      "dist_spawn": 3491.4,
+      "tp_command": "/tp -2064 ~ 2816"
+    },
+    {
+      "structure": "minecraft:village_plains",
+      "x": -3744,
+      "z": -528,
+      "raw_output": "[13:34:50] [Server thread/INFO]: System chat: The nearest #minecraft:village (minecraft:village_plains) is at [-3744, ~, -528] (1886 blocks away)",
+      "dist_ref": 2665.2,
+      "dist_spawn": 3781.0,
+      "tp_command": "/tp -3744 ~ -528"
+    },
+    {
+      "structure": "minecraft:village_plains",
+      "x": -4160,
+      "z": 80,
+      "raw_output": "[13:34:51] [Server thread/INFO]: System chat: The nearest #minecraft:village (minecraft:village_plains) is at [-4160, ~, 80] (1043 blocks away)",
+      "dist_ref": 2800.6,
+      "dist_spawn": 4160.8,
+      "tp_command": "/tp -4160 ~ 80"
+    },
+    {
+      "structure": "minecraft:village_taiga",
+      "x": -1520,
+      "z": -2160,
+      "raw_output": "[13:34:52] [Server thread/INFO]: System chat: The nearest #minecraft:village (minecraft:village_taiga) is at [-1520, ~, -2160] (1026 blocks away)",
+      "dist_ref": 3024.9,
+      "dist_spawn": 2641.2,
+      "tp_command": "/tp -1520 ~ -2160"
+    }
+  ]
+}

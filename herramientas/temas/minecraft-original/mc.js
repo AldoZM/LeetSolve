@@ -10,6 +10,9 @@ export const MC = { white: 0xFFFFFF, gray: 0xAAAAAA, yellow: 0xFFFF55, gold: 0xF
 // Face shading like the game: top brightest, sides darker. BoxGeometry face order: +x, -x, +y, -y, +z, -z
 const SHADE = [0.62, 0.62, 1.0, 0.5, 0.8, 0.8];
 
+// Game-like lighting (makeWorld({ shaders: true })): the world's sun, read by makeTerrain to bake its light
+let SHADERS = null;
+
 const loadImg = (src) => new Promise((res, rej) => {
   const im = new Image();
   im.onload = () => res(im);
@@ -113,6 +116,48 @@ const cache = new Map();
 export function tex(imgs, name) {
   if (!cache.has(name)) cache.set(name, nearest(new THREE.CanvasTexture(pixelCanvas(imgs[name], 16, 16))));
   return cache.get(name);
+}
+
+// A box whose texture is cropped (not squashed) to its size, like the game does for slabs and stairs
+function partBox(w, h, d) {
+  const geo = new THREE.BoxGeometry(w, h, d);
+  const uv = geo.attributes.uv;
+  const dims = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];  // +x, -x, +y, -y, +z, -z faces
+  for (let i = 0; i < uv.count; i++) {
+    const [su, sv] = dims[Math.floor(i / 4)];
+    uv.setXY(i, uv.getX(i) * su, uv.getY(i) * sv);
+  }
+  return geo;
+}
+
+// Parts of a shaped block as [w, h, d, dx, dy, dz] around the block center; props as the game saves them
+// (26.3 leaves out defaults: stairs face north and sit at the bottom, slabs are bottom slabs)
+function shapeParts({ kind, props = {} }) {
+  if (kind === 'slab') {
+    const type = props.type ?? 'bottom';
+    return type === 'double' ? [[1, 1, 1, 0, 0, 0]] : [[1, 0.5, 1, 0, type === 'top' ? 0.25 : -0.25, 0]];
+  }
+  if (kind === 'stairs') {
+    const low = (props.half ?? 'bottom') === 'bottom' ? -0.25 : 0.25;
+    const step = { north: [1, 0.5, 0.5, 0, -low, -0.25], south: [1, 0.5, 0.5, 0, -low, 0.25],
+      east: [0.5, 0.5, 1, 0.25, -low, 0], west: [0.5, 0.5, 1, -0.25, -low, 0] }[props.facing ?? 'north'];
+    return [[1, 0.5, 1, 0, low, 0], step];
+  }
+  // fence: a post and two rails toward each connected side
+  const parts = [[0.25, 1, 0.25, 0, 0, 0]];
+  const rails = { north: [0, -1], south: [0, 1], east: [1, 0], west: [-1, 0] };
+  for (const [side, [sx, sz]] of Object.entries(rails)) {
+    if (props[side] !== 'true') continue;
+    for (const ry of [-0.03125, 0.34375]) {
+      parts.push(sx ? [0.375, 0.1875, 0.125, sx * 0.3125, ry, 0] : [0.125, 0.1875, 0.375, 0, ry, sz * 0.3125]);
+    }
+  }
+  return parts;
+}
+
+// Face materials of a block from its side, top and bottom textures (for other modules)
+export function faceMatsFor(side, top = side, bottom = top) {
+  return faceMats([side, side, top, bottom, side, side]);
 }
 
 function faceMats(maps, shade = SHADE) {
@@ -299,7 +344,158 @@ export function skyCanvas(bands = 28) {
   return t;
 }
 
-export function makeWorld({ fov = 40, offset = 0.2, fog = [30, 70] } = {}) {
+// ---------- shaders: sun shadows, sky light and tone mapping (opt-in, approved by Aldo 2026-10-31) ----------
+function addShaders(renderer, scene) {
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.2;
+  const hemi = new THREE.HemisphereLight(0xdfeaff, 0xb0a070, 1.9);
+  const sun = new THREE.DirectionalLight(0xfff0d0, 1.7);
+  sun.position.set(60, 90, 40);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(4096, 4096);
+  Object.assign(sun.shadow.camera, { left: -90, right: 90, top: 90, bottom: -90, near: 1, far: 260 });
+  sun.shadow.bias = -0.0006;
+  sun.shadow.normalBias = 0.04;
+  // the light keeps its direction when the target moves
+  const offset = sun.position.clone();
+  sun.onBeforeShadow = () => sun.position.copy(sun.target.position).add(offset);
+  scene.add(hemi, sun, sun.target);
+  SHADERS = { sun, hemi };
+  return sun;
+}
+
+// Every mesh drawn with a flat material takes the light and casts shadows. Sky things stay as they are: materials
+// without fog (clouds, sun, sky fade), overlays drawn on top (depthTest off) and glows (additive).
+const litCache = new Map();
+function litUp(scene) {
+  scene.traverse((o) => {
+    if (!o.isMesh || o.userData.lit) return;
+    o.userData.lit = true;
+    const one = (m) => {
+      if (!m.isMeshBasicMaterial) return m;
+      if (m.fog === false || m.depthTest === false || m.blending === THREE.AdditiveBlending) {
+        m.toneMapped = false;
+        return m;
+      }
+      if (!litCache.has(m)) {
+        const l = new THREE.MeshLambertMaterial({ map: m.map, color: m.color, transparent: m.transparent, opacity: m.opacity,
+          alphaTest: m.alphaTest, side: m.side, depthWrite: m.depthWrite, depthTest: m.depthTest, vertexColors: m.vertexColors });
+        l.userData = m.userData;
+        // the page may still change the flat material's color or opacity: keep them shared
+        l.color = m.color;
+        Object.defineProperty(l, 'opacity', { get: () => m.opacity, set: (v) => { m.opacity = v; } });
+        Object.defineProperty(l, 'visible', { get: () => m.visible, set: (v) => { m.visible = v; } });
+        litCache.set(m, l);
+      }
+      return litCache.get(m);
+    };
+    const was = o.material;
+    o.material = Array.isArray(was) ? was.map(one) : one(was);
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    if (mats.some((m) => m.isMeshLambertMaterial)) {
+      o.receiveShadow = true;
+      o.castShadow = !o.geometry.userData.plant && !mats.some((m) => m.transparent && m.opacity < 0.99);
+    }
+  });
+}
+
+// Minecraft's smooth lighting baked into the terrain's plain cubes: per-corner ambient occlusion (darker where
+// neighbors meet), sky light dimmed under roofs and canopies, and warm light around torches and lanterns.
+const AO_LEVEL = [0.42, 0.62, 0.81, 1.0];
+const FACES = {
+  px: [[1, 0, 0], [[0.5, 0, 0.5, 0, 0], [0.5, 0, -0.5, 1, 0], [0.5, 1, -0.5, 1, 1], [0.5, 1, 0.5, 0, 1]]],
+  nx: [[-1, 0, 0], [[-0.5, 0, -0.5, 0, 0], [-0.5, 0, 0.5, 1, 0], [-0.5, 1, 0.5, 1, 1], [-0.5, 1, -0.5, 0, 1]]],
+  py: [[0, 1, 0], [[-0.5, 1, 0.5, 0, 0], [0.5, 1, 0.5, 1, 0], [0.5, 1, -0.5, 1, 1], [-0.5, 1, -0.5, 0, 1]]],
+  ny: [[0, -1, 0], [[-0.5, 0, -0.5, 0, 0], [0.5, 0, -0.5, 1, 0], [0.5, 0, 0.5, 1, 1], [-0.5, 0, 0.5, 0, 1]]],
+  pz: [[0, 0, 1], [[-0.5, 0, 0.5, 0, 0], [0.5, 0, 0.5, 1, 0], [0.5, 1, 0.5, 1, 1], [-0.5, 1, 0.5, 0, 1]]],
+  nz: [[0, 0, -1], [[0.5, 0, -0.5, 0, 0], [-0.5, 0, -0.5, 1, 0], [-0.5, 1, -0.5, 1, 1], [0.5, 1, -0.5, 0, 1]]],
+};
+async function bakeCubes(d, map) {
+  const looks = d.names.map((n) => d.looks[n]);
+  const key = (x, y, z) => `${x},${y},${z}`;
+  const cell = new Map();
+  for (const [x, y, z, n] of d.blocks) cell.set(key(x, y, z), n);
+  const opaque = (x, y, z) => { const n = cell.get(key(x, y, z)); return n !== undefined && looks[n].kind === 'cube' && !looks[n].cutout; };
+  const solid = (x, y, z) => { const n = cell.get(key(x, y, z)); return n !== undefined && ['cube', 'stairs', 'slab'].includes(looks[n].kind); };
+  const top = new Map();
+  for (const [x, y, z, n] of d.blocks) {
+    if (!['cube', 'stairs', 'slab'].includes(looks[n].kind)) continue;
+    const k = `${x},${z}`;
+    if (!top.has(k) || y > top.get(k)) top.set(k, y);
+  }
+  const skyMemo = new Map();
+  const sky = (x, y, z) => {
+    const k = key(x, y, z);
+    if (skyMemo.has(k)) return skyMemo.get(k);
+    let open = 0, all = 0;
+    for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) {
+      const w = dx === 0 && dz === 0 ? 4 : 1;
+      all += w;
+      if ((top.get(`${x + dx},${z + dz}`) ?? -1e9) <= y) open += w;
+    }
+    const v = 0.5 + 0.5 * open / all;
+    skyMemo.set(k, v);
+    return v;
+  };
+  const torches = d.blocks.filter(([, , , n]) => /torch|lantern/.test(d.names[n]));
+  const torch = (x, y, z) => {
+    let best = 0;
+    for (const [tx, ty, tz] of torches) best = Math.max(best, (14 - Math.abs(tx - x) - Math.abs(ty - y) - Math.abs(tz - z)) / 14);
+    return best;
+  };
+  const groups = new Map();
+  for (const [x, y, z, n] of d.blocks) {
+    const look = looks[n];
+    if (look.kind !== 'cube') continue;
+    for (const [f, [[dx, dy, dz], quad]] of Object.entries(FACES)) {
+      const nx = x + dx, ny = y + dy, nz = z + dz;
+      if (opaque(nx, ny, nz)) continue;
+      if (look.cutout && cell.get(key(nx, ny, nz)) === n) continue;
+      const axis = look.axis ?? 'y';
+      const end = (axis === 'x' && dx) || (axis === 'y' && dy) || (axis === 'z' && dz);
+      const tex = !look.axis && f === 'ny' ? (look.bottom ?? look.top ?? look.side) : end ? (look.top ?? look.side) : look.side;
+      if (!groups.has(tex)) groups.set(tex, { pos: [], uv: [], col: [], nrm: [], idx: [], cut: !!look.cutout });
+      const gr = groups.get(tex);
+      const s = sky(nx, ny, nz), tl = torch(nx, ny, nz);
+      const b = gr.pos.length / 3;
+      const ao = quad.map(([vx, vy, vz, u, v]) => {
+        const ox = dx ? 0 : Math.sign(vx), oy = dy ? 0 : (vy > 0.5 ? 1 : -1), oz = dz ? 0 : Math.sign(vz);
+        const sides = [[ox, 0, 0], [0, oy, 0], [0, 0, oz]].filter((a) => a[0] || a[1] || a[2]);
+        const s1 = solid(nx + sides[0][0], ny + sides[0][1], nz + sides[0][2]) ? 1 : 0;
+        const s2 = solid(nx + sides[1][0], ny + sides[1][1], nz + sides[1][2]) ? 1 : 0;
+        const c = solid(nx + ox, ny + oy, nz + oz) ? 1 : 0;
+        const a = s1 && s2 ? 0 : 3 - (s1 + s2 + c);
+        const k = AO_LEVEL[a] * s;
+        const w = Math.max(0, tl - k) * 0.9;
+        gr.pos.push(x + vx, y + vy, z + vz);
+        gr.uv.push(u, v);
+        gr.col.push(k + w, k + w * 0.72, k + w * 0.42);
+        gr.nrm.push(dx, dy, dz);
+        return a;
+      });
+      // flip the quad's diagonal so the shading is not split the wrong way (the game does the same)
+      if (ao[0] + ao[2] > ao[1] + ao[3]) gr.idx.push(b, b + 1, b + 2, b, b + 2, b + 3);
+      else gr.idx.push(b + 1, b + 2, b + 3, b + 1, b + 3, b);
+    }
+  }
+  const g = new THREE.Group();
+  for (const [tex, a] of groups) {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(a.pos, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(a.uv, 2));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(a.col, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(a.nrm, 3));
+    geo.setIndex(a.idx);
+    const mat = new THREE.MeshBasicMaterial({ map: await map(tex), vertexColors: true, alphaTest: a.cut ? 0.5 : 0.1,
+      side: a.cut ? THREE.DoubleSide : THREE.FrontSide });
+    g.add(new THREE.Mesh(geo, mat));
+  }
+  return g;
+}
+
+export function makeWorld({ fov = 40, offset = 0.2, fog = [30, 70], shaders = false } = {}) {
   const params = new URLSearchParams(location.search);
   const W = Number(params.get('w') || 1080);
   const HR = Number(params.get('h') || 1440);
@@ -337,14 +533,18 @@ export function makeWorld({ fov = 40, offset = 0.2, fog = [30, 70] } = {}) {
   camera.add(fade);
   scene.add(camera);
   const look = (pos, target) => { camera.position.copy(pos); camera.lookAt(target); };
+  let sun = null;
+  if (shaders) sun = addShaders(renderer, scene);
   // Fades in at the start and out at the end of the clip; fin = fout = 0 for a clip that covers the whole video
   const draw = (t, total, fin = 0.5, fout = 0.55) => {
     fadeMat.opacity = fin > 0 || fout > 0 ? 1 - prog(t, 0, fin) + prog(t, total - fout, total - 0.05) : 0;
     fade.visible = fadeMat.opacity > 0.001;
+    if (shaders) litUp(scene);
     renderer.render(scene, camera);
   };
   // ndcY: how a y of the 3:4 picture shrinks in normalized device coordinates when the render is taller
-  return { W, H, renderer, scene, camera, look, draw, ndcY: H / HR };
+  // sun: the shadow-casting light when shaders are on (move sun.target to follow the action; it covers 180 x 180 blocks)
+  return { W, H, renderer, scene, camera, look, draw, ndcY: H / HR, sun };
 }
 
 // Clouds from the game's cloud map: every white pixel is a flat cloud cell
@@ -367,8 +567,9 @@ export function makeClouds(imgs, { cell = 6, y = 16, x0 = 96, z0 = 40, nx = 36, 
 
 // Terrain exported from a real world by mundo.py: one instanced mesh per block type.
 // Block (x, y, z) relative to the export center sits at (x, y + 0.5, z): the center column's ground top is y = 0.
-export async function makeTerrain(url, { turn = 0, plot = null, clear = null } = {}) {
-  const d = await (await fetch(url)).json();
+// data: an already loaded (or edited) export to use instead of fetching url; url still says where tex/ is
+export async function makeTerrain(url, { turn = 0, plot = null, clear = null, data = null } = {}) {
+  const d = data ?? await (await fetch(url)).json();
   // clear = [x0, x1, z0, z1] in scene coordinates: trees and plants there are removed (where the camera stands)
   if (clear) {
     const c = Math.cos(turn), s = Math.sin(turn);
@@ -415,6 +616,9 @@ export async function makeTerrain(url, { turn = 0, plot = null, clear = null } =
       geo.setAttribute(key, new THREE.Float32BufferAttribute(arr, key === 'uv' ? 2 : 3));
     }
     geo.setIndex([...a.index.array, ...[...b.index.array].map((i) => i + 4)]);
+    // plants take the light as if they faced up, like in the game (only used with shaders)
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(Array.from({ length: 8 }, () => [0, 1, 0]).flat(), 3));
+    geo.userData.plant = true;
     return geo;
   })();
   const water = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0.38, 0);
@@ -425,6 +629,18 @@ export async function makeTerrain(url, { turn = 0, plot = null, clear = null } =
   for (const [n, list] of byName.entries()) {
     if (!list.length) continue;
     const look = d.looks[d.names[n]];
+    if (look.kind === 'skip') continue;
+    if (SHADERS && look.kind === 'cube') continue;  // baked below with their light
+    if (look.kind === 'stairs' || look.kind === 'slab' || look.kind === 'fence') {
+      // Shaped blocks: one instanced box per part, every instance of this name has the same parts
+      const mats = faceMats(Array(6).fill(await map(look.side)));
+      for (const [w, h, dd, ox, oy, oz] of shapeParts(look)) {
+        const inst = new THREE.InstancedMesh(partBox(w, h, dd), mats, list.length);
+        list.forEach(([x, y, z], k) => inst.setMatrixAt(k, m.compose(V(x + ox, y + 0.5 + oy, z + oz), q.identity(), V(1, 1, 1))));
+        g.add(inst);
+      }
+      continue;
+    }
     let geo, mats;
     if (look.kind === 'cross') {
       geo = cross;
@@ -452,6 +668,7 @@ export async function makeTerrain(url, { turn = 0, plot = null, clear = null } =
     list.forEach(([x, y, z], k) => inst.setMatrixAt(k, m.compose(V(x, y + 0.5, z), q, V(1, 1, 1))));
     g.add(inst);
   }
+  if (SHADERS) g.add(await bakeCubes(d, map));
   // Height of the ground top at a column (for placing things on the terrain)
   const tops = new Map();
   d.blocks.forEach(([x, y, z, n]) => {
@@ -467,7 +684,7 @@ export async function makeTerrain(url, { turn = 0, plot = null, clear = null } =
   const surf = new Map();
   d.blocks.forEach(([x, y, z, n]) => {
     const name = d.names[n], look = d.looks[name];
-    if (look.kind === 'cross' || look.kind === 'flat') return;
+    if (look.kind === 'cross' || look.kind === 'flat' || look.kind === 'skip') return;
     const key = `${x},${z}`;
     if (!surf.has(key) || y > surf.get(key).y) {
       const kind = look.kind === 'water' ? 'water' : look.cutout ? 'leaves' : /_log|_wood/.test(name) ? 'log' : name.split('[')[0];

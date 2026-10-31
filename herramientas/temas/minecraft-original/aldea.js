@@ -299,6 +299,33 @@ export function arc(a, b, k, height = 1.5) {
 }
 
 // Camera from keys [time, pose or function of t, blend seconds]: each key blends in from the previous one
+// A smoother version of cameraAt for a whole clip (Aldo, 2026-10-31: camera moves pleasant to the eye).
+// The cameraAt path is sampled and blurred in time (gaussian, sigma seconds), so moves never start, stop or bend
+// sharply, even when a blend starts before the previous one ends. While the camera waits it sways a little (sway
+// blocks, slow), faded out near the start and the end so a looping clip still ends on its first frame.
+// Returns (t) => { pos, look }. Deterministic: everything depends on t.
+export function smoothCamera(CAM, total, { sigma = 0.45, rate = 30, sway = 0.12, period = 11 } = {}) {
+  const n = Math.ceil(total * rate) + 1;
+  const raw = Array.from({ length: n }, (_, i) => cameraAt(CAM, Math.min(total, i / rate)));
+  const R = Math.ceil(3 * sigma * rate);
+  const w = Array.from({ length: 2 * R + 1 }, (_, k) => Math.exp(-0.5 * ((k - R) / (sigma * rate)) ** 2));
+  const sum = w.reduce((a, b) => a + b, 0);
+  const blur = (key) => raw.map((_, i) => {
+    const v = V(0, 0, 0);
+    for (let k = -R; k <= R; k++) v.addScaledVector(raw[Math.min(n - 1, Math.max(0, i + k))][key], w[k + R] / sum);
+    return v;
+  });
+  const P = blur('pos'), L = blur('look');
+  return (t) => {
+    const f = Math.min(n - 1, Math.max(0, t * rate)), i = Math.floor(f), j = Math.min(n - 1, i + 1), u = f - i;
+    const pos = P[i].clone().lerp(P[j], u), look = L[i].clone().lerp(L[j], u);
+    const env = prog(t, 0, 1.5) * (1 - prog(t, total - 1.5, total));
+    const a = 2 * Math.PI * t / period;
+    pos.add(V(Math.sin(a), 0.5 * Math.sin(2 * a + 1), Math.cos(a * 0.7)).multiplyScalar(sway * env));
+    return { pos, look };
+  };
+}
+
 export function cameraAt(CAM, t) {
   const P0 = (k) => (typeof k[1] === 'function' ? k[1](t) : k[1]);
   let p = P0(CAM[0]);

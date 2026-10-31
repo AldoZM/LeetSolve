@@ -5,6 +5,7 @@
 //   node render.mjs --page <scene.html> --stills 0,5.2,12 --outdir stills/
 //   --lib <dir> sets the folder served as /vendor/lib/ (default: this file's folder, with stage.js)
 //   --tema <dir> serves a theme folder as /vendor/tema/
+//   --start <s> starts the clip at that second of the page (a piece of a video, for samples)
 //   --cues <file> writes the page's window.sfxCues ([[seconds, sound, gain], ...]) as JSON, for build.py's mix
 import { chromium } from 'playwright';
 import http from 'node:http';
@@ -86,7 +87,7 @@ if (args.stills) {
     { stdio: ['pipe', 'inherit', 'inherit'] });
   const started = Date.now();
   for (let i = 0; i < frames; i++) {
-    const png = await grab(i / fps);
+    const png = await grab(Number(args.start ?? 0) + i / fps);
     if (!ff.stdin.write(png)) await new Promise((r) => ff.stdin.once('drain', r));
     if (i % 150 === 0) console.log(`frame ${i}/${frames} (${((Date.now() - started) / 1000).toFixed(0)}s)`);
   }

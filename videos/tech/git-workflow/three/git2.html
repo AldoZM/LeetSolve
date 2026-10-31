@@ -1,0 +1,692 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+// "How teams really use Git" (part 2), in the same savanna village and with the same pieces as part 1
+// (videos/tech/git/three/git.html): Steve's house, commits as 1/8 models on pedestals tied with leads, banners as
+// branches, the bell square as the remote. New here: a new builder (a mason villager) who clones into an empty yard,
+// git diff frames on the real house, .gitignore bouncing a ladder and a secrets book off the chest, git stash in an
+// ender chest, a fireplace commit undone with git revert, a deleted banner found with the reflog, a rebase that moves
+// a model into one straight line, and a Pull Request on a lectern in the square (golem checks, Alex approves).
+// Lighting: makeWorld({ shaders: true }). Animations copy the game's (objetos.js). ev(line, fraction) everywhere.
+import { THREE, V, prog, easeInOut, pose } from '/vendor/lib/stage.js';
+import { loadTheme, makeWorld, makeTerrain, makeClouds, makeSign, makeChest, makeFrame, makeOrb, tex } from '/vendor/tema/mc.js';
+import { setTime, loadMobs } from '/vendor/tema/vida.js';
+import { loadPeople, makePlayer, makeVillager, moveAlong, entityPart, skinMat } from '/vendor/tema/gente.js';
+import { bubble, placeUI, smoothCamera, arc, makeItem, makeLectern } from '/vendor/tema/aldea.js';
+import { makeBanner, makeLead, makeKnot, makeFencePost, makeDrop, makeCracks, swingArm, shakeNo } from '/vendor/tema/objetos.js';
+
+// ---------- timing ----------
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const TOTAL = subs[subs.length - 1].end_s;
+const ev = (line, f = 0) => subs[line].start_s + f * subs[line].duration_s;
+const end = (line) => subs[line].end_s;
+const during = (t, a, z) => t >= a && t < z;
+
+// ---------- world ----------
+const PLACE = '/vendor/tema/mundos/savanna-village.json';
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'leaves', 'log_side', 'log_top', 'glass', 'polished_andesite',
+  'acacia_planks', 'banner_base', 'banner_pattern_base', 'lead_knot', 'clock', 'ladder', 'ender_atlas', 'barrier',
+  'enchanted_book', 'padlock', 'fire', 'bricks', 'oak_planks', 'lectern_front', 'lectern_top', 'writable_book',
+  ...Array.from({ length: 10 }, (_, i) => `destroy_stage_${i}`)]);
+imgs.pickaxe = await new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.src = '/vendor/tema/gui/pickaxe.png'; });
+await loadPeople(imgs, ['steve', 'alex', 'villager', 'type_savanna', 'prof_cartographer', 'prof_mason']);
+await loadMobs(imgs, ['iron_golem']);
+const world = makeWorld({ fov: 40, offset: 0, fog: [90, 220], shaders: true });
+const { scene, camera } = world;
+const village = await (await fetch(PLACE)).json();
+
+// Steve's house is drawn by itself (it changes); the terrain keeps the rest as the game saved it
+const inHouse = ([x, y, z, n]) => x >= 5 && x <= 11 && z >= 0 && z <= 6 && y >= 1 && y <= 10 && /acacia|terracotta|torch/.test(village.names[n]);
+const houseBlocks = village.blocks.filter(inHouse).filter(([, , , n]) => !/torch/.test(village.names[n]))
+  .map(([x, y, z, n]) => [x, y, z, village.names[n]]);
+const ground = JSON.parse(JSON.stringify(village));
+ground.blocks = ground.blocks.filter((b) => !inHouse(b));
+const terrain = await makeTerrain(PLACE, { data: ground, clear: [1, 25, 7, 26] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+await setTime(world, 'day', { terrain, clouds, imgs });
+world.sun.target.position.set(10, 0, 0);
+const groundTop = (x, z) => Math.max(terrain.groundAt(x, z), terrain.groundAt(x + 0.4, z), terrain.groundAt(x - 0.4, z));
+const G = 1;
+
+// ---------- house states (same as part 1; part 2 starts where part 1 ended, state S9) ----------
+const WIN_S = [8, 2, 5], WIN_E = [10, 2, 3], PEAK = [8, 9, 3];
+const keyOf = (b) => `${b[0]},${b[1]},${b[2]}`;
+const set = (blocks, changes) => {
+  const out = new Map(blocks.map((b) => [keyOf(b), b]));
+  for (const c of changes) { if (c[3] === null) out.delete(keyOf(c)); else out.set(keyOf(c), c); }
+  return [...out.values()];
+};
+const pyramid = [];
+for (let x = 6; x <= 10; x++) for (let z = 1; z <= 5; z++) pyramid.push([x, 8, z, 'red_wool']);
+for (let x = 7; x <= 9; x++) for (let z = 2; z <= 4; z++) pyramid.push([x, 9, z, 'red_wool']);
+pyramid.push([8, 10, 3, 'red_wool']);
+const S3 = set(houseBlocks, [[...WIN_S, 'glass'], [...WIN_E, 'glass'], [...PEAK, 'glass']]);
+const S6 = set(set(S3.filter((b) => b[1] < 8), pyramid), [[...PEAK, 'glowstone']]);
+const CHIMNEY = [[10, 9, 1, 'bricks'], [10, 10, 1, 'bricks']];
+const S7 = set(S6, CHIMNEY);
+const S8 = set(S6, [[8, 10, 3, 'gold_block']]);
+const S9 = set(S8, CHIMNEY);
+const FIRES = [[10, 11, 1], [8, 11, 3], [6, 9, 2], [9, 10, 4]];
+const S10 = set(S9, FIRES.map((p) => [...p, 'fire']));                           // the fireplace (bad commit)
+const PORCH = [[7, 1, 7, 'acacia_planks'], [8, 1, 7, 'acacia_planks']];
+const S12 = set(S9, PORCH);
+const S9d = set(S9, [[...WIN_E, null]]);                                         // git diff: one glass removed
+
+const EXTRA = ['glass', 'red_wool', 'glowstone', 'bricks', 'gold_block', 'fire'];
+const names = [...village.names, ...EXTRA];
+const looks = { ...village.looks, ...Object.fromEntries(EXTRA.map((n) => [n, { kind: 'cube', side: n }])), fire: { kind: 'cross', side: 'fire' } };
+const toData = (blocks) => ({ names, looks, blocks: blocks.map(([x, y, z, n]) => [x - 8, y - 1, z - 3, names.indexOf(n)]) });
+const houseGroup = async (blocks) => (blocks.length ? makeTerrain(PLACE, { data: toData(blocks) }) : new THREE.Group());
+async function makeModel(blocks, parent) {
+  const pk = new Set((parent ?? []).map((b) => b.join(',')));
+  const g = new THREE.Group();
+  const layers = [];
+  for (let y = 1; y <= 11; y++) {
+    const layer = blocks.filter((b) => b[1] === y);
+    const L = { same: await houseGroup(layer.filter((b) => pk.has(b.join(',')))),
+                changed: await houseGroup(layer.filter((b) => !pk.has(b.join(',')))) };
+    g.add(L.same, L.changed);
+    layers.push(L);
+  }
+  g.scale.setScalar(1 / 8);
+  return { g, layers };
+}
+const HOUSE = {};
+for (const [k, s] of Object.entries({ S9, S9d })) {
+  HOUSE[k] = await houseGroup(s);
+  HOUSE[k].position.set(8, 1, 3);
+  HOUSE[k].visible = false;
+  scene.add(HOUSE[k]);
+}
+
+// ---------- commits ----------
+const C = {
+  c6: { id: 'f2d1', msg: 'merge', s: S6, parents: [] },
+  c7: { id: '7b3e', msg: 'chimney', s: S7, parents: ['c6'] },
+  c8: { id: 'b06a', msg: 'gold top', s: S8, parents: ['c6'] },
+  c9: { id: 'd4c9', msg: 'merge', s: S9, parents: ['c8', 'c7'] },
+  c10: { id: 'b4d1', msg: 'fireplace', s: S10, parents: ['c9'] },
+  c11: { id: 'e8a2', msg: 'revert b4d1', s: S9, parents: ['c10'] },
+  c12: { id: '4f1c', msg: 'porch', s: S12, parents: ['c9'] },          // Steve's local branch, before the rebase
+  c12r: { id: '8b27', msg: 'porch', s: S12, parents: ['c11'] },        // the same change replayed after main
+  c13: { id: '1e5d', msg: 'merge #1', s: S12, parents: ['c11', 'c12r'] },
+};
+for (const c of Object.values(C)) c.model = await makeModel(c.s, c.parents[0] ? C[c.parents[0]].s : null);
+
+// ---------- the copies of the repository ----------
+const SPOT = { c6: [4, 9], c7: [7, 12.5], c8: [7, 9], c9: [10, 9], c10: [13, 9], c11: [16, 9], c12: [13, 12.5],
+               c12r: [19, 9], c13: [22, 9] };
+const REPOS = {
+  steve: { at: [0, 0], spot: { ...SPOT } },
+  remote: { at: [-10, -18], spot: { ...SPOT, c12r: [19, 12.5] } },     // the Pull Request waits on the side
+  mason: { at: [18, -10], spot: { ...SPOT, c12r: [19, 12.5] } },
+};
+const HAS = { steve: {}, remote: {}, mason: {} };
+const stoneMat = (h) => {
+  const t = tex(imgs, 'polished_andesite').clone();
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(1, h);
+  t.needsUpdate = true;
+  return new THREE.MeshBasicMaterial({ map: t });
+};
+const PIECES = {};
+function makeSignFor(c) { return makeSign(imgs, [c.id, c.msg.length > 9 ? c.msg.slice(0, 9) : c.msg], { w: 0.86, h: 0.43, post: false }); }
+for (const [r, R] of Object.entries(REPOS)) {
+  const xz = (k) => [R.spot[k][0] + R.at[0], R.spot[k][1] + R.at[1]];
+  const topY = Math.max(...Object.keys(C).map((k) => groundTop(...xz(k)))) + 1;
+  for (const [k, c] of Object.entries(C)) {
+    const [x, z] = xz(k);
+    const g = new THREE.Group();
+    const base = groundTop(x, z), h = topY - base;
+    const col = new THREE.Mesh(new THREE.BoxGeometry(1, h, 1), [stoneMat(h), stoneMat(h), stoneMat(1), stoneMat(1), stoneMat(h), stoneMat(h)]);
+    col.position.set(x, base + h / 2, z);
+    g.add(col);
+    const model = r === 'steve' ? c.model.g : c.model.g.clone();
+    model.position.set(x, topY, z);
+    g.add(model);
+    const sign = makeSignFor(c);
+    sign.position.set(x, topY - 0.5, z + 0.505);
+    g.add(sign);
+    const pbase = groundTop(x + 1, z);
+    for (let y = pbase; y < topY - 0.01; y++) {
+      const post = makeFencePost(imgs, 'acacia_planks');
+      post.position.set(x + 1, y, z);
+      g.add(post);
+    }
+    const knot = makeKnot(imgs);
+    knot.position.set(x + 1, topY - 0.25, z);
+    g.add(knot);
+    g.visible = false;
+    scene.add(g);
+    PIECES[`${r}:${k}`] = { g, model, sign, col, topY, x, z, knotTop: V(x + 1, topY + 0.05, z) };
+  }
+}
+const LEADS = [];
+for (const r of Object.keys(REPOS)) for (const [k, c] of Object.entries(C)) for (const p of c.parents) {
+  const l = makeLead({ width: 0.05 });
+  l.material.color.setScalar(0.5);
+  scene.add(l);
+  LEADS.push({ r, k, p, l });
+}
+const BANNERS = [
+  { r: 'steve', name: 'main', color: 'white', side: -1, keys: [] },
+  { r: 'steve', name: 'chimney', color: 'orange', side: -1, keys: [] },
+  { r: 'steve', name: 'porch', color: 'lime', side: -1, keys: [] },
+  { r: 'remote', name: 'main', color: 'white', side: -1, keys: [] },
+  { r: 'mason', name: 'main', color: 'white', side: -1, keys: [] },
+];
+for (const [i, b] of BANNERS.entries()) {
+  b.ban = makeBanner(imgs, b.color, { seed: 11 + i * 29 });
+  scene.add(b.ban.g);
+  b.label = bubble([b.name], { color: { white: 0xFFFFFF, orange: 0xFFAA00, lime: 0x55FF55 }[b.color] });
+  scene.add(b.label);
+}
+
+// ---------- people ----------
+const steve = makePlayer(imgs, { skin: 'steve' });
+const alex = makePlayer(imgs, { skin: 'alex' });
+const keeper = makeVillager(imgs, { profession: 'cartographer', type: 'savanna' });
+const mason = makeVillager(imgs, { profession: 'mason', type: 'savanna' });
+scene.add(steve.g, alex.g, keeper.g, mason.g);
+keeper.g.position.set(1.5, G, -6.0);
+keeper.g.rotation.y = 0.3;
+// the iron golem runs the checks (IronGolemModel, 128 x 128, as in the server short)
+function makeGolem() {
+  const mat = skinMat([imgs.mob_iron_golem]);
+  const S = [128, 128];
+  const g = new THREE.Group();
+  const head = entityPart(mat, [0, -7, -2], [[0, 0, -4, -12, -5.5, 8, 10, 8], [24, 0, -1, -5, -7.5, 2, 4, 2]], [0, 0, 0], S);
+  const body = entityPart(mat, [0, -7, 0], [[0, 40, -9, -2, -6, 18, 12, 11], [0, 70, -4.5, 10, -3, 9, 5, 6, 0.5]], [0, 0, 0], S);
+  const arms = [entityPart(mat, [0, -7, 0], [[60, 21, -13, -2.5, -3, 4, 30, 6]], [0, 0, 0], S),
+                entityPart(mat, [0, -7, 0], [[60, 58, 9, -2.5, -3, 4, 30, 6]], [0, 0, 0], S)];
+  const legs = [entityPart(mat, [-4, 11, 0], [[37, 0, -3.5, -3, -3, 6, 16, 5]], [0, 0, 0], S),
+                entityPart(mat, [5, 11, 0], [[60, 0, -3.5, -3, -3, 6, 16, 5]], [0, 0, 0], S)];
+  g.add(head, body, ...arms, ...legs);
+  scene.add(g);
+  return { g, head, arms };
+}
+const golem = makeGolem();
+golem.g.position.set(12.6, groundTop(12.6, -4.2), -4.2);
+golem.g.rotation.y = -2.2;
+
+// ---------- things ----------
+const chest = makeChest(imgs, 0.9);
+chest.g.position.set(11.5, G, 7.5);
+chest.g.rotation.y = -0.6;
+const ender = makeChest({ ...imgs, chest_atlas: imgs.ender_atlas }, 0.9);   // the stash box
+ender.g.position.set(13.3, G, 7.6);
+ender.g.rotation.y = -0.6;
+scene.add(chest.g, ender.g);
+const ignoreSign = makeSign(imgs, ['.gitignore', 'ladder', 'secrets'], { w: 1.1, h: 0.8 });
+ignoreSign.position.set(10.3, G + 1.25, 8.4);
+ignoreSign.rotation.y = -0.4;
+scene.add(ignoreSign);
+const barrier = makeItem(imgs, 'barrier', 0.8);
+barrier.position.set(11.5, G + 1.5, 7.5);
+scene.add(barrier);
+// the temporary ladder on the east wall, and the secrets book on the grass
+const ladder = new THREE.Mesh(new THREE.PlaneGeometry(1, 3), new THREE.MeshBasicMaterial({ map: tex(imgs, 'ladder'), transparent: true, alphaTest: 0.1, side: THREE.DoubleSide }));
+ladder.material.map = ladder.material.map.clone(); ladder.material.map.wrapT = THREE.RepeatWrapping; ladder.material.map.repeat.set(1, 3); ladder.material.map.needsUpdate = true;
+ladder.position.set(10.53, G + 1.5, 4);
+ladder.rotation.y = Math.PI / 2;
+scene.add(ladder);
+const book = makeItem(imgs, 'enchanted_book', 0.55);
+scene.add(book);
+// git diff frames: green on the added bricks, red where the glass was
+const frame = (color) => { const f = makeFrame(1.04, 0.05, color); f.visible = false; scene.add(f); return f; };
+const ADDED = [[12, 1, 2], [12, 1, 4]];
+const greens = ADDED.map(([x, y, z]) => { const f = frame(0x55FF55); f.position.set(x, y + 0.5, z); return f; });
+const red = frame(0xFF5555);
+red.position.set(WIN_E[0], WIN_E[1] + 0.5, WIN_E[2]);
+const bricks = ADDED.map(([x, y, z]) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ map: tex(imgs, 'bricks') }));
+  m.position.set(x, y + 0.5, z);
+  m.visible = false;
+  scene.add(m);
+  return m;
+});
+// the porch blocks (git stash) and their flying copies
+const porch = PORCH.map(([x, y, z]) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ map: tex(imgs, 'acacia_planks') }));
+  m.position.set(x, y + 0.5, z);
+  m.visible = false;
+  scene.add(m);
+  return m;
+});
+const porchDrops = PORCH.map((p, i) => { const d = makeDrop(imgs, 'acacia_planks', { offset: i * 1.9 }); scene.add(d); return d; });
+// .gitignore: a bricks copy goes in; the ladder and the book bounce off the barrier
+const inDrop = makeDrop(imgs, 'bricks');
+const ladderDrop = makeDrop(imgs, 'ladder');
+scene.add(inDrop, ladderDrop);
+// fire on the real roof (fireplace commit): crossed planes with the game's animated fire strip (32 frames)
+const fireTex = tex(imgs, 'fire').clone();
+fireTex.repeat.set(1, 1 / 32);
+fireTex.needsUpdate = true;
+const fireMat = new THREE.MeshBasicMaterial({ map: fireTex, transparent: true, alphaTest: 0.1, side: THREE.DoubleSide, toneMapped: false });
+const fires = FIRES.map(([x, y, z]) => {
+  const g = new THREE.Group();
+  for (const a of [Math.PI / 4, -Math.PI / 4]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), fireMat); m.rotation.y = a; g.add(m); }
+  g.position.set(x, y + 0.5, z);
+  g.visible = false;
+  scene.add(g);
+  return g;
+});
+const cracks = makeCracks(imgs);
+scene.add(cracks);
+const pick = makeItem(imgs, 'pickaxe', 0.9);
+scene.add(pick);
+const lectern = makeLectern(imgs);
+lectern.g.position.set(11.2, groundTop(11.2, -4.0), -4.0);
+lectern.g.rotation.y = Math.PI * 0.75;
+lectern.setBook(['Pull Request #1', 'porch -> main', '', 'checks: ...', 'review: ...']);
+scene.add(lectern.g);
+const reflog = makeLectern(imgs);
+reflog.g.position.set(5.2, G, 12.6);
+reflog.g.rotation.y = Math.PI * 0.85;
+reflog.setBook(['git reflog', 'e8a2 revert b4d1', 'b4d1 fireplace', '7b3e chimney <-', 'd4c9 merge']);
+scene.add(reflog.g);
+const lock = makeItem(imgs, 'padlock', 0.7);
+scene.add(lock);
+const guard = [-0.6, 0, 0.6].map((dx) => { const p = makeFencePost(imgs, 'acacia_planks'); scene.add(p); p.userData.dx = dx; return p; });
+const orbs = [0, 1, 2, 3, 4].map((i) => { const o = makeOrb(imgs, 0.3, i * 2); o.visible = false; scene.add(o); return o; });
+const otherSign = makeSignFor({ id: '4f1c', msg: 'porch' });   // the old name of the rebased commit
+scene.add(otherSign);
+
+// ---------- cover ----------
+const cover = makeSign(imgs, ['HOW TEAMS', 'USE GIT'], { w: 3.4, h: 1.6 });
+const COVER_Z = 17;
+const coverBase = groundTop(8, COVER_Z) + 2.0;
+cover.position.set(8, coverBase, COVER_Z);
+scene.add(cover);
+const COVER_OUT = ev(0, 0.1), COVER_IN = ev(21, 0.7);
+const coverY = (t) => coverBase - 4.5 * easeInOut(prog(t, COVER_OUT, COVER_OUT + 0.8)) * (1 - easeInOut(prog(t, COVER_IN, COVER_IN + 0.8)));
+
+// ---------- events ----------
+const T = {
+  clone: [ev(2, 0.15), ev(2, 0.75)],
+  diff: [ev(3, 0.2), end(3)],
+  place: [ev(3, 0.1), ev(3, 0.18)],
+  ignore: [ev(5, 0.15), ev(5, 0.55)],
+  porch: [ev(6, 0.1), ev(6, 0.25)],
+  bell: ev(6, 0.55),
+  stash: [ev(7, 0.08), ev(7, 0.3)],
+  pop: [ev(7, 0.68), ev(7, 0.9)],
+  build10: [ev(8, 0.2), ev(8, 0.6)],
+  fire: ev(8, 0.62),
+  reset: [ev(10, 0.1), ev(10, 0.55)],
+  build11: [ev(11, 0.2), ev(11, 0.5)],
+  out: ev(11, 0.72),
+  mainTo11: ev(11, 0.85),
+  delBanner: ev(12, 0.3),
+  replant: ev(13, 0.8),
+  diamond: [ev(14, 0.3), end(14)],
+  build12: [ev(15, 0.05), ev(15, 0.2)],
+  rebase: [ev(15, 0.35), ev(15, 0.7)],
+  guard: ev(17, 0.3),
+  push: [ev(18, 0.05), ev(18, 0.35)],
+  lectern: ev(18, 0.55),
+  checks: [ev(19, 0.05), ev(19, 0.45)],
+  approve: ev(19, 0.75),
+  build13: [ev(20, 0.15), ev(20, 0.35)],
+  mainTo13: ev(20, 0.4),
+  pullAll: [ev(20, 0.5), ev(20, 0.95)],
+};
+// Who has what: Steve and the remote start with commits 6 to 9 (part 1); the mason clones them
+Object.assign(HAS.steve, { c6: 0, c7: 0, c8: 0, c9: 0, c10: T.build10[0], c11: T.build11[0], c12: T.build12[0] });
+Object.assign(HAS.remote, { c6: 0, c7: 0, c8: 0, c9: 0, c10: ev(10, 0.0), c11: ev(13, 0.2), c13: T.build13[0] });
+const BUILDS = { c10: T.build10, c11: T.build11, c12: T.build12 };
+const FLIGHTS = [];
+function fly(k, from, to, a, z) {
+  const m = C[k].model.g.clone();
+  m.visible = false;
+  scene.add(m);
+  FLIGHTS.push({ k, from, to, a, z, m });
+  HAS[to][k] = z;
+}
+['c6', 'c7', 'c8', 'c9'].forEach((k, i) => fly(k, 'remote', 'mason', T.clone[0] + i * 0.12 * (T.clone[1] - T.clone[0]),
+                                                T.clone[0] + (0.55 + i * 0.12) * (T.clone[1] - T.clone[0])));
+fly('c12r', 'steve', 'remote', ...T.push);
+['c10', 'c11', 'c12r', 'c13'].forEach((k, i) => fly(k, 'remote', 'mason', T.pullAll[0] + i * 0.1 * (T.pullAll[1] - T.pullAll[0]),
+                                                     T.pullAll[0] + (0.6 + i * 0.1) * (T.pullAll[1] - T.pullAll[0])));
+fly('c13', 'remote', 'steve', T.pullAll[0], T.pullAll[0] + 0.7 * (T.pullAll[1] - T.pullAll[0]));
+// the rebase: commit 12 moves from its side spot to the front of main (and becomes c12r)
+HAS.steve.c12r = T.rebase[1];
+
+BANNERS[0].keys = [[0, 'c9'], [T.mainTo11, 'c11'], [T.pullAll[1], 'c13']];
+BANNERS[1].keys = [[0, 'c7'], [T.delBanner, null], [T.replant, 'c7']];
+BANNERS[2].keys = [[T.build12[1], 'c12'], [T.rebase[1] + 0.1, 'c12r']];
+BANNERS[3].keys = [[0, 'c9'], [ev(13, 0.2), 'c11'], [T.mainTo13, 'c13']];
+BANNERS[4].keys = [[T.clone[1], 'c9'], [T.pullAll[1], 'c13']];
+
+// ---------- per frame ----------
+function layered(md, t, [a, z]) {
+  const n = md.layers.length;
+  md.layers.forEach((L, i) => { const on = t >= a + (z - a) * i / n; L.same.visible = on; L.changed.visible = on; });
+}
+function glow(g, k) {
+  g.traverse((o) => {
+    if (!o.material) return;
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      if (!m.color) continue;
+      if (!m.userData.base0) m.userData.base0 = m.color.clone();
+      m.color.copy(m.userData.base0).multiplyScalar(1 + k);
+    }
+  });
+}
+const keyAt = (keys, t) => { let v = null; let seen = false; for (const [a, k] of keys) if (t >= a) { v = k; seen = true; } return seen ? v : null; };
+const at = (x, z) => V(x, groundTop(x, z), z);
+const STEVE = [
+  [0, at(9.5, 11.5), Math.PI], [ev(3, 0.0), at(9.5, 11.5), Math.PI],
+  [ev(3, 0.08), at(12.6, 6.6), Math.PI / 2], [ev(4, 0.0), at(12.6, 6.6), Math.PI / 2],
+  [ev(6, 0.0), at(7.5, 8.4), Math.PI], [ev(8, 0.0), at(7.5, 8.4), Math.PI],
+  [ev(8, 0.1), at(12.0, 11.0), Math.PI], [ev(13, 0.4), at(12.0, 11.0), Math.PI],
+  [ev(13, 0.6), at(6.3, 11.6), Math.PI * 0.9], [ev(14, 0.1), at(6.3, 11.6), Math.PI * 0.9],
+  [ev(14, 0.3), at(14.5, 11.6), Math.PI], [ev(17, 0.0), at(14.5, 11.6), Math.PI],
+  [ev(17, 0.01), at(9.5, -3.0), Math.PI * 1.2], [ev(21, 0.0), at(9.5, -3.0), Math.PI * 1.2],
+  [ev(21, 0.01), at(9.5, 11.5), Math.PI],
+];
+const ALEX = [[0, at(-15.5, -2.0), Math.PI * 0.9], [ev(17, 0.0), at(-15.5, -2.0), Math.PI * 0.9],
+  [ev(17, 0.01), at(12.4, -2.6), Math.PI * 1.25], [ev(21, 0.0), at(12.4, -2.6), Math.PI * 1.25], [ev(21, 0.01), at(-15.5, -2.0), Math.PI * 0.9]];
+const MASON = [[0, at(26.5, 1.8), Math.PI * 1.1]];
+
+function scenePieces(t) {
+  // the real house: one glass removed while git diff shows it
+  const diffOn = during(t, T.place[0], ev(5, 0.0));
+  HOUSE.S9.visible = !diffOn;
+  HOUSE.S9d.visible = diffOn;
+  bricks.forEach((b) => { b.visible = t >= T.place[1] && t < ev(21, 0.0); });
+  const blink = Math.floor(t * 3) % 2 === 0;
+  greens.forEach((f) => { f.visible = during(t, ...T.diff) && blink; });
+  red.visible = during(t, ...T.diff) && !blink;
+  // .gitignore: ladder and book are there from line 4; their copies bounce off the barrier
+  ladder.visible = t >= ev(4, 0.15) && t < ev(21, 0.0);
+  book.visible = during(t, ev(4, 0.3), ev(21, 0.0));
+  const chestAt = V(11.5, G + 0.8, 7.5);
+  if (book.visible) {
+    const k = prog(t, T.ignore[0] + 0.3, T.ignore[1] + 0.3);
+    const from = V(13.0, G + 0.35, 9.4);
+    book.position.copy(k <= 0 || k >= 1 ? from : arc(from, chestAt, k < 0.5 ? easeInOut(k * 2) * 0.85 : 0.85 * (1 - easeInOut((k - 0.5) * 2)), 1.0));
+  }
+  ignoreSign.visible = t >= ev(5, 0.0) && t < ev(21, 0.0);
+  barrier.visible = during(t, T.ignore[0] + 0.2, T.ignore[1] + 0.9);
+  if (barrier.visible) barrier.glow(0, t);
+  {
+    const k = prog(t, ...T.ignore);
+    inDrop.visible = during(t, T.ignore[0], T.ignore[1]);
+    if (inDrop.visible) inDrop.position.copy(arc(V(12, G + 0.3, 4), chestAt, easeInOut(k), 1.0));
+    const k2 = prog(t, T.ignore[0] + 0.15, T.ignore[1] + 0.15);
+    ladderDrop.visible = during(t, T.ignore[0] + 0.15, T.ignore[1] + 0.6);
+    if (ladderDrop.visible) {
+      const from = V(10.9, G + 0.3, 4.2);
+      ladderDrop.position.copy(k2 >= 1 ? from : arc(from, chestAt, k2 < 0.5 ? easeInOut(k2 * 2) * 0.85 : 0.85 * (1 - easeInOut((k2 - 0.5) * 2)), 1.0));
+    }
+  }
+  chest.open(prog(t, T.ignore[0], T.ignore[0] + 0.2) * (1 - prog(t, T.ignore[1], T.ignore[1] + 0.2)));
+  // the porch: placed, stashed in the ender chest, popped back
+  const porchOn = (t >= T.porch[1] && t < T.stash[0]) || (t >= T.pop[1] && t < ev(21, 0.0));
+  porch.forEach((p, i) => { p.visible = porchOn || (i === 0 && during(t, T.porch[0], T.porch[1])); });
+  porchDrops.forEach((d, i) => {
+    const src = V(PORCH[i][0], G + 0.5, PORCH[i][2]), box = V(13.3, G + 0.8, 7.6);
+    const ks = prog(t, T.stash[0] + i * 0.1, T.stash[1] + i * 0.1), kp = prog(t, T.pop[0] + i * 0.1, T.pop[1] + i * 0.1);
+    d.visible = (ks > 0 && ks < 1) || (kp > 0 && kp < 1);
+    if (!d.visible) return;
+    d.position.copy(ks > 0 && ks < 1 ? arc(src, box, easeInOut(ks), 1.2) : arc(box, src, easeInOut(kp), 1.2));
+  });
+  ender.open(prog(t, T.stash[0], T.stash[0] + 0.2) * (1 - prog(t, T.stash[1] + 0.2, T.stash[1] + 0.4))
+             + prog(t, T.pop[0], T.pop[0] + 0.2) * (1 - prog(t, T.pop[1] + 0.2, T.pop[1] + 0.4)));
+  // fire on the real roof from the fireplace commit until the revert
+  const fireOn = during(t, T.fire, T.out);
+  fires.forEach((f) => { f.visible = fireOn; });
+  fireTex.offset.y = 1 - (Math.floor(t * 20) % 32 + 1) / 32;
+  // git reset: the pickaxe hits the pedestal of the bad commit, cracks show, a barrier says no
+  const P10 = PIECES['steve:c10'];
+  cracks.position.set(P10.x, P10.topY - 0.5, P10.z);
+  cracks.set(prog(t, ...T.reset) * 0.8);
+  pick.visible = during(t, ...T.reset);
+  if (pick.visible) { pick.position.set(P10.x + 0.7, P10.topY + 0.2 + 0.25 * Math.sin(t * 14), P10.z + 0.8); pick.glow(0, t); }
+  // people
+  moveAlong(steve, STEVE, t);
+  steve.arms[1].rotation.set(0, 0, 0);
+  for (const a of [...T.place, T.porch[0], T.porch[1], T.build10[0], T.build12[0]]) swingArm(steve, prog(t, a - 0.15, a + 0.15));
+  for (let i = 0; i < 3; i++) swingArm(steve, prog(t, T.reset[0] + i * 0.3, T.reset[0] + i * 0.3 + 0.3));
+  moveAlong(alex, ALEX, t);
+  alex.head.rotation.x = during(t, T.approve - 0.4, T.approve + 0.6) ? -0.35 * Math.abs(Math.sin((t - T.approve) * 9)) : 0;  // a nod
+  moveAlong(mason, MASON, t);
+  shakeNo(keeper, t, during(t, T.reset[0] + 0.3, T.reset[1] + 0.6) && false);
+  golem.head.rotation.y = 0.3 * Math.sin(t * 0.8);
+  golem.arms.forEach((a) => { a.rotation.x = during(t, ...T.checks) ? -0.6 * Math.sin((t - T.checks[0]) * 3) : 0; });
+  // pedestals and models
+  for (const [key, P] of Object.entries(PIECES)) {
+    const [r, k] = key.split(':');
+    const a = HAS[r][k];
+    // commit 12 lives on its side spot until the rebase moves it
+    const gone = r === 'steve' && k === 'c12' && t >= T.rebase[1];
+    P.g.visible = a !== undefined && t >= a - (r === 'steve' && BUILDS[k] ? 0.4 : 0) && !gone;
+    if (!P.g.visible) continue;
+    if (r === 'steve' && BUILDS[k]) layered(C[k].model, t, BUILDS[k]);
+    P.sign.visible = r !== 'steve' || !BUILDS[k] || t >= BUILDS[k][1];
+    P.model.visible = t >= a;
+  }
+  // the rebase flight on Steve's side: the porch model lifts from its side spot and lands in front of main
+  const kr = prog(t, ...T.rebase);
+  rebaseCopy.visible = kr > 0 && kr < 1;
+  if (rebaseCopy.visible) {
+    const A = PIECES['steve:c12'], B2 = PIECES['steve:c12r'];
+    rebaseCopy.position.copy(arc(V(A.x, A.topY, A.z), V(B2.x, B2.topY, B2.z), easeInOut(kr), 3));
+  }
+  otherSign.visible = during(t, T.rebase[1], T.rebase[1] + 0.8) && Math.floor((t - T.rebase[1]) * 5) % 2 === 0;
+  otherSign.position.copy(PIECES['steve:c12r'].sign.position).add(V(0, 0, 0.002));
+  // leads
+  for (const L of LEADS) {
+    const a = HAS[L.r][L.k], b = HAS[L.r][L.p];
+    const gone = L.r === 'steve' && L.k === 'c12' && t >= T.rebase[0];
+    if (a === undefined || b === undefined || gone) { L.l.visible = false; continue; }
+    const from = Math.max(a, b) + (L.r === 'steve' && BUILDS[L.k] ? BUILDS[L.k][1] - BUILDS[L.k][0] : 0);
+    L.l.set(PIECES[`${L.r}:${L.k}`].knotTop, PIECES[`${L.r}:${L.p}`].knotTop, easeInOut(prog(t, from, from + 0.35)));
+  }
+  // the diamond of a merge (commits 7, 8 and 9) pulses in line 14
+  const pulse = during(t, ...T.diamond) ? 0.5 * (0.5 - 0.5 * Math.cos((t - T.diamond[0]) * 2 * Math.PI / 1.2)) : 0;
+  for (const k of ['c7', 'c8', 'c9']) glow(PIECES[`steve:${k}`].model, pulse);
+  // banners
+  for (const b of BANNERS) {
+    const k = keyAt(b.keys, t);
+    const moving = b.keys.some(([a], i) => i > 0 && during(t, a - 0.15, a));
+    b.ban.g.visible = k !== null && !moving && PIECES[`${b.r}:${k}`].g.visible;
+    if (!b.ban.g.visible) continue;
+    const P = PIECES[`${b.r}:${k}`];
+    b.ban.g.position.set(P.x + b.side, groundTop(P.x + b.side, P.z - 0.1), P.z - 0.1);
+    b.ban.sway(t);
+  }
+  // the guarded main of the square: three fence posts and a padlock in front of its banner until the merge
+  const RB = BANNERS[3].ban.g;
+  const guarded = during(t, T.guard, T.mainTo13 - 0.15);
+  guard.forEach((p) => { p.visible = guarded; p.position.set(RB.position.x + p.userData.dx, groundTop(RB.position.x, RB.position.z + 0.9), RB.position.z + 0.9); });
+  lock.visible = guarded;
+  if (lock.visible) { lock.position.set(RB.position.x, RB.position.y + 1.4, RB.position.z + 0.9); lock.glow(0, t); }
+  // the lectern's book opens with the Pull Request; checks and review fill in
+  lectern.open(prog(t, T.lectern, T.lectern + 0.4));
+  lectern.setBook(['Pull Request #1', 'porch -> main', '', t >= T.checks[1] ? 'checks: passed' : 'checks: ...',
+                   t >= T.approve ? 'review: approved' : 'review: ...']);
+  reflog.open(prog(t, ev(13, 0.05), ev(13, 0.3)) * (1 - prog(t, ev(14, 0.2), ev(14, 0.4))));
+  // green orbs rise from the Pull Request model while the checks pass
+  const PR = PIECES['remote:c12r'];
+  orbs.forEach((o, i) => {
+    const k = prog(t, T.checks[0] + i * 0.2, T.checks[0] + i * 0.2 + 1.0);
+    o.visible = k > 0 && k < 1;
+    if (o.visible) o.position.set(PR.x + 0.4 * Math.sin(i * 2.1), PR.topY + 0.4 + 1.6 * k, PR.z + 0.4 * Math.cos(i * 2.1));
+  });
+  // copies in flight
+  for (const f of FLIGHTS) {
+    const k = prog(t, f.a, f.z);
+    f.m.visible = k > 0 && k < 1;
+    if (!f.m.visible) continue;
+    const A = PIECES[`${f.from}:${f.k}`], B2 = PIECES[`${f.to}:${f.k}`];
+    const pa = V(A.x, A.topY, A.z), pb = V(B2.x, B2.topY, B2.z);
+    f.m.position.copy(arc(pa, pb, easeInOut(k), 6 + pa.distanceTo(pb) * 0.25));
+  }
+}
+const rebaseCopy = C.c12.model.g.clone();
+rebaseCopy.visible = false;
+scene.add(rebaseCopy);
+
+// ---------- bubbles ----------
+const top = (r, k, dy = 2.0) => { const P = PIECES[`${r}:${k}`]; return V(P.x, P.topY + dy, P.z); };
+const over = (p, dy = 2.5) => V(p.x, p.y + dy, p.z);
+const B = {
+  newb: bubble(['a new builder', 'empty yard'], { color: 0xFFFFFF }),
+  clone: bubble(['git clone'], { color: 0xFFFF55 }),
+  history: bubble(['full project', '+ its history'], { color: 0x55FF55 }),
+  diff: bubble(['git diff', '+2 added  -1 removed'], { color: 0xFFFF55 }),
+  junk: bubble(['temporary ladder', 'secrets.env'], { color: 0xFF5555 }),
+  ignore: bubble(['.gitignore'], { color: 0xFFFF55 }),
+  bell: bubble(['urgent bug!'], { color: 0xFF5555 }),
+  stash: bubble(['git stash'], { color: 0xFFFF55 }),
+  pop: bubble(['git stash pop'], { color: 0xFFFF55 }),
+  bad: bubble(['b4d1 fireplace', 'already committed'], { color: 0xFF5555 }),
+  restore: bubble(['restore: before a commit', 'revert: after it'], { color: 0xFFFFFF }),
+  reset: bubble(['git reset + force push', 'broken links'], { color: 0xFF5555 }),
+  revert: bubble(['git revert', 'a new model, the opposite'], { color: 0x55FF55 }),
+  deleted: bubble(['banner deleted', 'the model is still here'], { color: 0xFF5555 }),
+  reflog: bubble(['git reflog'], { color: 0xFFFF55 }),
+  diamond: bubble(['merge: two leads'], { color: 0xFFFF55 }),
+  rebase: bubble(['git rebase', 'one clean line'], { color: 0x55FF55 }),
+  never: bubble(['never rebase', 'pushed models'], { color: 0xFF5555 }),
+  guarded: bubble(['main is protected'], { color: 0xFF5555 }),
+  pr: bubble(['Pull Request #1', 'porch -> main'], { color: 0xFFFF55 }),
+  checks: bubble(['checks: passed'], { color: 0x55FF55 }),
+  approve: bubble(['Alex: approved'], { color: 0x55FF55 }),
+  merged: bubble(['merged into main'], { color: 0x55FF55 }),
+  pull: bubble(['everyone: git pull'], { color: 0xFFFF55 }),
+  r1: bubble(['clone'], { color: 0xFFFF55 }),
+  r2: bubble(['ignore the junk'], { color: 0xFFFF55 }),
+  r3: bubble(['stash, revert'], { color: 0xFFFF55 }),
+  r4: bubble(['review every change'], { color: 0xFFFF55 }),
+};
+for (const b of Object.values(B)) scene.add(b);
+
+function bubbles(t) {
+  const sp = steve.g.position, mp = mason.g.position, ap = alex.g.position;
+  B.newb.show(t, ev(1, 0.2), end(1), over(mp, 2.6));
+  B.clone.show(t, ev(2, 0.05), ev(2, 0.55), over(mp, 2.6));
+  B.history.show(t, ev(2, 0.55), end(2), top('mason', 'c9', 2.2));
+  B.diff.show(t, ev(3, 0.25), end(3), V(10.5, 6.5, 3));
+  B.junk.show(t, ev(4, 0.35), end(4), V(11.5, G + 3.2, 6));
+  B.ignore.show(t, ev(5, 0.05), end(5), V(10.3, G + 2.4, 8.4));
+  B.bell.show(t, T.bell, ev(7, 0.05), V(8, 7.5, 6));
+  B.stash.show(t, ev(7, 0.05), ev(7, 0.5), V(13.3, G + 2.3, 7.6));
+  B.pop.show(t, ev(7, 0.62), end(7), V(13.3, G + 2.3, 7.6));
+  B.bad.show(t, ev(8, 0.55), end(8), top('steve', 'c10', 2.2));
+  B.restore.show(t, ev(9, 0.1), end(9), top('steve', 'c10', 2.2));
+  B.reset.show(t, ev(10, 0.2), end(10), top('steve', 'c10', 2.2));
+  B.revert.show(t, ev(11, 0.1), end(11), top('steve', 'c11', 2.2));
+  B.deleted.show(t, T.delBanner, end(12), top('steve', 'c7', 2.2));
+  B.reflog.show(t, ev(13, 0.05), ev(13, 0.95), V(5.2, G + 2.6, 12.6));
+  B.diamond.show(t, ev(14, 0.3), end(14), top('steve', 'c9', 2.2));
+  B.rebase.show(t, ev(15, 0.4), end(15), top('steve', 'c12r', 2.2));
+  B.never.show(t, ev(16, 0.1), end(16), top('steve', 'c12r', 2.2));
+  B.guarded.show(t, T.guard, ev(18, 0.1), V(5, G + 3.4, -8.2));
+  B.pr.show(t, T.lectern, ev(19, 0.05), V(11.2, G + 2.6, -4.0));
+  B.checks.show(t, T.checks[0] + 0.5, ev(19, 0.7), top('remote', 'c12r', 2.0));
+  B.approve.show(t, T.approve, end(19), over(ap, 2.6));
+  B.merged.show(t, T.mainTo13, ev(20, 0.55), top('remote', 'c13', 2.2));
+  B.pull.show(t, ev(20, 0.55), end(20), V(6, 8, -6));
+  [B.r1, B.r2, B.r3, B.r4].forEach((b, i) => b.show(t, ev(21, 0.02 + i * 0.12), COVER_IN, V(10, 9 - 1.4 * i, 9)));
+  for (const b of BANNERS) {
+    const on = b.ban.g.visible && (
+      (b.r === 'steve' && (during(t, ev(0, 0.6), ev(3, 0)) || during(t, ev(11, 0.8), ev(17, 0)))) ||
+      (b.r === 'remote' && during(t, ev(15, 0.5), ev(18, 0.1))) ||
+      (b.r === 'mason' && during(t, ev(2, 0.75), end(2))));
+    const p = b.ban.g.position;
+    b.label.show(t, on ? 0 : 1e9, 1e9, V(p.x, p.y + 2.3, p.z));
+  }
+}
+
+// ---------- camera ----------
+const look = (p, q) => pose(p, q);
+const COVER = look(V(8, 3.4, 26), V(8, 2.8, COVER_Z));
+const ROWV = look(V(16, 5.5, 19), V(8, 2.0, 9.5));            // Steve's commits 6 to 9 (the end of part 1)
+const MASONV = look(V(30, 6, 9), V(26, 1, 0));                // the new builder's empty yard
+const CLONE = look(V(26, 26, 24), V(10, -1, -4));             // the square (left) and the yard (right)
+const HOUSEV = look(V(16, 6.5, 12), V(9.5, 3.0, 3.5));         // the house: diff frames, ladder
+const CHESTV = look(V(14.6, 3.6, 12.6), V(11.5, 1.4, 7.0));   // the chest, the sign, the bouncing junk
+const PORCHV = look(V(14.5, 5, 14.5), V(9.5, 2.4, 6));          // the porch and the ender chest
+const BADV = look(V(16.5, 6.5, 16), V(11.5, 3, 7));             // the burning roof and the new pedestal
+const PEDV = look(V(15.8, 3.4, 13.8), V(14, 2.2, 9));           // the bad commit and the revert
+const REFLOGV = look(V(10.5, 3.6, 16.5), V(6, 2, 10.5));        // the chimney banner and the reflog lectern
+const REBASEV = look(V(20, 7, 19), V(14, 2, 10));               // the diamond and the rebase
+const SQUARE = look(V(14, 6.5, 2), V(4, 1.5, -7.5));            // the square: guarded main, the Pull Request side
+const PRV = look(V(15.5, 4.2, 0.5), V(10.2, 2, -5));            // lectern, golem, Alex
+const PULLV = look(V(18, 30, 26), V(10, -1, -4));               // square, Steve and the yard
+const RECAP = look(V(16, 6.5, 19), V(10, 2.4, 9));
+const CAM = [
+  [0, COVER],
+  [ev(0, 0.1), ROWV, 1.4],
+  [ev(1, 0.0), MASONV, 1.4],
+  [ev(2, 0.1), CLONE, 1.2],
+  [ev(3, 0.0), HOUSEV, 1.4],
+  [ev(4, 0.45), CHESTV, 1.1],
+  [ev(6, 0.0), PORCHV, 1.2],
+  [ev(8, 0.0), BADV, 1.2],
+  [ev(9, 0.4), PEDV, 1.0],
+  [ev(12, 0.0), REFLOGV, 1.3],
+  [ev(14, 0.0), REBASEV, 1.3],
+  [ev(17, 0.0), SQUARE, 1.6],
+  [ev(18, 0.5), PRV, 1.2],
+  [ev(20, 0.45), PULLV, 1.3],
+  [ev(21, 0.0), RECAP, 1.3],
+  [COVER_IN - 0.5, COVER, 1.8],
+];
+
+// ---------- sounds ----------
+const dig = (a, z, n, kind = 'wood_dig', g = 0.26) => Array.from({ length: n }, (_, i) => [a + (z - a) * i / n, `${kind}${(i % 4) + 1}`, g]);
+window.sfxCues = [
+  ...FLIGHTS.map((f) => [f.z, 'pop', 0.3]),
+  [T.clone[1] + 0.1, 'lead_tie', 0.3], [T.clone[1] + 0.2, 'wood_dig2', 0.3],
+  [T.place[0], 'stone_dig1', 0.3], [T.place[1], 'stone_dig2', 0.3], [T.diff[0], 'click', 0.2],
+  [ev(4, 0.15), 'wood_dig1', 0.3], [ev(4, 0.3), 'book_put', 0.3],
+  [T.ignore[0], 'chestopen', 0.3], [T.ignore[1] * 0.5 + T.ignore[0] * 0.5, 'pop', 0.3],
+  [(T.ignore[0] + T.ignore[1]) / 2 + 0.2, 'villager_no1', 0.3], [(T.ignore[0] + T.ignore[1]) / 2 + 0.5, 'villager_no2', 0.25],
+  [T.ignore[1], 'chestclosed', 0.3],
+  [T.porch[0], 'wood_dig1', 0.3], [T.porch[1], 'wood_dig3', 0.3], [T.bell, 'bell', 0.4],
+  [T.stash[0], 'chestopen', 0.3], [T.stash[1] + 0.2, 'chestclosed', 0.3], [T.pop[0], 'chestopen', 0.3], [T.pop[1], 'wood_dig2', 0.3],
+  ...dig(...T.build10, 4), [T.fire, 'fire', 0.4], [T.build10[1], 'lead_tie', 0.3],
+  ...dig(...T.reset, 3, 'stone_dig', 0.3), [T.reset[1], 'villager_no3', 0.3],
+  ...dig(...T.build11, 4), [T.build11[1], 'lead_tie', 0.3], [T.out, 'fizz', 0.4], [T.mainTo11, 'wood_dig4', 0.3],
+  [T.delBanner, 'break', 0.3], [ev(13, 0.05), 'book_flip1', 0.3], [T.replant, 'wood_dig1', 0.35],
+  [T.diamond[0], 'orb', 0.2], ...dig(...T.build12, 2), [T.rebase[0], 'click', 0.2], [T.rebase[1], 'pop', 0.3],
+  [T.rebase[1] + 0.1, 'lead_tie', 0.3], [ev(16, 0.1), 'villager_no1', 0.25],
+  [T.guard, 'wood_dig3', 0.3], [T.guard + 0.2, 'chest_locked', 0.3],
+  [T.lectern, 'book_flip2', 0.3], [T.checks[0], 'orb', 0.25], [T.checks[0] + 0.5, 'orb', 0.2], [T.checks[1], 'levelup', 0.2],
+  [T.approve, 'villager_yes2', 0.3], ...dig(...T.build13, 3), [T.mainTo13, 'bell', 0.35], [T.mainTo13 + 0.2, 'challenge', 0.25],
+  [COVER_IN, 'wood_dig2', 0.3], [ev(22, 0.05), 'orb', 0.3],
+].map(([s, n, g]) => [Math.round(s * 1000) / 1000, n, g]);
+
+// Smooth camera (Aldo's request for part 2): the key path blurred in time, with a slow sway while waiting
+const camAt = smoothCamera(CAM, TOTAL, { sigma: 0.5 });
+// The loop: in the last line everything goes back to the first frame's state behind the cover
+const LOOP_T = ev(22, 0.05);
+window.renderAt = (t) => {
+  scenePieces(t >= LOOP_T ? 0 : t);
+  cover.position.y = coverY(t);
+  const cam = camAt(t);
+  world.look(cam.pos, cam.look);
+  camera.updateMatrixWorld();
+  bubbles(t >= LOOP_T ? 0 : t);
+  placeUI(camera);
+  clouds.position.x = 4 * Math.sin(2 * Math.PI * t / TOTAL);
+  world.draw(t, TOTAL, 0, 0);
+};
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

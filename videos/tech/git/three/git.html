@@ -1,0 +1,660 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+// "How Git works", in a real savanna village of the game (MacEntorno). Steve's house is a small acacia hut; every
+// commit is a 1/8 model of the whole house on a pedestal, with a sign (its name and message). Changed blocks go to a
+// chest first (staging), models are tied with leads to their parents (history), and a branch is a banner standing on
+// a model. Three copies of the repository: Steve's (by his house), the remote (the bell square) and Alex's (by her
+// house); models fly between them on push and pull. Lighting: makeWorld({ shaders: true }). Animations copy the
+// game's (objetos.js). Every event is tied to a narration line of timestamps.json: ev(line, fraction).
+import { THREE, V, prog, easeInOut, pose } from '/vendor/lib/stage.js';
+import { loadTheme, makeWorld, makeTerrain, makeClouds, makeSign, makeChest, makeFrame, tex } from '/vendor/tema/mc.js';
+import { setTime } from '/vendor/tema/vida.js';
+import { loadPeople, makePlayer, makeVillager, moveAlong } from '/vendor/tema/gente.js';
+import { bubble, placeUI, cameraAt, arc, makeItem } from '/vendor/tema/aldea.js';
+import { makeBanner, makeLead, makeKnot, makeFencePost, makeDrop, makeCracks, swingArm, shakeNo } from '/vendor/tema/objetos.js';
+
+// ---------- timing ----------
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const TOTAL = subs[subs.length - 1].end_s;
+const ev = (line, f = 0) => subs[line].start_s + f * subs[line].duration_s;
+const end = (line) => subs[line].end_s;
+const during = (t, a, z) => t >= a && t < z;
+
+// ---------- world ----------
+const PLACE = '/vendor/tema/mundos/savanna-village.json';
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'leaves', 'log_side', 'log_top', 'glass', 'polished_andesite',
+  'acacia_planks', 'banner_base', 'banner_pattern_base', 'lead_knot', 'clock',
+  ...Array.from({ length: 10 }, (_, i) => `destroy_stage_${i}`)]);
+await loadPeople(imgs, ['steve', 'alex', 'villager', 'type_savanna', 'prof_cartographer']);
+const world = makeWorld({ fov: 40, offset: 0, fog: [90, 220], shaders: true });
+const { scene, camera } = world;
+const village = await (await fetch(PLACE)).json();
+
+// Steve's house: the hut at x 5..11, z 0..6, y 1..9 (logs, terracotta, acacia roof, fences). It is taken out of the
+// terrain and drawn by itself, so it can change; the terrain keeps everything else as the game saved it.
+const inHouse = ([x, y, z, n]) => x >= 5 && x <= 11 && z >= 0 && z <= 6 && y >= 1 && y <= 10 && /acacia|terracotta|torch/.test(village.names[n]);
+const houseBlocks = village.blocks.filter(inHouse).filter(([, , , n]) => !/torch/.test(village.names[n]))
+  .map(([x, y, z, n]) => [x, y, z, village.names[n]]);
+const ground = JSON.parse(JSON.stringify(village));
+ground.blocks = ground.blocks.filter((b) => !inHouse(b));
+// clear: the acacia south of the house stood where the pedestals and the cameras go
+const terrain = await makeTerrain(PLACE, { data: ground, clear: [1, 25, 7, 26] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+await setTime(world, 'day', { terrain, clouds, imgs });
+world.sun.target.position.set(4, 0, 0);
+const groundTop = (x, z) => Math.max(terrain.groundAt(x, z), terrain.groundAt(x + 0.4, z), terrain.groundAt(x - 0.4, z));
+const G = 1;  // ground top around Steve's house
+
+// ---------- house states ----------
+// Each state is a list of [x, y, z, block] in world coordinates (the house is at x 5..11, z 0..6)
+const WIN_S = [8, 2, 5], WIN_E = [10, 2, 3], PEAK = [8, 9, 3];
+const keyOf = (b) => `${b[0]},${b[1]},${b[2]}`;
+const set = (blocks, changes) => {
+  const out = new Map(blocks.map((b) => [keyOf(b), b]));
+  for (const c of changes) out.set(keyOf(c), c);
+  return [...out.values()];
+};
+const S1 = houseBlocks;
+const S2 = set(S1, [[...WIN_S, 'glass'], [...WIN_E, 'glass']]);
+const S3 = set(S2, [[...PEAK, 'glass']]);
+// the crazy roof: the top roof (y 8 and 9) becomes a red wool pyramid
+const pyramid = [];
+for (let x = 6; x <= 10; x++) for (let z = 1; z <= 5; z++) pyramid.push([x, 8, z, 'red_wool']);
+for (let x = 7; x <= 9; x++) for (let z = 2; z <= 4; z++) pyramid.push([x, 9, z, 'red_wool']);
+pyramid.push([8, 10, 3, 'red_wool']);
+const S4 = set(S3.filter((b) => b[1] < 8), pyramid);
+const S5 = set(S3, [[...PEAK, 'glowstone']]);
+const S6 = set(S4, [[...PEAK, 'glowstone']]);
+const S7 = set(S6, [[10, 9, 1, 'bricks'], [10, 10, 1, 'bricks']]);             // Alex: a chimney
+const S8 = set(S6, [[8, 10, 3, 'gold_block']]);                                  // Steve: a gold top
+const S9 = set(S8, [[10, 9, 1, 'bricks'], [10, 10, 1, 'bricks']]);
+const S1b = S1.filter((b) => b[1] < 8);                                          // roof broken (line 0)
+
+// An export of its own from a block list (same looks, so makeTerrain draws it with the same light), centered on the
+// house's middle column with its floor at y = 0
+const EXTRA = ['glass', 'red_wool', 'glowstone', 'bricks', 'gold_block'];
+const names = [...village.names, ...EXTRA];
+const looks = { ...village.looks, ...Object.fromEntries(EXTRA.map((n) => [n, { kind: 'cube', side: n }])) };
+const toData = (blocks) => ({ names, looks, blocks: blocks.map(([x, y, z, n]) => [x - 8, y - 1, z - 3, names.indexOf(n)]) });
+async function houseGroup(blocks) {
+  return blocks.length ? makeTerrain(PLACE, { data: toData(blocks) }) : new THREE.Group();
+}
+// A model: one group per layer (built like a player places blocks); `changed` = blocks not in the parent state
+async function makeModel(blocks, parent) {
+  const pk = new Set((parent ?? []).map((b) => b.join(',')));
+  const g = new THREE.Group();
+  const layers = [];
+  for (let y = 1; y <= 10; y++) {
+    const layer = blocks.filter((b) => b[1] === y);
+    const same = layer.filter((b) => pk.has(b.join(','))), changed = layer.filter((b) => !pk.has(b.join(',')));
+    const L = { same: await houseGroup(same), changed: await houseGroup(changed) };
+    g.add(L.same, L.changed);
+    layers.push(L);
+  }
+  g.scale.setScalar(1 / 8);
+  return { g, layers };
+}
+
+// The real house, one group per state
+const HOUSE = {};
+for (const [k, s] of Object.entries({ S1, S1b, S2, S3, S4, S5, S6, S8, S9 })) {
+  HOUSE[k] = await houseGroup(s);
+  HOUSE[k].position.set(8, 1, 3);
+  HOUSE[k].visible = false;
+  scene.add(HOUSE[k]);
+}
+function glassBlock() {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshBasicMaterial({ map: tex(imgs, 'glass'), transparent: true, alphaTest: 0.1 }));
+  m.visible = false;
+  scene.add(m);
+  return m;
+}
+const placedGlass = [WIN_S, WIN_E].map(([x, y, z]) => { const m = glassBlock(); m.position.set(x, y + 0.5, z); return m; });
+
+// ---------- commits ----------
+const C = {
+  c1: { id: 'a1f3', msg: 'start', s: S1, parents: [] },
+  c2: { id: 'c7e2', msg: 'windows', s: S2, parents: ['c1'] },
+  c3: { id: '9d04', msg: 'skylight', s: S3, parents: ['c2'] },
+  c4: { id: 'e15b', msg: 'new roof', s: S4, parents: ['c3'] },
+  c5: { id: '3a8c', msg: 'lamp', s: S5, parents: ['c3'] },
+  // the merge is drawn without its peak: that block is the conflict and is drawn on its own (line 13)
+  c6: { id: 'f2d1', msg: 'merge', s: S6.filter((b) => keyOf(b) !== keyOf(PEAK)), parents: ['c5', 'c4'] },
+  c7: { id: '7b3e', msg: 'chimney', s: S7, parents: ['c6'] },
+  c8: { id: 'b06a', msg: 'gold top', s: S8, parents: ['c6'] },
+  c9: { id: 'd4c9', msg: 'merge', s: S9, parents: ['c8', 'c7'] },
+};
+for (const c of Object.values(C)) c.model = await makeModel(c.s, c.parents[0] ? C[c.parents[0]].s : null);
+
+// ---------- the three copies of the repository ----------
+// Pedestal spots in the layout of Steve's repository; the remote and Alex's use the same layout moved by `at`
+// (some commits sit in other spots there, as they arrived in another order)
+const SPOT = { c1: [4, 9], c2: [7, 9], c3: [10, 9], c4: [13, 12.5], c5: [13, 9], c6: [16, 9], c7: [19, 12.5], c8: [19, 9],
+               c9: [22, 9] };
+const REPOS = {
+  steve: { at: [0, 0], spot: { ...SPOT } },
+  remote: { at: [-10, -18], spot: { ...SPOT, c7: [19, 9], c8: [19, 12.5] } },
+  alex: { at: [-30, -13], spot: { ...SPOT, c7: [19, 9] } },
+};
+// When each copy has each commit (filled with the events below)
+const HAS = { steve: {}, remote: {}, alex: {} };
+
+const stoneMat = (h) => {
+  const t = tex(imgs, 'polished_andesite').clone();
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(1, h);
+  t.needsUpdate = true;
+  return new THREE.MeshBasicMaterial({ map: t });
+};
+const PIECES = {};   // `${repo}:${commit}` -> { g, model, sign, knotTop, topY, x, z }
+for (const [r, R] of Object.entries(REPOS)) {
+  const xz = (k) => [R.spot[k][0] + R.at[0], R.spot[k][1] + R.at[1]];
+  // every model of a copy stands at the same height: one block above the highest ground of its spots
+  const topY = Math.max(...Object.keys(C).map((k) => groundTop(...xz(k)))) + 1;
+  for (const [k, c] of Object.entries(C)) {
+    const [x, z] = xz(k);
+    const g = new THREE.Group();
+    const base = groundTop(x, z), h = topY - base;
+    const col = new THREE.Mesh(new THREE.BoxGeometry(1, h, 1), [stoneMat(h), stoneMat(h), stoneMat(1), stoneMat(1), stoneMat(h), stoneMat(h)]);
+    col.position.set(x, base + h / 2, z);
+    g.add(col);
+    const model = r === 'steve' ? c.model.g : c.model.g.clone();
+    model.position.set(x, topY, z);
+    g.add(model);
+    const sign = makeSign(imgs, [c.id, c.msg], { w: 0.86, h: 0.43, post: false });
+    sign.position.set(x, topY - 0.5, z + 0.505);
+    g.add(sign);
+    // a fence post (stacked from the ground) with the lead knot on top, level with the pedestal
+    const pbase = groundTop(x + 1, z);
+    for (let y = pbase; y < topY - 0.01; y++) {
+      const post = makeFencePost(imgs, 'acacia_planks');
+      post.position.set(x + 1, y, z);
+      g.add(post);
+    }
+    const knot = makeKnot(imgs);
+    knot.position.set(x + 1, topY - 0.25, z);
+    g.add(knot);
+    g.visible = false;
+    scene.add(g);
+    PIECES[`${r}:${k}`] = { g, model, sign, topY, x, z, knotTop: V(x + 1, topY + 0.05, z) };
+  }
+}
+// commit 6's peak (the conflict block), one per copy; its texture switches between the two sides
+const peakMaps = {};
+for (const n of ['red_wool', 'glowstone']) {
+  const im = await new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.src = `/vendor/tema/mundos/tex/${n}.png`; });
+  const t = new THREE.Texture(im);
+  t.magFilter = t.minFilter = THREE.NearestFilter; t.colorSpace = THREE.SRGBColorSpace; t.needsUpdate = true;
+  peakMaps[n] = t;
+}
+for (const r of Object.keys(REPOS)) {
+  const P = PIECES[`${r}:c6`];
+  P.peak = new THREE.Mesh(new THREE.BoxGeometry(1 / 8, 1 / 8, 1 / 8), new THREE.MeshBasicMaterial({ map: peakMaps.glowstone }));
+  P.peak.position.set(P.x, P.topY + (PEAK[1] - 1 + 0.5) / 8, P.z);
+  P.g.add(P.peak);
+}
+
+// Leads: each commit is tied to its parents in the same copy
+const LEADS = [];
+for (const r of Object.keys(REPOS)) {
+  for (const [k, c] of Object.entries(C)) {
+    for (const p of c.parents) {
+      const l = makeLead({ width: 0.05 });
+      l.material.color.setScalar(0.5);  // lit, the lead is brighter than the game draws it
+      scene.add(l);
+      LEADS.push({ r, k, p, l });
+    }
+  }
+}
+
+// Banners: a move breaks it and places it again at the new commit
+const BANNERS = [
+  { r: 'steve', name: 'main', color: 'white', side: -1, keys: [] },
+  { r: 'steve', name: 'roof', color: 'orange', side: 1.6, keys: [] },
+  { r: 'remote', name: 'main', color: 'white', side: -1, keys: [] },
+  { r: 'alex', name: 'main', color: 'white', side: -1, keys: [] },
+];
+for (const [i, b] of BANNERS.entries()) {
+  b.ban = makeBanner(imgs, b.color, { seed: 17 + i * 23 });
+  scene.add(b.ban.g);
+  b.label = bubble([b.name], { color: b.color === 'white' ? 0xFFFFFF : 0xFFAA00 });
+  scene.add(b.label);
+}
+
+// ---------- people and things ----------
+const steve = makePlayer(imgs, { skin: 'steve' });
+const alex = makePlayer(imgs, { skin: 'alex' });
+const keeper = makeVillager(imgs, { profession: 'cartographer', type: 'savanna' });
+scene.add(steve.g, alex.g, keeper.g);
+const KEEPER = V(-2, G, -6.3);
+keeper.g.position.copy(KEEPER);
+keeper.g.rotation.y = 0.4;
+const chest = makeChest(imgs, 0.9);
+chest.g.position.set(11.5, G, 7.5);
+chest.g.rotation.y = -0.6;
+scene.add(chest.g);
+const outline = makeFrame(1, 0.005);  // the game's selection outline, scaled to the house: lines stay thin
+outline.scale.set(7.1, 9.1, 7.1);
+outline.position.set(8, G + 4.5, 3);
+outline.visible = false;
+scene.add(outline);
+const area = makeFrame(1, 0.0015);    // the same outline around Steve's whole repository (line 14)
+area.scale.set(24, 12, 17);
+area.position.set(13, G + 5, 6.5);
+area.visible = false;
+scene.add(area);
+const drops = [WIN_S, WIN_E].map((p, i) => { const d = makeDrop(imgs, 'glass', { offset: i * 2.1 }); scene.add(d); return d; });
+const roofDrops = [0, 1, 2].map((i) => { const d = makeDrop(imgs, 'acacia_planks', { offset: i * 1.7 }); scene.add(d); return d; });
+const cracks = makeCracks(imgs);
+cracks.position.set(8, 8.5, 5);
+scene.add(cracks);
+const clock = makeItem(imgs, 'clock', 1.1);
+scene.add(clock);
+// The sign of commit 2 with another name, for line 7
+const otherSign = makeSign(imgs, ['5b90', 'windows'], { w: 0.86, h: 0.43, post: false });
+otherSign.position.copy(PIECES['steve:c2'].sign.position).add(V(0, 0, 0.002));
+scene.add(otherSign);
+
+// ---------- cover ----------
+const cover = makeSign(imgs, ['HOW', 'GIT', 'WORKS'], { w: 3.4, h: 2.2 });
+const COVER_Z = 17;
+const coverBase = groundTop(8, COVER_Z) + 2.0;
+cover.position.set(8, coverBase, COVER_Z);
+scene.add(cover);
+const COVER_OUT = ev(0, 0.12), COVER_IN = ev(20, 0.78);
+const coverY = (t) => coverBase - 4.5 * easeInOut(prog(t, COVER_OUT, COVER_OUT + 0.8)) * (1 - easeInOut(prog(t, COVER_IN, COVER_IN + 0.8)));
+
+// ---------- events ----------
+const T = {
+  crack: [ev(0, 0.3), ev(0, 0.58)],
+  restore: ev(1, 0.12),
+  jump: ev(1, 0.86),
+  outline: [ev(2, 0.05), ev(2, 0.45)],
+  build1: [ev(2, 0.35), ev(2, 0.8)],
+  place: [ev(3, 0.12), ev(3, 0.3)],
+  drops: ev(3, 0.42),
+  toChest: [ev(3, 0.55), ev(3, 0.75)],
+  chestOpen: ev(3, 0.5), chestClose: ev(3, 0.82),
+  build2: [ev(4, 0.25), ev(4, 0.7)],
+  glow: [ev(6, 0.05), ev(6, 0.95)],
+  blink: [ev(7, 0.62), ev(7, 0.95)],
+  bannerIn: ev(8, 0.42),
+  build3: [ev(9, 0.08), ev(9, 0.35)],
+  mainTo3: ev(9, 0.5),
+  roofBanner: ev(10, 0.42),
+  crazy: ev(11, 0.04),
+  build4: [ev(11, 0.08), ev(11, 0.3)],
+  roofTo4: ev(11, 0.36),
+  switchMain: ev(11, 0.66),
+  build5: [ev(12, 0.02), ev(12, 0.18)],
+  mainTo5: ev(12, 0.24),
+  build6: [ev(12, 0.4), ev(12, 0.66)],
+  mainTo6: ev(12, 0.88),
+  conflict: [ev(13, 0.12), ev(13, 0.62)],
+  pick: ev(13, 0.68),
+  push1: [ev(16, 0.12), ev(16, 0.62)],
+  remoteTo6: ev(16, 0.74),
+  pull1: [ev(17, 0.38), ev(17, 0.72)],
+  alexTo6: ev(17, 0.8),
+  alex7: [ev(18, 0.0), ev(18, 0.06)],
+  alexPush: [ev(18, 0.06), ev(18, 0.16)],
+  remoteTo7: ev(18, 0.18),
+  steve8: [ev(18, 0.18), ev(18, 0.24)],
+  reject: [ev(18, 0.25), ev(18, 0.33), ev(18, 0.41)],
+  pull2: [ev(18, 0.5), ev(18, 0.6)],
+  build9: [ev(18, 0.62), ev(18, 0.7)],
+  push2: [ev(18, 0.76), ev(18, 0.9)],
+  remoteTo9: ev(18, 0.92),
+};
+const BUILDS = { c1: T.build1, c2: T.build2, c3: T.build3, c4: T.build4, c5: T.build5, c6: T.build6, c8: T.steve8, c9: T.build9 };
+for (const [k, b] of Object.entries(BUILDS)) HAS.steve[k] = b[0];
+Object.assign(HAS.remote, { c1: 0, c2: 0, c3: 0 });
+Object.assign(HAS.alex, { c3: 0, c7: T.alex7[0] });
+
+// Copies flying between the copies on push and pull: [commit, from, to, start, end, bounce back]
+const FLIGHTS = [];
+function fly(k, from, to, a, z, bounce = false) {
+  const m = C[k].model.g.clone();
+  m.visible = false;
+  scene.add(m);
+  FLIGHTS.push({ k, from, to, a, z, bounce, m });
+  if (!bounce) HAS[to][k] = z;
+}
+const spread = ([a, z], i) => [a + i * 0.16 * (z - a), a + (0.6 + i * 0.16) * (z - a)];
+['c4', 'c5', 'c6'].forEach((k, i) => fly(k, 'steve', 'remote', ...spread(T.push1, i)));
+['c4', 'c5', 'c6'].forEach((k, i) => fly(k, 'remote', 'alex', ...spread(T.pull1, i)));
+fly('c7', 'alex', 'remote', ...T.alexPush);
+fly('c8', 'steve', 'remote', T.reject[0], T.reject[2], true);
+fly('c7', 'remote', 'steve', ...T.pull2);
+fly('c8', 'steve', 'remote', T.push2[0], T.push2[1] - 0.05);
+fly('c9', 'steve', 'remote', T.push2[0] + 0.05, T.push2[1]);
+
+BANNERS[0].keys = [[T.bannerIn, 'c2'], [T.mainTo3, 'c3'], [T.mainTo5, 'c5'], [T.mainTo6, 'c6'], [T.steve8[1] + 0.1, 'c8'], [T.build9[1] + 0.1, 'c9']];
+BANNERS[1].keys = [[T.roofBanner, 'c3'], [T.roofTo4, 'c4']];
+BANNERS[2].keys = [[0, 'c3'], [T.remoteTo6, 'c6'], [T.remoteTo7, 'c7'], [T.remoteTo9, 'c9']];
+BANNERS[3].keys = [[0, 'c3'], [T.alexTo6, 'c6'], [T.alex7[1], 'c7']];
+
+// The real house over time
+const HOUSE_KEYS = [[0, 'S1'], [T.crack[1], 'S1b'], [T.restore, 'S1'], [T.build2[0], 'S2'], [T.build3[0], 'S3'],
+  [T.crazy, 'S4'], [T.switchMain + 0.35, 'S3'], [T.build5[0], 'S5'], [T.pick, 'S6'], [T.steve8[0], 'S8'], [T.build9[0], 'S9']];
+
+// ---------- per frame ----------
+function layered(md, t, [a, z]) {
+  const n = md.layers.length;
+  md.layers.forEach((L, i) => { const on = t >= a + (z - a) * i / n; L.same.visible = on; L.changed.visible = on; });
+}
+function glow(g, k) {
+  g.traverse((o) => {
+    if (!o.material) return;
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      if (!m.color) continue;
+      if (!m.userData.base0) m.userData.base0 = m.color.clone();
+      m.color.copy(m.userData.base0).multiplyScalar(1 + k);
+    }
+  });
+}
+const keyAt = (keys, t) => { let v = null; for (const [a, k] of keys) if (t >= a) v = k; return v; };
+
+// Walks: [time, place, yaw]; y is the ground under the person
+const at = (x, z) => V(x, groundTop(x, z), z);
+const STEVE = [
+  [0, V(8, 5.5, 6.3), Math.PI], [T.jump, V(8, 5.5, 6.3), Math.PI],
+  [T.jump + 0.01, at(9.5, 12), Math.PI], [ev(3, 0.0), at(9.5, 12), Math.PI],
+  [ev(3, 0.1), at(8.5, 7.2), Math.PI], [ev(3, 0.4), at(8.5, 7.2), Math.PI],
+  [ev(3, 0.5), at(10.3, 8.7), Math.PI * 0.8], [ev(10, 0.55), at(10.3, 8.7), Math.PI * 0.8],
+  [ev(10, 0.8), at(11.8, 10.6), Math.PI], [T.switchMain, at(11.8, 10.6), Math.PI],
+  [T.switchMain + 0.35, at(9.0, 10.6), Math.PI], [ev(12, 0.3), at(9.0, 10.6), Math.PI],
+  [ev(12, 0.5), at(15.0, 10.8), Math.PI], [T.steve8[0] - 0.3, at(15.0, 10.8), Math.PI],
+  [T.steve8[0], at(17.8, 10.8), Math.PI],
+];
+const ALEX = [[0, at(-15.5, -2.0), Math.PI * 0.9]];
+
+function scenePieces(t) {
+  // the real house
+  const hs = keyAt(HOUSE_KEYS, t);
+  for (const [k, g] of Object.entries(HOUSE)) g.visible = k === hs;
+  placedGlass[0].visible = t >= T.place[0] && t < T.build2[0];
+  placedGlass[1].visible = t >= T.place[1] && t < T.build2[0];
+  // breaking the roof (line 0) and the dropped planks; the clock of the time machine (line 1)
+  cracks.set(prog(t, ...T.crack));
+  roofDrops.forEach((d, i) => {
+    d.visible = during(t, T.crack[1], T.restore);
+    if (d.visible) d.place(t, V(7 + i, 5.5, 5.6));
+  });
+  clock.visible = during(t, ev(1, 0.3), end(1));
+  if (clock.visible) { clock.position.set(8, 10.3, 3); clock.glow(1, t); }
+  outline.visible = during(t, ...T.outline) && Math.floor((t - T.outline[0]) * 6) % 2 === 0;
+  area.visible = during(t, ev(14, 0.25), end(14));
+  // Steve, Alex and the square's keeper
+  moveAlong(steve, STEVE, t);
+  steve.arms[1].rotation.set(0, 0, 0);
+  for (let i = 0; i < 4; i++) swingArm(steve, prog(t, T.crack[0] + i * 0.3, T.crack[0] + i * 0.3 + 0.3));
+  for (const a of [...T.place, T.crazy, T.steve8[0]]) swingArm(steve, prog(t, a - 0.15, a + 0.15));
+  moveAlong(alex, ALEX, t);
+  alex.arms[1].rotation.set(0, 0, 0);
+  swingArm(alex, prog(t, T.alex7[0] - 0.15, T.alex7[0] + 0.15));
+  shakeNo(keeper, t, during(t, T.reject[1], T.reject[1] + 1.4));
+  // glass copies fly to the chest (line 3)
+  drops.forEach((d, i) => {
+    const from = V(...[WIN_S, WIN_E][i]).add(i ? V(0.9, 0.2, 0) : V(0, 0.2, 0.9));
+    const k = prog(t, T.toChest[0] + i * 0.12, T.toChest[1] + i * 0.12);
+    d.visible = during(t, T.drops, T.toChest[1] + 0.5) && k < 1;
+    if (!d.visible) return;
+    if (k <= 0) d.place(t, from);
+    else d.position.copy(arc(from, V(11.5, G + 0.7, 7.5), easeInOut(k), 1.2));
+  });
+  chest.open(prog(t, T.chestOpen, T.chestOpen + 0.2) * (1 - prog(t, T.chestClose, T.chestClose + 0.2))
+             + prog(t, T.build2[0] - 0.3, T.build2[0] - 0.1) * (1 - prog(t, T.build2[0] + 0.3, T.build2[0] + 0.5)));
+  // pedestals and models of the three copies
+  for (const [key, P] of Object.entries(PIECES)) {
+    const [r, k] = key.split(':');
+    const a = HAS[r][k];
+    P.g.visible = a !== undefined && t >= a - (r === 'steve' ? 0.4 : 0);
+    if (!P.g.visible) continue;
+    if (r === 'steve' && BUILDS[k]) layered(C[k].model, t, BUILDS[k]);
+    P.sign.visible = r !== 'steve' || !BUILDS[k] || t >= BUILDS[k][1];
+    P.model.visible = t >= a;
+  }
+  // commit 6's peak: glowstone once Steve picks it, flickering in the conflict; the other copies get it solved
+  for (const r of Object.keys(REPOS)) {
+    const P = PIECES[`${r}:c6`];
+    const flick = during(t, ...T.conflict) && Math.floor((t - T.conflict[0]) * 3) % 2 === 0;
+    P.peak.material.map = flick ? peakMaps.red_wool : peakMaps.glowstone;
+    P.peak.visible = r !== 'steve' || t >= T.pick || during(t, ...T.conflict);
+  }
+  // leads tie in when the child arrives (both ends present)
+  for (const L of LEADS) {
+    const a = HAS[L.r][L.k], b = HAS[L.r][L.p];
+    if (a === undefined || b === undefined) { L.l.visible = false; continue; }
+    const from = Math.max(a, b) + (L.r === 'steve' && BUILDS[L.k] ? BUILDS[L.k][1] - BUILDS[L.k][0] : 0);
+    L.l.set(PIECES[`${L.r}:${L.k}`].knotTop, PIECES[`${L.r}:${L.p}`].knotTop, easeInOut(prog(t, from, from + 0.35)));
+  }
+  // unchanged blocks of commits 1 and 2 pulse together (line 6)
+  const pulse = during(t, ...T.glow) ? 0.55 * (0.5 - 0.5 * Math.cos((t - T.glow[0]) * 2 * Math.PI / 1.2)) : 0;
+  for (const k of ['c1', 'c2']) for (const L of C[k].model.layers) glow(L.same, pulse);
+  // line 7: a glass of commit 2 blinks and its name changes while it is different
+  const blinkOn = during(t, ...T.blink) && Math.floor((t - T.blink[0]) * 4) % 2 === 0;
+  if (blinkOn) C.c2.model.layers[1].changed.visible = false;
+  otherSign.visible = blinkOn;
+  // banners: placed at their commit; a move hides it for a moment (broken and placed again)
+  for (const b of BANNERS) {
+    const k = keyAt(b.keys, t);
+    const moving = b.keys.some(([a], i) => i > 0 && during(t, a - 0.15, a));
+    b.ban.g.visible = k !== null && !moving && PIECES[`${b.r}:${k}`].g.visible;
+    if (!b.ban.g.visible) continue;
+    const P = PIECES[`${b.r}:${k}`];
+    b.ban.g.position.set(P.x + b.side, groundTop(P.x + b.side, P.z - 0.1), P.z - 0.1);
+    b.ban.sway(t);
+  }
+  // copies in flight
+  for (const f of FLIGHTS) {
+    const k = prog(t, f.a, f.z);
+    f.m.visible = k > 0 && k < 1;
+    if (!f.m.visible) continue;
+    const A = PIECES[`${f.from}:${f.k}`], B = PIECES[`${f.to}:${f.k}`];
+    const pa = V(A.x, A.topY, A.z), pb = V(B.x, B.topY, B.z);
+    const u = f.bounce ? (k < 0.5 ? easeInOut(k * 2) * 0.92 : 0.92 * (1 - easeInOut((k - 0.5) * 2))) : easeInOut(k);
+    f.m.position.copy(arc(pa, pb, u, 6 + pa.distanceTo(pb) * 0.25));
+  }
+  cover.position.y = coverY(t);
+}
+
+// ---------- bubbles ----------
+const top = (r, k, dy = 1.1) => { const P = PIECES[`${r}:${k}`]; return V(P.x, P.topY + dy, P.z); };
+const B = {
+  gone: bubble(['the roof is gone!'], { color: 0xFF5555 }),
+  restore: bubble(['git restore'], { color: 0xFFFF55 }),
+  machine: bubble(['a time machine', 'for your project'], { color: 0xFFFFFF }),
+  commit1: bubble(['commit a1f3', 'the whole house'], { color: 0xFFFF55 }),
+  add: bubble(['git add'], { color: 0xFFFF55 }),
+  staging: bubble(['staging area'], { color: 0xFFFFFF }),
+  commit2: bubble(['git commit', '"windows"'], { color: 0xFFFF55 }),
+  parent: bubble(['parent'], { color: 0xAAAAAA }),
+  once: bubble(['same blocks,', 'stored once'], { color: 0x55FF55 }),
+  hash: bubble(['a1f3e9c0b7...'], { color: 0xFFFF55 }),
+  rename: bubble(['new content,', 'new name'], { color: 0xFF5555 }),
+  moves: bubble(['git commit', 'main moves up'], { color: 0xFFFF55 }),
+  branch: bubble(['git branch roof'], { color: 0xFFFF55 }),
+  switchRoof: bubble(['git switch roof'], { color: 0xFFFF55 }),
+  head: bubble(['HEAD'], { color: 0x55FFFF }),
+  switchMain: bubble(['git switch main'], { color: 0xFFFF55 }),
+  lamp: bubble(['meanwhile on main:', 'a lamp'], { color: 0xFFFFFF }),
+  merge: bubble(['git merge roof'], { color: 0xFFFF55 }),
+  parents: bubble(['two parents'], { color: 0x55FF55 }),
+  conflict: bubble(['CONFLICT', 'same block, both changed'], { color: 0xFF5555 }),
+  pick: bubble(['you pick: glowstone'], { color: 0x55FF55 }),
+  local: bubble(['local repository'], { color: 0xFFFF55 }),
+  remote: bubble(['remote', 'like GitHub'], { color: 0xFFFF55 }),
+  push: bubble(['git push'], { color: 0xFFFF55 }),
+  pull: bubble(['git pull'], { color: 0xFFFF55 }),
+  alexPush: bubble(['Alex: git push'], { color: 0xFFFF55 }),
+  rejected: bubble(['rejected!', 'pull first'], { color: 0xFF5555 }),
+  pull2: bubble(['git pull + merge'], { color: 0xFFFF55 }),
+  push2: bubble(['git push', 'accepted'], { color: 0x55FF55 }),
+  tSteve: bubble(['Steve'], { color: 0xFFFFFF }),
+  tRemote: bubble(['remote'], { color: 0xFFFF55 }),
+  tAlex: bubble(['Alex'], { color: 0xFFFFFF }),
+  r1: bubble(['a chain of snapshots'], { color: 0xFFFF55 }),
+  r2: bubble(['banners that move'], { color: 0xFFFF55 }),
+  r3: bubble(['a square everyone shares'], { color: 0xFFFF55 }),
+};
+for (const b of Object.values(B)) scene.add(b);
+
+function bubbles(t) {
+  const sp = steve.g.position, ap = alex.g.position;
+  const over = (p, dy = 2.5) => V(p.x, p.y + dy, p.z);
+  B.gone.show(t, T.crack[1], ev(0, 0.95), V(8, 11.5, 3));
+  B.restore.show(t, T.restore, ev(1, 0.55), V(8, 11.6, 3));
+  B.machine.show(t, ev(1, 0.55), end(1), V(8, 11.6, 3));
+  B.commit1.show(t, ev(2, 0.62), end(2), top('steve', 'c1', 2.0));
+  B.staging.show(t, ev(3, 0.55), ev(3, 0.78), V(11.5, G + 1.9, 7.5));
+  B.add.show(t, ev(3, 0.78), end(3), V(11.5, G + 1.9, 7.5));
+  B.commit2.show(t, ev(4, 0.1), end(4), top('steve', 'c2', 2.0));
+  B.parent.show(t, ev(5, 0.45), end(5), top('steve', 'c1', 2.0));
+  B.once.show(t, ev(6, 0.15), end(6), V(5.5, G + 3.1, 9));
+  B.hash.show(t, ev(7, 0.12), ev(7, 0.6), top('steve', 'c1', 1.6));
+  B.rename.show(t, ev(7, 0.62), end(7), top('steve', 'c2', 1.6));
+  B.moves.show(t, ev(9, 0.62), end(9), top('steve', 'c3', 2.0));
+  B.branch.show(t, ev(10, 0.38), ev(10, 0.72), top('steve', 'c3', 2.6));
+  B.switchRoof.show(t, ev(10, 0.72), end(10), over(sp));
+  B.head.show(t, ev(11, 0.12), ev(11, 0.62), over(sp, 2.3));
+  B.switchMain.show(t, ev(11, 0.64), end(11), over(sp));
+  B.lamp.show(t, ev(12, 0.0), ev(12, 0.32), top('steve', 'c5', 2.0));
+  B.merge.show(t, ev(12, 0.34), ev(12, 0.66), over(sp));
+  B.parents.show(t, ev(12, 0.66), end(12), top('steve', 'c6', 2.0));
+  B.conflict.show(t, T.conflict[0], T.pick, top('steve', 'c6', 2.0));
+  B.pick.show(t, T.pick, end(13), top('steve', 'c6', 2.0));
+  B.local.show(t, ev(14, 0.3), end(14), V(13, 10, 6));
+  B.remote.show(t, ev(15, 0.12), end(15), V(0, 7.5, -12));
+  B.push.show(t, ev(16, 0.02), ev(16, 0.7), over(sp));
+  B.pull.show(t, ev(17, 0.3), end(17), over(ap));
+  B.alexPush.show(t, ev(18, 0.0), ev(18, 0.22), over(ap));
+  B.rejected.show(t, T.reject[1], ev(18, 0.5), over(KEEPER, 3.0));
+  B.pull2.show(t, ev(18, 0.5), ev(18, 0.74), over(sp));
+  B.push2.show(t, ev(18, 0.76), end(18), over(KEEPER, 3.0));
+  B.tSteve.show(t, ev(19, 0.1), end(19), V(13, 6, 9));
+  B.tRemote.show(t, ev(19, 0.1), end(19), V(0, 7, -10));
+  B.tAlex.show(t, ev(19, 0.1), end(19), V(-17, 4, -3));
+  B.r1.show(t, ev(20, 0.0), COVER_IN, V(13, 8, 9));
+  B.r2.show(t, ev(20, 0.25), COVER_IN, V(13, 6.5, 9));
+  B.r3.show(t, ev(20, 0.5), COVER_IN, V(13, 5, 9));
+  for (const b of BANNERS) {
+    // labels only while the banner is the subject; none in line 18 (its bubbles go there)
+    const on = b.ban.g.visible && (b.r === 'steve' ? during(t, ev(8, 0.5), b.name === 'roof' ? ev(13, 0) : ev(14, 0))
+                                                    : during(t, ev(15, 0.3), ev(18, 0)));
+    const p = b.ban.g.position;
+    b.label.show(t, on ? 0 : 1e9, 1e9, V(p.x, p.y + 2.3, p.z));
+  }
+}
+
+// ---------- camera ----------
+const look = (p, q) => pose(p, q);
+const COVER = look(V(8, 3.4, 26), V(8, 2.8, COVER_Z));
+const ROOF = look(V(12.5, 9.5, 14), V(8, 7.0, 4));            // Steve on the roof
+const RESTORE = look(V(15, 12, 19), V(8, 6.5, 3));            // the whole house and the clock
+const WIDE = look(V(17, 7.5, 21), V(7.5, 2.2, 5.5));
+const ROW = look(V(13.5, 3.6, 15.5), V(6.5, 1.7, 8.5));
+const STEVEV = look(V(12, 3.4, 11.5), V(8.6, 2.2, 5.6));
+const CHESTV = look(V(13.8, 2.9, 11.2), V(10.6, 1.4, 7.0));
+const MODEL2 = look(V(9.6, 3.2, 13.4), V(6.4, 2.0, 9.0));
+const SIGN1 = look(V(4.3, 2.5, 12.2), V(4.0, 1.9, 9.5));
+const SIGN2 = look(V(7.3, 2.5, 12.2), V(7.0, 1.9, 9.5));
+const BANNER = look(V(11.2, 3.4, 15.4), V(8.0, 2.2, 9.0));
+const BRANCH = look(V(16, 4.5, 18), V(10.5, 2.0, 9.5));       // commit 3 with both banners, Steve
+const CRAZY = look(V(18, 10, 18), V(10, 4.5, 6));             // the red roof and the branch pedestals
+const MERGE = look(V(21, 5.5, 20), V(14, 2.0, 10));          // commits 3 to 6, the diamond of leads
+const PEAKV = look(V(17.0, 3.6, 13.8), V(16, 2.7, 9));        // commit 6 and its peak (the conflict)
+const LOCAL = look(V(24, 22, 34), V(12, 0, 5));               // Steve's whole repository from above
+const SQUARE = look(V(9, 5.5, -0.5), V(-1, 1.8, -10));        // the bell square: the remote's pedestals
+const PUSH = look(V(8, 24, 30), V(5, 0, -2));                 // Steve's repository (near) and the square (far)
+const ALEXSQ = look(V(-14, 17, 9), V(-13, 0, -6.5));            // from above: Alex's corner (left) and the square (right)
+const ALEXV = look(V(-8, 7, 6), V(-16, 1.5, -3));             // Alex's house and pedestals
+const TEAM = look(V(1, 52, 44), V(1, 0, -3));                 // the three copies
+const RECAP = look(V(21, 6.5, 19), V(12, 2.2, 9));
+const CAM = [
+  [0, COVER],
+  [ev(0, 0.1), ROOF, 1.4],
+  [ev(1, 0.1), RESTORE, 1.2],
+  [ev(1, 0.9), WIDE, 1.0],
+  [ev(2, 0.55), ROW, 1.3],
+  [ev(3, 0.0), STEVEV, 1.2],
+  [ev(3, 0.48), CHESTV, 1.0],
+  [ev(4, 0.15), MODEL2, 1.2],
+  [ev(5, 0.1), ROW, 1.2],
+  [ev(7, 0.0), SIGN1, 1.2],
+  [ev(7, 0.5), SIGN2, 0.45],
+  [ev(8, 0.0), BANNER, 1.3],
+  [ev(10, 0.0), BRANCH, 1.3],
+  [T.crazy - 0.2, CRAZY, 1.2],
+  [ev(11, 0.55), BRANCH, 1.0],
+  [ev(12, 0.3), MERGE, 1.2],
+  [ev(13, 0.05), PEAKV, 1.0],
+  [ev(14, 0.0), LOCAL, 1.6],
+  // over the roofs on the way to the square (straight there, the camera went through Steve's roof)
+  [ev(15, 0.0), look(V(-2, 16, 6), V(0, 2, -9)), 0.9],
+  [ev(15, 0.0) + 0.9, SQUARE, 0.9],
+  [ev(16, 0.0), PUSH, 1.4],
+  [ev(17, 0.0), ALEXV, 1.6],
+  [ev(18, 0.0), ALEXSQ, 1.2],
+  [ev(18, 0.22), PUSH, 1.0],
+  [ev(19, 0.0), TEAM, 1.4],
+  [ev(20, 0.0), RECAP, 1.6],
+  [COVER_IN - 0.5, COVER, 1.8],
+];
+
+// ---------- sounds (game sounds, at the moment they happen) ----------
+const dig = (a, z, n, kind = 'wood_dig', g = 0.26) => Array.from({ length: n }, (_, i) => [a + (z - a) * i / n, `${kind}${(i % 4) + 1}`, g]);
+window.sfxCues = [
+  ...dig(T.crack[0], T.crack[1], 4, 'wood_dig', 0.3), [T.crack[1], 'break', 0.3],
+  [T.restore, 'orb', 0.3], ...dig(T.restore, T.restore + 0.4, 3), [ev(1, 0.35), 'click', 0.2],
+  [ev(2, 0.05), 'click', 0.25], ...dig(...T.build1, 5),
+  [T.place[0], 'stone_dig1', 0.35], [T.place[1], 'stone_dig3', 0.35],
+  [T.chestOpen, 'chestopen', 0.3], [T.toChest[1], 'pop', 0.3], [T.toChest[1] + 0.12, 'pop', 0.3], [T.chestClose, 'chestclosed', 0.3],
+  [T.build2[0] - 0.3, 'chestopen', 0.25], ...dig(...T.build2, 5), [T.build2[1], 'lead_tie', 0.4],
+  [T.glow[0], 'orb', 0.2], [T.blink[0], 'click', 0.25],
+  [T.bannerIn, 'wood_dig3', 0.35],
+  ...dig(...T.build3, 3), [T.build3[1], 'lead_tie', 0.35], [T.mainTo3 - 0.15, 'wood_dig1', 0.3], [T.mainTo3, 'wood_dig4', 0.35],
+  [T.roofBanner, 'wood_dig2', 0.35],
+  [T.crazy, 'stone_dig2', 0.3], ...dig(...T.build4, 3), [T.build4[1], 'lead_tie', 0.35], [T.roofTo4, 'wood_dig3', 0.3],
+  [T.switchMain + 0.35, 'stone_dig4', 0.3],
+  ...dig(...T.build5, 3), [T.build5[1], 'lead_tie', 0.3], [T.mainTo5, 'wood_dig1', 0.3],
+  ...dig(...T.build6, 4), [T.build6[1], 'lead_tie', 0.35], [T.build6[1] + 0.1, 'lead_tie', 0.3], [T.mainTo6, 'wood_dig2', 0.3],
+  [T.conflict[0], 'villager_no1', 0.25], [T.pick, 'villager_yes1', 0.3], [T.pick + 0.1, 'orb', 0.25],
+  [ev(14, 0.3), 'click', 0.2],
+  [ev(15, 0.1), 'bell', 0.3],
+  ...FLIGHTS.map((f) => [f.z, f.bounce ? 'click' : 'pop', 0.3]),
+  [T.remoteTo6, 'bell', 0.32], [T.alexTo6, 'wood_dig3', 0.3], [T.alex7[0], 'stone_dig1', 0.3], [T.remoteTo7, 'bell', 0.25],
+  [T.steve8[0], 'stone_dig2', 0.3], [T.reject[1], 'villager_no3', 0.3], ...dig(...T.build9, 3), [T.remoteTo9, 'bell', 0.35],
+  [T.remoteTo9 + 0.2, 'levelup', 0.25],
+  [COVER_IN, 'wood_dig2', 0.3], [ev(21, 0.05), 'orb', 0.3],
+].map(([s, n, g]) => [Math.round(s * 1000) / 1000, n, g]);
+
+// The loop: in the last line everything goes back to the first frame's state behind the cover (a restore)
+const LOOP_T = ev(21, 0.05);
+window.renderAt = (t) => {
+  scenePieces(t >= LOOP_T ? 0 : t);
+  cover.position.y = coverY(t);
+  const cam = cameraAt(CAM, t);
+  world.look(cam.pos, cam.look);
+  camera.updateMatrixWorld();
+  bubbles(t);
+  placeUI(camera);
+  clouds.position.x = 4 * Math.sin(2 * Math.PI * t / TOTAL);
+  world.draw(t, TOTAL, 0, 0);
+};
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>
