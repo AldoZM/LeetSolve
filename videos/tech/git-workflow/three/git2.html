@@ -600,11 +600,11 @@ function bubbles(t) {
   B.approve.show(t, T.approve, end(19), over(ap, 2.6));
   B.merged.show(t, T.mainTo13, ev(20, 0.55), top('remote', 'c13', 2.2));
   B.pull.show(t, ev(20, 0.55), end(20), V(6, 8, -6));
-  [B.r1, B.r2, B.r3, B.r4].forEach((b, i) => b.show(t, ev(21, 0.02 + i * 0.12), COVER_IN, V(10, 9 - 1.4 * i, 9)));
+  [B.r1, B.r2, B.r3, B.r4].forEach((b, i) => b.show(t, ev(21, 0.02 + i * 0.12), COVER_IN, V(10, 6.6 - 1.1 * i, 9)));   // low enough that placeUI does not push the top one down
   for (const b of BANNERS) {
     const on = b.ban.g.visible && (
-      (b.r === 'steve' && (during(t, ev(0, 0.6), ev(3, 0)) || during(t, ev(11, 0.8), ev(17, 0)))) ||
-      (b.r === 'remote' && during(t, ev(15, 0.5), ev(18, 0.1))) ||
+      (b.r === 'steve' && (during(t, ev(0, 0.6), ev(2, 0.1)) || during(t, ev(11, 0.8), ev(17, 0)))) ||
+      (b.r === 'remote' && during(t, ev(17, 0.0), ev(18, 0.1))) ||
       (b.r === 'mason' && during(t, ev(2, 0.75), end(2))));
     const p = b.ban.g.position;
     b.label.show(t, on ? 0 : 1e9, 1e9, V(p.x, p.y + 2.3, p.z));
@@ -615,17 +615,18 @@ function bubbles(t) {
 const look = (p, q) => pose(p, q);
 const COVER = look(V(8, 3.4, 26), V(8, 2.8, COVER_Z));
 const ROWV = look(V(16, 5.5, 19), V(8, 2.0, 9.5));            // Steve's commits 6 to 9 (the end of part 1)
-const MASONV = look(V(30, 6, 9), V(26, 1, 0));                // the new builder's empty yard
-const CLONE = look(V(26, 26, 24), V(10, -1, -4));             // the square (left) and the yard (right)
+const MASONV = look(V(28.5, 5.5, 5), V(26.5, 0.2, 1.6));       // the new builder's empty yard (close, above the grass)
+const CLONE = look(V(42, 20, 2), V(17, 0, -4.5));              // the square (far) and the yard (near): both in frame
 const HOUSEV = look(V(16, 6.5, 12), V(9.5, 3.0, 3.5));         // the house: diff frames, ladder
 const CHESTV = look(V(14.6, 3.6, 12.6), V(11.5, 1.4, 7.0));   // the chest, the sign, the bouncing junk
 const PORCHV = look(V(14.5, 5, 14.5), V(9.5, 2.4, 6));          // the porch and the ender chest
 const BADV = look(V(16.5, 6.5, 16), V(11.5, 3, 7));             // the burning roof and the new pedestal
-const PEDV = look(V(15.8, 3.4, 13.8), V(14, 2.2, 9));           // the bad commit and the revert
+const PEDV = look(V(15.8, 3.4, 13.8), V(14, 2.2, 9));           // the bad commit
+const REVERTV = look(V(18.5, 5, 18), V(14.5, 2.3, 9));          // the bad commit and the revert next to it
 const REFLOGV = look(V(10.5, 3.6, 16.5), V(6, 2, 10.5));        // the chimney banner and the reflog lectern
 const REBASEV = look(V(20, 7, 19), V(14, 2, 10));               // the diamond and the rebase
 const SQUARE = look(V(14, 6.5, 2), V(4, 1.5, -7.5));            // the square: guarded main, the Pull Request side
-const PRV = look(V(15.5, 4.2, 0.5), V(10.2, 2, -5));            // lectern, golem, Alex
+const PRV = look(V(17.5, 8.5, 3.5), V(10.5, 2.2, -4.8));         // lectern, golem, Alex and the PR model (high, not behind Alex)
 const PULLV = look(V(18, 30, 26), V(10, -1, -4));               // square, Steve and the yard
 const RECAP = look(V(16, 6.5, 19), V(10, 2.4, 9));
 const CAM = [
@@ -638,6 +639,7 @@ const CAM = [
   [ev(6, 0.0), PORCHV, 1.2],
   [ev(8, 0.0), BADV, 1.2],
   [ev(9, 0.4), PEDV, 1.0],
+  [ev(11, 0.0), REVERTV, 1.0],
   [ev(12, 0.0), REFLOGV, 1.3],
   [ev(14, 0.0), REBASEV, 1.3],
   [ev(17, 0.0), SQUARE, 1.6],

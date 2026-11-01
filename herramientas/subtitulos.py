@@ -18,8 +18,9 @@ S = 10                # screen pixels per font pixel (letters 70 px tall)
 MAX_W = 960           # widest block on a 1080 px frame
 MAX_WORDS = 4
 CENTER_Y = 0.76       # block center, as a fraction of the height: under the cover sign, above the Shorts title
-# Where a block goes when a tooltip of the page sits under it: the first free one wins (0.84 is low, but only for a moment)
-HEIGHTS = (CENTER_Y, 0.84, 0.68)
+# Where a block goes when a tooltip of the page sits under it: the first free one wins (0.84 is low, but only for a moment;
+# 0.58 is the last resort, for shots with labels on all three, like the branch labels of the Git short)
+HEIGHTS = (CENTER_Y, 0.84, 0.68, 0.58)
 BAND_H = 300          # height of the strip the subtitles are drawn in
 OUTLINE = 9           # black outline around the letters
 SHADOW = 6            # drop shadow, down and to the right

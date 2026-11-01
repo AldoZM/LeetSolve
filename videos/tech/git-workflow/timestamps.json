@@ -1,0 +1,166 @@
+{
+  "total_duration_s": 149.974,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "You know how Git saves your house as a chain of models. Now, how do real teams use it every day without chaos?",
+      "start_s": 0.0,
+      "end_s": 7.585,
+      "duration_s": 7.585
+    },
+    {
+      "index": 1,
+      "text": "When a new builder joins the village, she starts with an empty yard.",
+      "start_s": 7.585,
+      "end_s": 11.932,
+      "duration_s": 4.347
+    },
+    {
+      "index": 2,
+      "text": "git clone copies the entire chain of models from the bell square, so she has the full project and its history.",
+      "start_s": 11.932,
+      "end_s": 19.041,
+      "duration_s": 7.109
+    },
+    {
+      "index": 3,
+      "text": "Back at Steve's house, before saving, git diff compares the real house to the last model: green for added blocks, red for removed ones.",
+      "start_s": 19.041,
+      "end_s": 27.919,
+      "duration_s": 8.878
+    },
+    {
+      "index": 4,
+      "text": "But not everything in your yard belongs in Git. Temporary ladders and secret keys should never go into the chest.",
+      "start_s": 27.919,
+      "end_s": 35.071,
+      "duration_s": 7.152
+    },
+    {
+      "index": 5,
+      "text": "A file called dot gitignore blocks them at the lid, so junk and passwords never enter a commit.",
+      "start_s": 35.071,
+      "end_s": 41.533,
+      "duration_s": 6.462
+    },
+    {
+      "index": 6,
+      "text": "Now, what if you're halfway through building a porch, and the emergency bell rings? You don't want to commit half a porch.",
+      "start_s": 41.533,
+      "end_s": 49.013,
+      "duration_s": 7.48
+    },
+    {
+      "index": 7,
+      "text": "git stash tucks your unfinished blocks into a side chest, leaving the house clean. Fix the problem, then pop them right back.",
+      "start_s": 49.013,
+      "end_s": 57.141,
+      "duration_s": 8.128
+    },
+    {
+      "index": 8,
+      "text": "What if a bad commit is already in the chain, like a fireplace that sets the roof on fire?",
+      "start_s": 57.141,
+      "end_s": 62.779,
+      "duration_s": 5.638
+    },
+    {
+      "index": 9,
+      "text": "In the first video, git restore fixed the house before a commit. Here, the mistake is already saved on a pedestal.",
+      "start_s": 62.779,
+      "end_s": 69.873,
+      "duration_s": 7.094
+    },
+    {
+      "index": 10,
+      "text": "If you rewind with git reset and force the push, anyone who pulled it gets broken links.",
+      "start_s": 69.873,
+      "end_s": 76.14,
+      "duration_s": 6.267
+    },
+    {
+      "index": 11,
+      "text": "Instead, git revert adds a brand new model at the end that does the exact opposite, putting the fire out without erasing history.",
+      "start_s": 76.14,
+      "end_s": 84.61,
+      "duration_s": 8.47
+    },
+    {
+      "index": 12,
+      "text": "What if someone deletes a branch banner by mistake? The model isn't gone.",
+      "start_s": 84.61,
+      "end_s": 89.797,
+      "duration_s": 5.188
+    },
+    {
+      "index": 13,
+      "text": "Git keeps a local diary of every step HEAD took, called the reflog. Read the diary, find the pedestal, and plant the banner again.",
+      "start_s": 89.797,
+      "end_s": 98.416,
+      "duration_s": 8.618
+    },
+    {
+      "index": 14,
+      "text": "Next, keeping history tidy. Merging branches creates diamond knots with two leads.",
+      "start_s": 98.416,
+      "end_s": 104.336,
+      "duration_s": 5.92
+    },
+    {
+      "index": 15,
+      "text": "If your branch is still local, git rebase picks up your new models and replays them straight in front of main: one clean line.",
+      "start_s": 104.336,
+      "end_s": 112.264,
+      "duration_s": 7.928
+    },
+    {
+      "index": 16,
+      "text": "Just never rebase models you already pushed to the square, or your teammates' leads won't match.",
+      "start_s": 112.264,
+      "end_s": 118.585,
+      "duration_s": 6.321
+    },
+    {
+      "index": 17,
+      "text": "Finally, how teams protect the bell square. In real projects, nobody pushes straight to main.",
+      "start_s": 118.585,
+      "end_s": 124.763,
+      "duration_s": 6.178
+    },
+    {
+      "index": 18,
+      "text": "Steve pushes his branch to the square and opens a Pull Request on the lectern.",
+      "start_s": 124.763,
+      "end_s": 130.137,
+      "duration_s": 5.374
+    },
+    {
+      "index": 19,
+      "text": "Automated checks test that the model doesn't break, and Alex inspects the changes block by block.",
+      "start_s": 130.137,
+      "end_s": 135.931,
+      "duration_s": 5.794
+    },
+    {
+      "index": 20,
+      "text": "Once she approves, the square merges the branch into main, and everyone pulls the update.",
+      "start_s": 135.931,
+      "end_s": 142.001,
+      "duration_s": 6.071
+    },
+    {
+      "index": 21,
+      "text": "Clone, ignore the junk, stash, revert, and review every change in the square.",
+      "start_s": 142.001,
+      "end_s": 147.705,
+      "duration_s": 5.704
+    },
+    {
+      "index": 22,
+      "text": "That's how teams really use Git.",
+      "start_s": 147.705,
+      "end_s": 149.974,
+      "duration_s": 2.269
+    }
+  ]
+}

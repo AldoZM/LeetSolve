@@ -2,6 +2,32 @@
 
 Registro de lo que se hizo en cada sesión, de la más reciente a la más antigua. El cómo trabajar está en `GUIA.md`.
 
+## 2026-10-31 (noche, PC de Windows): render final de los dos shorts de Git
+
+- Pull de `bdf90fd` (Mac). En esta PC: `extraer.py 26.3`, `mundo.py retexture mundos` (sabana con su tinte), `block_textures` para `glass`, `red_wool`, `glowstone`, `bricks` y `gold_block`, y `mundos/tex/fire.png` con el primer cuadro de `tex/fire.png`.
+- **`extraer.py`:** faltaba `bricks` en `tex/` (la chimenea de la Parte 2 no cargaba). En la Mac existía de antes. Agregado.
+- **Parte 1 (`videos/tech/git`):**
+  - Voz regenerada en esta PC (23 min, 132.89 s). Whisper `small.en` con margen. Otra toma (`TTS_SEED`) para la 6 ("Locks" por "Blocks"), 16 ("Kerry"), 17 ("Gitpole") y 21 ("Let's git"). La 13 ("changed the") suena "change the" en las tres tomas: es la "d" pegada, se dejó.
+  - Revisado el arreglo de la línea 15 de la Mac: la cámara ya pasa por arriba del techo.
+  - Primer render revisado con 68 cuadros. Encimados corregidos:
+    - Línea 12: el globo "meanwhile on main: a lamp" tapaba la etiqueta `main` (sube a 3.4).
+    - Línea 11: la toma `CRAZY` dejaba `main`, `roof` y `HEAD` en las tres alturas de los subtítulos. Nueva cámara más alta y lejos (`V(20, 13, 23)` → `V(10, 3.2, 6)`), las etiquetas quedan arriba de 0.70.
+  - `subtitulos.py`: cuarta altura de respaldo 0.58 (solo si las otras tres están ocupadas; los shorts viejos no cambian salvo que se rendericen otra vez).
+  - Final: 132.9 s, 87 sonidos, Subwoofer Lullaby, 151 bloques de subtítulos. `export/How Git Works.mp4`.
+- **Parte 2 (`videos/tech/git-workflow`):**
+  - Primera prueba de `three/git2.html` con cuadros fijos (tiempos provisionales). Corregido:
+    - Línea 21: la pila del resumen empezaba arriba del cuadro y `placeUI` encimaba "clone" con "ignore the junk" (ahora `6.6 - 1.1 * i`).
+    - Línea 19: la cámara `PRV` quedaba detrás de la cabeza de Alex. Ahora es alta (`V(17.5, 8.5, 3.5)`) y se ven Alex, el gólem, el atril y el modelo del PR.
+    - Líneas 15 y 16: la etiqueta `main` de la plaza flotaba sobre la casa de Steve; ahora sale desde la línea 17.
+  - Voz (24 min, 149.97 s). Whisper `small.en`: otra toma para la 13 ("It keeps"). La 7 suena "Get stash" en las tres tomas (Whisper confunde "git" al inicio de la frase), se dejó la primera.
+  - Borrado `three/timestamps.json`, `palabras.py` (412 palabras), `"ocultar"` desde que sube la portada (145.92 s).
+  - Primer render revisado con 71 cuadros. Corregido:
+    - Línea 1: el constructor quedaba tapado por el pasto y el subtítulo (`MASONV` más cerca y alto).
+    - Línea 2: `CLONE` no alcanzaba el patio del constructor; las copias llegaban fuera de cuadro y el globo "full project" no se veía. Ahora `V(42, 20, 2)` → `V(17, 0, -4.5)`.
+    - Línea 2: las etiquetas `main` y `chimney` de Steve se enciman de lado en la toma nueva; ahora solo salen hasta `ev(2, 0.1)`.
+    - Línea 11: el modelo del `git revert` (c11) quedaba fuera de cuadro; nueva llave `REVERTV`.
+- **Memoria:** en esta PC (16 GB) la voz Qwen y el render no caben juntos. Claude Code detuvo los dos por falta de memoria; correrlos uno detrás de otro.
+
 ## 2026-10-31 (Mac): short de Git, lugar real, shaders y muestra
 
 - Aldo pidió un short de tecnología sobre **Git**: por dentro + uso diario, con la metáfora de maquetas de la casa. Diseño aprobado en `videos/tech/git/DISENO.md`.
