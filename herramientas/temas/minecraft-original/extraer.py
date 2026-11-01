@@ -55,6 +55,11 @@ BLOCKS = {  # output name -> texture inside the jar
     **{n: f'block/{n}' for n in ('polished_andesite', 'acacia_planks', 'acacia_log', 'acacia_log_top', 'yellow_terracotta')},
     # Git, part 2 (videos/tech/git-workflow): the temporary ladder (.gitignore) and the stash box (ender chest atlas), bricks for the fireplace
     'ladder': 'block/ladder', 'ender_atlas': 'entity/chest/ender', 'bricks': 'block/bricks',
+    # Docker (videos/tech/docker): image layers as shulker boxes (entity atlases, 64 x 64), the boat (128 x 64), the
+    # lantern (flask), the old Python, smoke and the trade sparkles of the broken and working shop
+    **{f'shulker_{c}': f'entity/shulker/shulker_{c}' for c in ('gray', 'blue', 'yellow', 'lime', 'purple', 'orange')},
+    'boat_oak': 'entity/boat/oak', 'lantern': 'block/lantern', 'light_blue_wool': 'block/light_blue_wool',
+    'big_smoke_0': 'particle/big_smoke_0', 'big_smoke_4': 'particle/big_smoke_4', 'trade_glint': 'particle/glint',
 }
 GUI = {
     'generic_54': 'gui/container/generic_54', 'hotbar': 'gui/sprites/hud/hotbar',
@@ -83,6 +88,11 @@ SOUNDS = {
     'frame_add': 'entity/itemframe/add_item1', 'bell': 'note/bell',
     # Server: the golem that stops a flood of notes, the status stamp, the broken furnace
     'golem_hit': 'mob/irongolem/hit1', 'anvil_land': 'random/anvil_land', 'fire': 'fire/fire',
+    # Docker: shulker boxes (image layers), glass rooms (containers), the boat to the server, the volume's barrel
+    'shulker_open': 'block/shulker_box/open', 'shulker_close': 'block/shulker_box/close',
+    **{f'glass{k}': f'random/glass{k}' for k in range(1, 4)}, **{f'paddle{k}': f'entity/boat/paddle_water{k}' for k in range(1, 5)},
+    'splash': 'random/splash', 'barrel_open': 'block/barrel/open1', 'barrel_close': 'block/barrel/close',
+    'lantern_place': 'block/lantern/place1',
 }
 # Mobs walking around the 3D background (vida.js), plus the moon for night scenes
 MOBS = {

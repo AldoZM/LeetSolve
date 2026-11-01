@@ -2,6 +2,16 @@
 
 Registro de lo que se hizo en cada sesión, de la más reciente a la más antigua. El cómo trabajar está en `GUIA.md`.
 
+## 2026-11-01 (madrugada, PC de Windows): short de Docker, Parte 1
+
+- **Diseño** de las dos partes en `videos/tech/docker/DISENO.md` (aprobado, `13b4e4b`). Parte 1 "How Docker Works" (imágenes, capas, contenedores); Parte 2 "How Teams Really Use Docker" queda pendiente.
+- **Lugar:** `mac-03` renombrado a `docker-coast` en `mundos/` y en `lugares.json`. La plataforma, la isla del servidor y la casa de la máquina virtual se construyen por código encima de la playa.
+- **`extraer.py`:** shulkers de seis colores, bote de roble, linterna, lana azul claro, humo grande, `trade_glint` (no `glint`: pisaba el brillo de encantamiento) y sonidos de shulker, vidrio, remo, chapuzón, barril y linterna.
+- **Página `three/docker.html`:** la imagen es una pila de shulkers (base, Python, Flask, código), el Dockerfile un libro en un atril, cada contenedor un cuarto de vidrio de 4×4 con su puesto de aldeano, y la capa de escritura una lámina azul claro. Revisada con cuadros fijos en tres puntos de cada línea antes de la voz.
+- **Voz:** Claude Code la detuvo una vez por falta de memoria con 16 de 19 líneas hechas; al relanzarla solo generó las tres que faltaban. Whisper `small.en`: la 7 decía "stored only one" (sin la "s" final, medido con energía arriba de 4 kHz); otra toma con `TTS_SEED=1`. Total 120.67 s.
+- **Render:** revisado con 38 cuadros. Lo único mal era la portada: el letrero cruzaba los subtítulos al inicio. Cámara `COVER` mirando más abajo (y 2.1) para que el letrero quede arriba de los subtítulos, y `"ocultar"` en 0.70–1.12 s (cuando baja) y desde 118.49 s (cuando sube).
+- Final: 120.7 s, 67 sonidos, Haggstrom, `export/How Docker Works.mp4` con su descripción.
+
 ## 2026-10-31 (noche, PC de Windows): render final de los dos shorts de Git
 
 - Pull de `bdf90fd` (Mac). En esta PC: `extraer.py 26.3`, `mundo.py retexture mundos` (sabana con su tinte), `block_textures` para `glass`, `red_wool`, `glowstone`, `bricks` y `gold_block`, y `mundos/tex/fire.png` con el primer cuadro de `tex/fire.png`.

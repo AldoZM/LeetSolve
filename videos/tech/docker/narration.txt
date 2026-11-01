@@ -1,0 +1,20 @@
+subtitles:
+  - Steve's shop app works perfectly on his computer. On the server, it crashes. Sound familiar?
+  - "It works on my machine" is one of the oldest problems in programming. Docker fixes it. Here's how.
+  - The code didn't change. The machine did. The server has an older Python, and one library is missing.
+  - Docker packs the app together with everything it needs to run. That package is called an image.
+  - An image is built in layers. At the bottom, a small base system. Then Python. Then the libraries. Then your code.
+  - The steps live in a file called a Dockerfile. Each step that adds files makes one more layer.
+  - Once it's built, an image never changes. Same image, same files, on any machine.
+  - Layers are shared. If Alex's image starts from the same base, it's stored only once.
+  - Change your code, and Docker rebuilds only from the change up. The layers below come from the cache.
+  - To run an image, Docker starts a container. That's docker run. The app comes to life inside its own walls.
+  - Inside, it has its own files, its own processes and its own network address. It can't see into the others.
+  - One image can start many containers. Each one is a fresh copy, all exactly the same.
+  - The image stays read only. Anything a container writes goes on a thin layer of its own.
+  - So is a container just a virtual machine? No. A virtual machine brings a whole operating system, kernel and all.
+  - Containers share the kernel of the machine they run on. That's why they start in a second, and dozens fit on one machine.
+  - Now Steve ships the image to the server. Docker runs it there, and the shop works exactly like at home.
+  - That's the idea. Don't install the app on every machine. Ship the box it already works in.
+  - An image built in layers, containers that run it in their own walls, all sharing one machine.
+  - That's Docker.

@@ -1,6 +1,11 @@
 # Diseño: shorts de Docker ("How Docker Works" y "How Teams Really Use Docker"), todo en 3D
 
-Estado: **borrador para que Aldo lo apruebe (2026-10-31)**. Nada se construye hasta que lo apruebe.
+Estado: **aprobado por Aldo (2026-10-31)**; Parte 1 terminada el 2026-11-01 (`export/How Docker Works.mp4`); Parte 2 pendiente. Lo que cambió al construirla:
+- Lugar: `mac-03`, renombrado `docker-coast` (giro 0, así la escena usa las coordenadas de la exportación). La plataforma de Steve (x −1..13, z −3..5), la isla del servidor (x −38..−29, z −2..5) y el lote de la máquina virtual (x 8..12, z 16..20) se hacen por código.
+- El Dockerfile del video tiene 4 pasos: `FROM python:3.12` (cajas gris y azul), `RUN pip install flask` (amarilla), `COPY . .` (verde) y `CMD python app.py` (sin caja). Se quitó `COPY requirements.txt` para que cada paso que agrega archivos tenga su caja.
+- La imagen viaja en un bote sin cofre: la pila (a la mitad del tamaño) va encima, así se ve qué se manda.
+- Los cuartos de vidrio miden 4 × 4 y 2 de alto, abiertos arriba para ver el puesto, con un bloque de separación entre ellos (3 adelante y 3 atrás).
+- La capa propia del contenedor es una lámina azul clara sobre el cuarto.
 
 ## Intención
 

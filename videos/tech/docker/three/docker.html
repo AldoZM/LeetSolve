@@ -1,0 +1,673 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+// "How Docker Works", on a beach of MacEntorno (docker-coast, turn 0: scene = export coordinates). Steve's computer is a
+// smooth stone platform on the sand; the server is a stone island in the sea. The app is a market stall (a villager,
+// a counter, a Python block and a lantern for flask). An image is a stack of shulker boxes (one per layer), the
+// Dockerfile is a book on a lectern, a container is a glass room on the platform, a virtual machine is a whole house
+// with its own foundation, and the image travels to the server on a boat. Animations copy the game's (objetos.js).
+// Every event is tied to a narration line of timestamps.json: ev(line, fraction).
+import { THREE, V, prog, easeInOut, pose } from '/vendor/lib/stage.js';
+import { loadTheme, makeWorld, makeTerrain, makeClouds, makeSign, makeFrame, tex } from '/vendor/tema/mc.js';
+import { setTime, loadMobs, makeLife } from '/vendor/tema/vida.js';
+import { loadPeople, makePlayer, makeVillager, moveAlong, entityPart } from '/vendor/tema/gente.js';
+import { bubble, placeUI, smoothCamera, arc, makeItem, makeLectern, put } from '/vendor/tema/aldea.js';
+import { makeLead, makeCracks, makeDrop, swingArm, shakeNo } from '/vendor/tema/objetos.js';
+
+// ---------- timing ----------
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const TOTAL = subs[subs.length - 1].end_s;
+const ev = (line, f = 0) => subs[line].start_s + f * subs[line].duration_s;
+const end = (line) => subs[line].end_s;
+const during = (t, a, z) => t >= a && t < z;
+
+// ---------- world ----------
+const PLACE = '/vendor/tema/mundos/docker-coast.json';
+const SHULKERS = ['gray', 'blue', 'yellow', 'lime', 'purple', 'orange'];
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'leaves', 'log_side', 'log_top', 'glass', 'smooth_stone',
+  'stone_bricks', 'stone', 'oak_planks', 'bookshelf', 'blue_wool', 'light_blue_wool', 'lantern', 'boat_oak', 'big_smoke_0',
+  'big_smoke_4', 'trade_glint', 'emerald', 'paper', 'padlock', 'barrier', 'written_book', 'lectern_front', 'lectern_top',
+  'lead_knot', ...SHULKERS.map((c) => `shulker_${c}`), ...Array.from({ length: 10 }, (_, i) => `destroy_stage_${i}`)]);
+await loadPeople(imgs, ['steve', 'alex', 'villager', 'type_plains', 'prof_cleric', 'prof_librarian', 'prof_nitwit']);
+await loadMobs(imgs, ['squid', 'chicken']);
+const world = makeWorld({ fov: 40, offset: 0, fog: [90, 220], shaders: true });
+const { scene, camera } = world;
+
+// Steve's platform (x 0..11, z -2..5), the server island (x -38..-29, z -2..5) and the virtual machine's lot
+// (x 8..12, z 16..20) are built by code: the terrain blocks in those boxes are taken out
+const PLAT = [-1, 13, -3, 5], ISLE = [-38, -29, -2, 5], VMLOT = [8, 12, 16, 20];
+const FL = 2, FLS = -4;   // top of Steve's platform and of the island
+const inBox = ([x0, x1, z0, z1], x, z) => x >= x0 && x <= x1 && z >= z0 && z <= z1;
+const data = await (await fetch(PLACE)).json();
+data.blocks = data.blocks.filter(([x, y, z]) => !(inBox(PLAT, x, z) && y >= -2) && !(inBox(ISLE, x, z) && y >= -8)
+                                               && !(inBox(VMLOT, x, z) && y >= 0));
+const terrain = await makeTerrain(PLACE, { data, clear: [-4, 14, 6, 30] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+const light = await setTime(world, 'day', { terrain, clouds, imgs });
+world.sun.target.position.set(0, 0, 4);
+const G = 1;  // sand top in front of the platform
+
+const build = new THREE.Group();
+scene.add(build);
+for (let x = PLAT[0]; x <= PLAT[1]; x++) for (let z = PLAT[2]; z <= PLAT[3]; z++) {
+  for (let y = -2; y <= 0; y++) put(imgs, build, 'stone', x, y, z);
+  put(imgs, build, 'smooth_stone', x, 1, z);
+}
+for (let x = ISLE[0]; x <= ISLE[1]; x++) for (let z = ISLE[2]; z <= ISLE[3]; z++) {
+  for (let y = -8; y <= -6; y++) put(imgs, build, 'stone_bricks', x, y, z);
+  put(imgs, build, 'smooth_stone', x, -5, z);
+}
+const serverSign = makeSign(imgs, ['SERVER'], { w: 1.7, h: 0.6 });
+serverSign.position.set(-37.2, FLS + 1.0, -1.4);
+serverSign.rotation.y = 0.5;
+scene.add(serverSign);
+
+// ---------- textures of entities and odd models (whole atlases, not squeezed to 16 x 16) ----------
+const loadImg = (src) => new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.src = src; });
+const pixelMap = (img, sx = 0, sy = 0, w = img.width, h = img.height) => {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  c.getContext('2d').drawImage(img, sx, sy, w, h, 0, 0, w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.magFilter = t.minFilter = THREE.NearestFilter;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+};
+const basic = (map, extra = {}) => new THREE.MeshBasicMaterial({ map, transparent: true, alphaTest: 0.1, ...extra });
+
+// Shulker box (ShulkerModel without head): base 16 x 8 x 16 at (0, 28), lid 16 x 12 x 16 at (0, 0); open(k) lifts
+// the lid half a block and turns it 270 degrees, like ShulkerBoxRenderer. Origin on the ground, 1 block wide.
+function makeShulker(color, { ghost = false } = {}) {
+  const mat = basic(pixelMap(imgs[`shulker_${color}`]), ghost ? { opacity: 0.32, depthWrite: false, alphaTest: 0 } : {});
+  const base = entityPart(mat, [0, 24, 0], [[0, 28, -8, -8, -8, 16, 8, 16]]);
+  const lid = entityPart(mat, [0, 24, 0], [[0, 0, -8, -16, -8, 16, 12, 16]]);
+  const g = new THREE.Group();
+  g.add(base, lid);
+  return { g, mat, open: (k) => { lid.position.y = 0.5 * k; lid.rotation.y = 1.5 * Math.PI * k; } };
+}
+
+// Lantern block model (template_lantern): 6 x 7 x 6 body and 4 x 2 x 4 cap, first frame of the 16 x 48 strip
+const lanternMap = pixelMap(imgs.lantern, 0, 0, 16, 16);
+function uvBox(w, h, d, side, top) {
+  const geo = new THREE.BoxGeometry(w / 16, h / 16, d / 16);
+  const uv = geo.attributes.uv;
+  for (let f = 0; f < 6; f++) {
+    const [u0, v0, u1, v1] = f === 2 || f === 3 ? top : side;
+    for (let k = 0; k < 4; k++) {
+      const i = f * 4 + k;
+      uv.setXY(i, (u0 + uv.getX(i) * (u1 - u0)) / 16, 1 - (v0 + (1 - uv.getY(i)) * (v1 - v0)) / 16);
+    }
+  }
+  return geo;
+}
+function makeLantern() {
+  const g = new THREE.Group();
+  const mat = basic(lanternMap);
+  const body = new THREE.Mesh(uvBox(6, 7, 6, [0, 2, 6, 9], [0, 9, 6, 15]), mat);
+  body.position.y = 3.5 / 16;
+  const cap = new THREE.Mesh(uvBox(4, 2, 4, [1, 0, 5, 2], [1, 10, 5, 14]), mat);
+  cap.position.y = 8 / 16;
+  g.add(body, cap);
+  return g;
+}
+
+// Boat (BoatModel, 128 x 64): bottom, back, front and two sides; length along x. The renderer draws it 0.375 above
+// the entity, upside down in model space; here the group's origin is on the water line.
+function makeBoat() {
+  const mat = basic(pixelMap(imgs.boat_oak));
+  const S = [128, 64], P = Math.PI;
+  const m = new THREE.Group();
+  m.add(entityPart(mat, [0, 3, 1], [[0, 0, -14, -9, -3, 28, 16, 3]], [P / 2, 0, 0], S),
+        entityPart(mat, [-15, 4, 4], [[0, 19, -13, -7, -1, 18, 6, 2]], [0, 3 * P / 2, 0], S),
+        entityPart(mat, [15, 4, 0], [[0, 27, -8, -7, -1, 16, 6, 2]], [0, P / 2, 0], S),
+        entityPart(mat, [0, 4, -9], [[0, 35, -14, -7, -1, 28, 6, 2]], [0, P, 0], S),
+        entityPart(mat, [0, 4, 9], [[0, 43, -14, -7, -1, 28, 6, 2]], [0, 0, 0], S));
+  m.position.y = -1.125 + 0.2;
+  const g = new THREE.Group();
+  g.add(m);
+  return g;
+}
+
+// ---------- the stall (the app) ----------
+// Origin at the back left cell of a 2 x 2 room: the villager there, the Python block to its right with the lantern
+// on top, the counter in front of the villager. sell(t, on) makes emeralds pop over the counter; crash(t, on) smokes.
+const smokeMaps = [tex(imgs, 'big_smoke_0'), tex(imgs, 'big_smoke_4')];
+function makeStall({ python = 'blue_wool', lantern = true, prof = 'cleric', counterItem = 'emerald', side = 'blue_wool' } = {}) {
+  const g = new THREE.Group();
+  const keeper = makeVillager(imgs, { profession: prof, type: 'plains' });
+  keeper.g.position.set(0, 0, 0);
+  g.add(keeper.g);
+  const parts = {
+    python: put(imgs, g, python, 1, 0, 0),
+    counter: put(imgs, g, 'oak_planks', 0, 0, 1),
+  };
+  parts.lantern = makeLantern();
+  parts.lantern.position.set(1, 1, 0);
+  parts.lantern.visible = lantern;
+  g.add(parts.lantern);
+  const item = makeItem(imgs, counterItem, 0.42);
+  g.add(item);
+  const sparks = Array.from({ length: 4 }, () => {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex(imgs, 'trade_glint'), color: 0x66FF66, transparent: true, depthWrite: false }));
+    s.scale.setScalar(0.16);
+    g.add(s);
+    return s;
+  });
+  const smoke = Array.from({ length: 8 }, (_, i) => {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeMaps[i % 2], color: 0x606060, transparent: true, depthWrite: false }));
+    g.add(s);
+    return s;
+  });
+  const st = { g, keeper, parts, item, sparks, smoke };
+  st.update = (t, { sell = false, crash = false, seed = 0 } = {}) => {
+    // selling: one emerald every 1.6 s rises over the counter, the villager nods, green sparkles around its head
+    const ph = ((t + seed) % 1.6) / 1.6;
+    item.visible = sell && ph < 0.7;
+    if (item.visible) { item.position.set(0, 1.25 + 0.5 * ph, 1); item.material.opacity = 1 - prog(ph, 0.5, 0.7); }
+    keeper.head.rotation.x = sell ? 0.25 * Math.max(0, Math.sin(ph * Math.PI * 4)) : keeper.head.rotation.x;
+    sparks.forEach((s, i) => {
+      const q = (ph + i * 0.25) % 1;
+      s.visible = sell;
+      s.position.set(Math.sin(i * 2.1) * 0.45, 1.9 + q * 0.6, 0.1 + Math.cos(i * 2.1) * 0.35);
+      s.material.opacity = 1 - q;
+    });
+    // crashing: smoke rises from the Python block, the villager shakes its head
+    smoke.forEach((s, i) => {
+      const q = ((t + seed) * 0.45 + i / smoke.length) % 1;
+      s.visible = crash;
+      s.position.set(1 + Math.sin(i * 1.7 + q * 3) * 0.3, 1.0 + q * 2.4, Math.cos(i * 2.3) * 0.25);
+      s.scale.setScalar(0.6 + q * 0.9);
+      s.material.opacity = 0.85 * (1 - q);
+    });
+    shakeNo(keeper, t, crash);
+    if (!crash && !sell) keeper.head.rotation.x = 0;
+  };
+  return st;
+}
+
+// ---------- glass rooms (containers) ----------
+// A 4 x 4 room of glass, 2 blocks high and open on top, on Steve's platform; cell (a, b) is its corner block.
+// build(k) shows the glass as it is placed (k 0..1, bottom row first). The stall stands in the 2 x 2 inside.
+function makeRoom(a, b, y0, stallOpts) {
+  const g = new THREE.Group();
+  const panes = [];
+  for (let y = 0; y < 2; y++) for (let x = a; x <= a + 3; x++) for (let z = b; z <= b + 3; z++) {
+    if (x > a && x < a + 3 && z > b && z < b + 3) continue;
+    panes.push(put(imgs, g, 'glass', x, y0 + y, z));
+  }
+  const stall = makeStall(stallOpts);
+  stall.g.position.set(a + 1, y0, b + 1);
+  g.add(stall.g);
+  // the container's own thin layer: a light blue sheet over the room (line 12)
+  const sheet = new THREE.Mesh(new THREE.BoxGeometry(4, 0.14, 4),
+    new THREE.MeshBasicMaterial({ color: 0x7FC8FF, transparent: true, opacity: 0.55, depthWrite: false }));
+  sheet.position.set(a + 1.5, y0 + 2.07, b + 1.5);
+  sheet.visible = false;
+  g.add(sheet);
+  g.visible = false;
+  scene.add(g);
+  const r = { g, panes, stall, sheet, a, b, y0, center: V(a + 1.5, y0, b + 1.5) };
+  r.build = (k) => panes.forEach((p, i) => { p.visible = k * panes.length > i; });
+  return r;
+}
+
+// The rooms: R1 (front middle) first, then Alex's blog next to it, two more shops, and two more for line 14
+const ROOMS = {
+  r1: makeRoom(4, 2, FL, {}),
+  blog: makeRoom(9, 2, FL, { python: 'bookshelf', lantern: false, prof: 'librarian', counterItem: 'written_book' }),
+  r2: makeRoom(-1, 2, FL, {}),
+  r3: makeRoom(-1, -3, FL, {}),
+  r4: makeRoom(4, -3, FL, {}),
+  r5: makeRoom(9, -3, FL, { python: 'bookshelf', lantern: false, prof: 'librarian', counterItem: 'written_book' }),
+  server: makeRoom(-36, 0, FLS, {}),
+};
+
+// The stall installed straight on each machine (no Docker): Steve's works, the server's has Python 3.8 and no flask
+const homeStall = makeStall({});
+homeStall.g.position.set(5, FL, 3);
+scene.add(homeStall.g);
+const serverStall = makeStall({ python: 'light_blue_wool', lantern: false });
+serverStall.g.position.set(-35, FLS, 1);
+scene.add(serverStall.g);
+const missing = makeFrame(1, 0.03, 0xFF4040);   // where the lantern should be on the server (line 2)
+missing.scale.setScalar(0.5);
+missing.position.set(-34, FLS + 1.25, 1);
+scene.add(missing);
+
+// ---------- the image: a stack of shulker boxes ----------
+const STACK = V(3.5, G, 12.5), ALEXSTACK = V(7.5, G, 12.5), LECTERN = V(2.0, G, 12.9);
+const LAYERS = ['gray', 'blue', 'yellow', 'lime'];
+const stack = LAYERS.map((c, i) => { const s = makeShulker(c); s.g.position.copy(STACK).add(V(0, i, 0)); scene.add(s.g); return s; });
+const newCode = makeShulker('lime');                      // the rebuilt top layer (line 8)
+newCode.g.position.copy(STACK).add(V(0, 3, 0));
+scene.add(newCode.g);
+const alexStack = ['gray', 'blue', 'purple', 'orange'].map((c, i) => {
+  const s = makeShulker(c, { ghost: i < 2 });
+  s.g.position.copy(ALEXSTACK).add(V(0, i, 0));
+  scene.add(s.g);
+  return s;
+});
+const shared = [0, 1].map(() => { const l = makeLead({ width: 0.05 }); l.material.color.setScalar(0.5); scene.add(l); return l; });
+const cracks = makeCracks(imgs);
+cracks.position.copy(STACK).add(V(0, 3.5, 0));
+scene.add(cracks);
+const oldCode = makeDrop(imgs, 'blue_wool', { offset: 1 });  // the broken box falls as an item (lime box looks)
+scene.add(oldCode);
+const padlock = makeItem(imgs, 'padlock', 0.7);
+scene.add(padlock);
+const barrier = makeItem(imgs, 'barrier', 0.9);
+scene.add(barrier);
+const paper = makeItem(imgs, 'paper', 0.4);
+scene.add(paper);
+
+// The Dockerfile on a lectern; the step being explained is green
+const lectern = makeLectern(imgs);
+lectern.g.position.copy(LECTERN);
+lectern.g.rotation.y = 0.35;
+scene.add(lectern.g);
+const STEPS = ['FROM python:3.12', 'RUN pip install flask', 'COPY . .', 'CMD python app.py'];
+const bookAt = (k) => ['Dockerfile', ...STEPS.map((s, i) => ({ s, color: i === k ? 0x1E7A1E : 0x3a2a14 }))];
+const bookKeys = [];   // [time, highlighted step]
+
+// Copies of the stall's pieces flying into the boxes (line 3) and out of them into the room (line 9)
+const flyBlock = (name) => { const d = makeDrop(imgs, name); d.scale.setScalar(3.2); scene.add(d); return d; };
+const flyers = { python: flyBlock('blue_wool'), lantern: makeLantern(), counter: flyBlock('oak_planks') };
+scene.add(flyers.lantern);
+
+// The virtual machine: a whole house with its own stone foundation, built slowly (line 13)
+const vm = new THREE.Group();
+scene.add(vm);
+const vmBlocks = [];
+for (let x = VMLOT[0]; x <= VMLOT[1]; x++) for (let z = VMLOT[2]; z <= VMLOT[3]; z++) vmBlocks.push(put(imgs, vm, 'stone', x, 0, z));
+const VMFOUND = vmBlocks.length;
+for (let y = 1; y <= 3; y++) for (let x = VMLOT[0]; x <= VMLOT[1]; x++) for (let z = VMLOT[2]; z <= VMLOT[3]; z++) {
+  const edge = x === VMLOT[0] || x === VMLOT[1] || z === VMLOT[2] || z === VMLOT[3];
+  if (!edge) continue;
+  const win = y === 2 && (x === 10 || z === 18);
+  vmBlocks.push(put(imgs, vm, win ? 'glass' : 'oak_planks', x, y, z));
+}
+for (let x = VMLOT[0]; x <= VMLOT[1]; x++) for (let z = VMLOT[2]; z <= VMLOT[3]; z++) vmBlocks.push(put(imgs, vm, 'oak_planks', x, 4, z));
+const vmStall = makeStall({});
+vmStall.g.position.set(9.5, 1, 17.5);
+vm.add(vmStall.g);
+
+// The boat that carries a copy of the image to the server (line 15)
+const boat = makeBoat();
+scene.add(boat);
+const cargo = LAYERS.map((c, i) => { const s = makeShulker(c); s.g.scale.setScalar(0.5); scene.add(s.g); return s; });
+const WATER = -6.1;
+const DOCK = V(-14.5, WATER, 12.5), PIER = V(-28.0, WATER, 3.0);
+const SERVERSTACK = V(-30.6, FLS, 4.2);
+
+// ---------- people ----------
+const steve = makePlayer(imgs, { skin: 'steve' });
+const alex = makePlayer(imgs, { skin: 'alex' });
+const customer = makeVillager(imgs, { profession: 'nitwit', type: 'plains' });
+scene.add(steve.g, alex.g, customer.g);
+customer.g.position.set(5, G, 6.4);
+customer.g.rotation.y = Math.PI;
+const at = (x, z, y = G) => V(x, y, z);
+
+// Background life: squids in the sea, chickens on the grass behind the beach (closed loops, so the clip loops)
+const squidY = (x, z) => terrain.surfaceAt(x, z).y - 2.2;
+const loop = (cx, cz, w, h) => [[cx - w, cz - h], [cx + w, cz - h], [cx + w, cz + h], [cx - w, cz + h]];
+const life = makeLife(imgs, terrain, [
+  { kind: 'squid', path: loop(-24, 18, 4, 2), y: squidY(-24, 18), offset: 0.1 },
+  { kind: 'squid', path: loop(-44, -6, 3, 3), y: squidY(-44, -6), offset: 0.6 },
+  { kind: 'chicken', path: loop(20, -16, 2, 1.5), offset: 0.3 },
+  { kind: 'chicken', path: loop(24, 14, 1.5, 2), offset: 0.7 },
+], TOTAL, light);
+scene.add(life.g);
+
+// ---------- cover ----------
+const COVER_Z = 21;
+const cover = makeSign(imgs, ['HOW', 'DOCKER', 'WORKS'], { w: 3.4, h: 2.2 });
+const coverBase = terrain.groundAt(4, COVER_Z) + 2.0;
+cover.position.set(4, coverBase, COVER_Z);
+scene.add(cover);
+const COVER_OUT = ev(0, 0.12), COVER_IN = ev(17, 0.8);
+const coverY = (t) => coverBase - 4.5 * easeInOut(prog(t, COVER_OUT, COVER_OUT + 0.8)) * (1 - easeInOut(prog(t, COVER_IN, COVER_IN + 0.8)));
+
+// ---------- events ----------
+const T = {
+  crash: ev(0, 0.5),
+  pack: ev(3, 0.12),               // the stack is placed box by box and the stall's pieces fly in
+  image: ev(3, 0.62),
+  steps: [ev(5, 0.4), ev(5, 0.55), ev(5, 0.7), ev(5, 0.85)],
+  lock: ev(6, 0.1),
+  alex: ev(7, 0.0),
+  shared: [ev(7, 0.4), ev(7, 0.6)],
+  crack: [ev(8, 0.1), ev(8, 0.32)],
+  rebuild: ev(8, 0.42),
+  run: [ev(9, 0.2), ev(9, 0.45)],  // R1's glass goes up
+  unpack: [ev(9, 0.45), ev(9, 0.7)],
+  blog: [ev(10, 0.5), ev(10, 0.62)],
+  copies: [ev(11, 0.15), ev(11, 0.35)],
+  write: [ev(12, 0.45), ev(12, 0.65)],
+  vm: [ev(13, 0.12), end(13) - 0.1],
+  fast: [ev(14, 0.45), ev(14, 0.53)],
+  load: [ev(15, 0.0), ev(15, 0.08)],
+  sail: [ev(15, 0.08), ev(15, 0.45)],
+  land: [ev(15, 0.45), ev(15, 0.53)],
+  serverRun: [ev(15, 0.55), ev(15, 0.66)],
+};
+bookKeys.push([0, -1], ...T.steps.map((a, i) => [a, i]), [end(5), -1], [ev(8, 0.0), 2], [end(8), -1]);
+const keyAt = (keys, t) => { let v = null; for (const [a, k] of keys) if (t >= a) v = k; return v; };
+
+// Steve and Alex: [time, place, yaw]
+const STEVE = [
+  [0, at(2.0, 7.2), Math.PI * 0.85], [ev(2, 0.9), at(2.0, 7.2), Math.PI * 0.85],
+  [ev(3, 0.1), at(0.8, 12.4), 1.18], [T.unpack[0], at(0.8, 12.4), 1.18],
+  [T.unpack[1], at(2.2, 7.6), Math.PI], [ev(14, 1.0), at(2.2, 7.6), Math.PI],
+  [ev(15, 0.0), at(-1.6, 13.8), -Math.PI / 2],
+];
+const ALEX = [[0, at(5.5, 11.0), 0]];
+
+// ---------- per frame ----------
+function glow(g, k) {
+  g.traverse((o) => {
+    if (!o.material) return;
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      if (!m.color) continue;
+      if (!m.userData.base0) m.userData.base0 = m.color.clone();
+      m.color.copy(m.userData.base0).multiplyScalar(1 + k);
+    }
+  });
+}
+const pulse = (t, a, z, period = 1.2) => (during(t, a, z) ? 0.6 * (0.5 - 0.5 * Math.cos((t - a) * 2 * Math.PI / period)) : 0);
+const pop = (t, a) => Math.min(1, Math.max(0, (t - a) / 0.2));   // a block placed: scale from 0 to 1 in 0.2 s
+
+function scenePieces(t) {
+  // the stalls installed without Docker: Steve's sells until it is packed, the server's crashes until it is replaced
+  homeStall.g.visible = t < T.pack + 0.5;
+  homeStall.parts.python.visible = t < T.pack + 0.1;
+  homeStall.parts.lantern.visible = t < T.pack + 0.2;
+  homeStall.parts.counter.visible = t < T.pack + 0.3;
+  homeStall.keeper.g.visible = t < T.pack + 0.45;
+  homeStall.update(t, { sell: t < T.pack });
+  serverStall.g.visible = t < T.serverRun[0];
+  serverStall.update(t, { crash: t >= T.crash && t < T.serverRun[0], seed: 0.4 });
+  missing.visible = during(t, ev(2, 0.68), end(2)) && Math.floor((t - ev(2, 0.68)) * 4) % 2 === 0;
+  customer.head.rotation.x = 0;
+
+  // the stack: placed box by box (line 3); the top box breaks and is placed again (line 8)
+  stack.forEach((s, i) => {
+    const a = T.pack + i * 0.22;
+    s.g.visible = t >= a && !(i === 3 && t >= T.crack[1]);
+    s.g.scale.setScalar(Math.max(1e-3, easeInOut(pop(t, a))));
+    s.open(0);
+  });
+  newCode.g.visible = t >= T.rebuild;
+  newCode.g.scale.setScalar(Math.max(1e-3, easeInOut(pop(t, T.rebuild))));
+  cracks.set(prog(t, ...T.crack));
+  oldCode.visible = during(t, T.crack[1], T.crack[1] + 1.2);
+  if (oldCode.visible) oldCode.place(t, V(STACK.x + 0.9, G, STACK.z + 0.6));
+  // the stall's pieces fly from the platform into their boxes (line 3)
+  const flight = (o, from, to, a, z, h = 2) => {
+    const k = prog(t, a, z);
+    o.visible = k > 0 && k < 1;
+    if (o.visible) o.position.copy(arc(from, to, easeInOut(k), h));
+  };
+  const box = (i) => STACK.clone().add(V(0, i + 0.4, 0));
+  const R1 = ROOMS.r1;
+  if (t < T.run[0]) {
+    flight(flyers.python, V(6, FL + 0.2, 3), box(1), T.pack + 0.05, T.pack + 0.22 + 0.2);
+    flight(flyers.lantern, V(6, FL + 1, 3), box(2), T.pack + 0.15, T.pack + 0.44 + 0.2);
+    flight(flyers.counter, V(5, FL + 0.2, 4), box(3), T.pack + 0.25, T.pack + 0.66 + 0.2);
+  } else {
+    // and out of the image into the first container (line 9)
+    flight(flyers.python, box(1), V(6, FL + 0.2, 3), T.unpack[0], T.unpack[0] + 0.45);
+    flight(flyers.lantern, box(2), V(6, FL + 1, 3), T.unpack[0] + 0.1, T.unpack[0] + 0.55);
+    flight(flyers.counter, box(3), V(5, FL + 0.2, 4), T.unpack[0] + 0.2, T.unpack[0] + 0.65);
+  }
+
+  // Alex's image (line 7): her two boxes on top, the two at the bottom are Steve's (ghosts tied with leads)
+  alexStack.forEach((s, i) => { s.g.visible = t >= T.alex + 0.15 * i && t < end(8); s.g.scale.setScalar(Math.max(1e-3, easeInOut(pop(t, T.alex + 0.15 * i)))); });
+  shared.forEach((l, i) => {
+    if (t < T.shared[0] || t >= end(7)) { l.visible = false; return; }
+    l.set(STACK.clone().add(V(0.5, i + 0.5, 0)), ALEXSTACK.clone().add(V(-0.5, i + 0.5, 0)), easeInOut(prog(t, T.shared[0], T.shared[0] + 0.5)));
+  });
+  const sharedGlow = pulse(t, T.shared[0], end(7));
+  for (const i of [0, 1]) { glow(stack[i].g, sharedGlow); glow(alexStack[i].g, sharedGlow); }
+  // the Dockerfile's steps light their layers (line 5); the cached layers glow while the top is rebuilt (line 8)
+  const step = keyAt(bookKeys, t);
+  lectern.setBook(bookAt(step));
+  lectern.open(prog(t, ev(5, 0.0), ev(5, 0.15)) * (1 - prog(t, end(8), end(8) + 0.3)));
+  const lit = { 0: [0, 1], 1: [2], 2: [3] }[step] ?? [];
+  if (!during(t, T.shared[0], end(7))) {
+    stack.forEach((s, i) => glow(s.g, lit.includes(i) && during(t, ev(5, 0), end(5)) ? 0.5
+                                     : i < 3 && during(t, T.rebuild, end(8)) ? pulse(t, T.rebuild, end(8)) : 0));
+  }
+  glow(newCode.g, during(t, T.rebuild, T.rebuild + 0.6) ? 0.5 : 0);
+  padlock.visible = during(t, T.lock, end(6)) || during(t, ev(12, 0.0), ev(12, 0.45));
+  if (padlock.visible) padlock.position.copy(STACK).add(V(0, 3.5, 0.75));
+
+  // containers: glass goes up, the pieces arrive, the stall opens
+  const roomOn = { r1: T.run, blog: T.blog, r2: T.copies, r3: [T.copies[0] + 0.15, T.copies[1] + 0.15],
+                   r4: T.fast, r5: [T.fast[0] + 0.12, T.fast[1] + 0.12], server: T.serverRun };
+  for (const [k, R] of Object.entries(ROOMS)) {
+    const [a, z] = roomOn[k];
+    R.g.visible = t >= a;
+    if (!R.g.visible) continue;
+    R.build(prog(t, a, z));
+    const ready = k === 'r1' ? T.unpack[1] : z;
+    R.stall.g.visible = t >= ready - (k === 'r1' ? 0 : 0.05);
+    R.stall.update(t, { sell: t >= ready + 0.3, seed: k.length * 0.37 });
+  }
+  R1.sheet.visible = t >= T.write[0];
+  R1.sheet.material.opacity = 0.55 * prog(t, T.write[0], T.write[0] + 0.3);
+  const pk = prog(t, ...T.write);
+  paper.visible = pk > 0 && pk < 1;
+  if (paper.visible) paper.position.copy(arc(V(5, FL + 1.3, 4), V(5.5, FL + 2.1, 3.5), easeInOut(pk), 0.6));
+  barrier.visible = during(t, T.blog[1], end(10));
+  if (barrier.visible) barrier.position.set(8, FL + 1.2, 3.5);
+  // the shared kernel: the platform glows (line 14)
+  glow(build, pulse(t, ev(14, 0.05), end(14), 1.4) * 0.6);
+
+  // the virtual machine: foundation first, then the walls and the roof, slowly
+  const vk = prog(t, ...T.vm);
+  vm.visible = vk > 0;
+  const shown = VMFOUND + Math.floor(easeInOut(prog(vk, 0.2, 1)) * (vmBlocks.length - VMFOUND));
+  vmBlocks.forEach((b, i) => { b.visible = i < VMFOUND ? vk > i / VMFOUND * 0.2 : i < shown; });
+  glow(vm, during(t, ev(13, 0.55), end(13)) ? 0.0 : 0);
+  vmStall.g.visible = vk > 0.25;
+  vmStall.update(t, { sell: vk > 0.3, seed: 0.9 });
+
+  // shipping (line 15): the copy goes onto the boat, sails, and lands on the island
+  const sail = prog(t, ...T.sail);
+  const boatPos = DOCK.clone().lerp(PIER, easeInOut(sail));
+  boat.visible = during(t, ev(14, 0.9), end(16));
+  boat.position.copy(boatPos);
+  boat.position.y = WATER + 0.06 * Math.sin(t * 2.2);
+  boat.rotation.y = Math.atan2(-(PIER.z - DOCK.z), PIER.x - DOCK.x);
+  const lk = prog(t, ...T.load), dk = prog(t, ...T.land);
+  cargo.forEach((s, i) => {
+    s.g.visible = t >= T.load[0] && t < T.land[1];
+    const onBoat = boat.position.clone().add(V(0, 0.15 + i * 0.5, 0));
+    if (lk < 1) s.g.position.copy(arc(STACK.clone().add(V(0, i, 0)), onBoat, easeInOut(lk), 2));
+    else if (dk <= 0) s.g.position.copy(onBoat);
+    else s.g.position.copy(arc(onBoat, SERVERSTACK.clone().add(V(0, i, 0)), easeInOut(dk), 2));
+    s.g.scale.setScalar(dk > 0 ? 0.5 + 0.5 * dk : 0.5 + 0.5 * (1 - lk));
+  });
+  serverImage.forEach((s, i) => { s.g.visible = t >= T.land[1]; });
+
+  // people
+  moveAlong(steve, STEVE, t);
+  steve.arms[1].rotation.set(0, 0, 0);
+  for (const a of [T.crack[0], T.crack[0] + 0.3, T.run[0]]) swingArm(steve, prog(t, a - 0.15, a + 0.15));
+  alex.g.visible = t >= T.alex - 0.3 && t < end(8);
+  moveAlong(alex, ALEX, t);
+  cover.position.y = coverY(t);
+}
+const serverImage = LAYERS.map((c, i) => { const s = makeShulker(c); s.g.position.copy(SERVERSTACK).add(V(0, i, 0)); s.g.visible = false; scene.add(s.g); return s; });
+
+// ---------- bubbles ----------
+const B = {
+  works: bubble(['works!'], { color: 0x55FF55 }),
+  crash: bubble(['crash!'], { color: 0xFF5555 }),
+  mine: bubble(['Steve\'s computer'], { color: 0xFFFFFF }),
+  server: bubble(['server'], { color: 0xFFFFFF }),
+  oldPy: bubble(['python 3.8', 'the app needs 3.12'], { color: 0xFF5555 }),
+  noFlask: bubble(['flask: missing'], { color: 0xFF5555 }),
+  image: bubble(['image', 'the app + everything it needs'], { color: 0xFFFF55 }),
+  l0: bubble(['base system'], { color: 0xAAAAAA }),
+  l1: bubble(['python 3.12'], { color: 0x55AAFF }),
+  l2: bubble(['flask'], { color: 0xFFFF55 }),
+  l3: bubble(['your code'], { color: 0x55FF55 }),
+  dockerfile: bubble(['Dockerfile'], { color: 0xFFFF55 }),
+  locked: bubble(['never changes', 'same files anywhere'], { color: 0xFFFF55 }),
+  once: bubble(['same base,', 'stored once'], { color: 0x55FF55 }),
+  cached: bubble(['cached'], { color: 0x55FF55 }),
+  rebuilt: bubble(['rebuilt'], { color: 0xFFFF55 }),
+  run: bubble(['docker run'], { color: 0xFFFF55 }),
+  container: bubble(['container'], { color: 0xFFFF55 }),
+  own: bubble(['its own files,', 'processes and network'], { color: 0xFFFFFF }),
+  cantSee: bubble(['can\'t see in'], { color: 0xFF5555 }),
+  many: bubble(['one image,', 'many containers'], { color: 0xFFFF55 }),
+  readOnly: bubble(['image: read only'], { color: 0xFFFF55 }),
+  layer: bubble(['container\'s own layer'], { color: 0x55AAFF }),
+  vm: bubble(['virtual machine'], { color: 0xFFFF55 }),
+  ownKernel: bubble(['its own OS and kernel'], { color: 0xFF5555 }),
+  kernel: bubble(['one shared kernel'], { color: 0x55FF55 }),
+  fast: bubble(['starts in a second'], { color: 0x55FF55 }),
+  ship: bubble(['ship the image'], { color: 0xFFFF55 }),
+  serverRun: bubble(['docker run'], { color: 0xFFFF55 }),
+  works2: bubble(['works, like at home'], { color: 0x55FF55 }),
+  box: bubble(['ship the box', 'it already works in'], { color: 0x55FF55 }),
+  r1: bubble(['an image built in layers'], { color: 0xFFFF55 }),
+  r2: bubble(['containers in their own walls'], { color: 0xFFFF55 }),
+  r3: bubble(['one shared machine'], { color: 0xFFFF55 }),
+};
+for (const b of Object.values(B)) scene.add(b);
+
+function bubbles(t) {
+  const S = STACK;
+  B.works.show(t, ev(0, 0.15), ev(0, 0.48), V(5.5, FL + 3.2, 3.5));
+  B.crash.show(t, ev(0, 0.58), end(0), V(-34.5, FLS + 3.4, 1.5));
+  B.mine.show(t, ev(1, 0.2), end(1), V(5, FL + 2.6, 3));
+  B.server.show(t, ev(1, 0.2), end(1), V(-33.5, FLS + 5, 1.5));
+  B.oldPy.show(t, ev(2, 0.35), ev(2, 0.68), V(-34, FLS + 2.6, 1));
+  B.noFlask.show(t, ev(2, 0.68), end(2), V(-34, FLS + 2.6, 1));
+  B.image.show(t, T.image, end(3), S.clone().add(V(0, 5.2, 0)));
+  [B.l0, B.l1, B.l2, B.l3].forEach((b, i) => b.show(t, ev(4, 0.12 + 0.2 * i), end(4), S.clone().add(V(1.9, i + 0.5, 0))));
+  B.dockerfile.show(t, ev(5, 0.05), ev(5, 0.38), LECTERN.clone().add(V(0, 2.2, 0)));
+  B.locked.show(t, T.lock + 0.2, end(6), S.clone().add(V(0, 5.7, 0)));
+  B.once.show(t, T.shared[1], end(7), S.clone().add(V(2, 2.6, 0)));
+  B.cached.show(t, T.rebuild + 0.1, end(8), S.clone().add(V(1.9, 1.5, 0)));
+  B.rebuilt.show(t, T.rebuild + 0.1, end(8), S.clone().add(V(1.9, 3.5, 0)));
+  B.run.show(t, ev(9, 0.05), ev(9, 0.5), S.clone().add(V(0, 5.2, 0)));
+  B.container.show(t, ev(9, 0.55), end(9), V(5.5, FL + 3.0, 3.5));
+  B.own.show(t, ev(10, 0.05), ev(10, 0.5), V(5.5, FL + 3.0, 3.5));
+  B.cantSee.show(t, T.blog[1], end(10), V(8, FL + 2.6, 3.5));
+  B.many.show(t, ev(11, 0.4), end(11), V(4, FL + 4.2, 1.5));
+  B.readOnly.show(t, ev(12, 0.0), ev(12, 0.45), S.clone().add(V(0, 5.7, 0)));
+  B.layer.show(t, T.write[1], end(12), V(5.5, FL + 3.0, 3.5));
+  B.vm.show(t, ev(13, 0.25), ev(13, 0.6), V(10, 6.2, 18));
+  B.ownKernel.show(t, ev(13, 0.6), end(13), V(10, 6.2, 18));
+  B.kernel.show(t, ev(14, 0.1), ev(14, 0.6), V(5.5, FL + 4.6, 1.5));
+  B.fast.show(t, ev(14, 0.6), end(14), V(5.5, FL + 4.6, 1.5));
+  B.ship.show(t, ev(15, 0.05), ev(15, 0.45), boat.position.clone().add(V(0, 3.4, 0)));
+  B.serverRun.show(t, T.land[1], ev(15, 0.72), V(-34, FLS + 4, 1.5));
+  B.works2.show(t, ev(15, 0.72), end(15), V(-34, FLS + 4, 1.5));
+  B.box.show(t, ev(16, 0.4), end(16), V(-14, 3, 4));
+  B.r1.show(t, ev(17, 0.0), COVER_IN, V(5.5, FL + 6.4, 1.5));
+  B.r2.show(t, ev(17, 0.25), COVER_IN, V(5.5, FL + 5.3, 1.5));
+  B.r3.show(t, ev(17, 0.5), COVER_IN, V(5.5, FL + 4.2, 1.5));
+}
+
+// ---------- camera ----------
+const look = (p, q) => pose(p, q);
+const COVER = look(V(4, 3.6, 30), V(4, 2.1, COVER_Z));
+const HOME = look(V(9, 6, 13), V(5, 2.8, 3.5));                 // the stall on Steve's platform and the customer
+const ISLAND = look(V(-26, 3.5, 11), V(-34.5, -2.4, 1.5));      // the server's stall
+const BOTH = look(V(22, 9, 9), V(-30, -3, 1));                  // Steve's platform (near) and the island (far)
+const STACKV = look(V(6.5, 4.8, 19.5), V(3.0, 2.4, 11.5));      // the stack, from the front
+const LAYERSV = look(V(6.8, 3.4, 17.6), V(4.2, 2.6, 12.5));     // the stack and its labels
+const BOOK = look(V(3.6, 3.6, 19), V(2.8, 2.3, 12.7));        // the lectern and the stack
+const ALEXV = look(V(5.5, 5.5, 23), V(5.5, 2.4, 12.5));         // both stacks
+const ROOMV = look(V(7.5, 8.5, 13), V(5.5, 2.0, 3.0));          // the first container
+const ROOMS2 = look(V(6, 14, 17), V(6, 1.5, 1));                // all the containers
+const VMV = look(V(17, 7, 27), V(10, 2.2, 18));                 // the virtual machine
+const SHIP = look(V(-4, 8, 22), V(-21, -4, 7));                 // the boat leaving the beach
+const LAND = look(V(-22, 3, 13), V(-32.5, -2.5, 2.5));          // the island
+const SIDE = look(V(17, 6.5, 6.5), V(6.5, 2.4, 3.5));          // R1 and Alex's blog with the barrier between
+const RECAP = look(V(9, 10, 18), V(6, 4.0, 1));
+const CAM = [
+  [0, COVER],
+  [ev(0, 0.1), HOME, 1.3],
+  [ev(0, 0.5), ISLAND, 0.9],
+  [ev(1, 0.0), BOTH, 1.3],
+  [ev(2, 0.05), ISLAND, 1.2],
+  [ev(3, 0.0), STACKV, 1.3],
+  [ev(4, 0.0), LAYERSV, 1.0],
+  [ev(5, 0.0), BOOK, 1.0],
+  [ev(6, 0.0), STACKV, 1.0],
+  [ev(7, 0.0), ALEXV, 1.0],
+  [ev(8, 0.0), LAYERSV, 1.0],
+  [ev(9, 0.0), STACKV, 0.8],
+  [ev(9, 0.35), ROOMV, 1.2],
+  [ev(10, 0.0), SIDE, 1.1],
+  [ev(11, 0.0), ROOMS2, 1.2],
+  [ev(12, 0.0), ROOMV, 1.0],
+  [ev(13, 0.0), VMV, 1.3],
+  [ev(14, 0.0), ROOMS2, 1.3],
+  [ev(15, 0.0), SHIP, 1.2],
+  [ev(15, 0.45), LAND, 1.2],
+  [ev(16, 0.0), BOTH, 1.3],
+  [ev(17, 0.0), RECAP, 1.4],
+  [COVER_IN - 0.5, COVER, 1.8],
+];
+const camAt = smoothCamera(CAM, TOTAL, { sigma: 0.5 });
+
+// ---------- sounds (game sounds, at the moment they happen) ----------
+const sells = (a, z, seed = 0) => { const out = []; for (let s = Math.ceil((a + seed) / 1.6) * 1.6 - seed; s < z; s += 1.6) out.push([s, `villager_yes${(out.length % 3) + 1}`, 0.16]); return out; };
+window.sfxCues = [
+  ...sells(0.2, T.crash - 0.4),
+  [T.crash, 'fizz', 0.3], [T.crash + 0.15, 'villager_no1', 0.28],
+  [ev(2, 0.35), 'villager_no2', 0.22], [ev(2, 0.7), 'click', 0.2],
+  ...[0, 1, 2, 3].map((i) => [T.pack + i * 0.22, `stone_dig${i + 1}`, 0.3]), [T.pack + 0.5, 'pop', 0.25], [T.image, 'shulker_close', 0.3],
+  ...[0, 1, 2, 3].map((i) => [ev(4, 0.12 + 0.2 * i), 'click', 0.18]),
+  [ev(5, 0.02), 'book_flip1', 0.3], ...T.steps.slice(0, 3).map((a, i) => [a, `book_flip${(i % 3) + 1}`, 0.2]),
+  [T.lock, 'chest_locked', 0.3],
+  ...[0, 1, 2, 3].map((i) => [T.alex + 0.15 * i, `stone_dig${(i % 4) + 1}`, 0.25]), [T.shared[0], 'lead_tie', 0.35],
+  [T.crack[0], 'stone_dig1', 0.3], [T.crack[0] + 0.12, 'stone_dig2', 0.3], [T.crack[1], 'break', 0.3], [T.rebuild, 'stone_dig3', 0.32], [T.rebuild + 0.1, 'orb', 0.2],
+  ...[0, 1, 2, 3].map((i) => [T.run[0] + i * 0.06, `stone_dig${i + 1}`, 0.2]), [T.unpack[1], 'pop', 0.25], ...sells(T.unpack[1] + 0.3, end(9), 0.37 * 2),
+  [T.blog[0], 'stone_dig2', 0.22], [T.blog[1], 'chest_locked', 0.25],
+  [T.copies[0], 'stone_dig1', 0.22], [T.copies[0] + 0.15, 'stone_dig3', 0.22],
+  [T.write[0], 'book_put', 0.25], [T.write[1], 'pop', 0.22],
+  ...Array.from({ length: 9 }, (_, i) => [T.vm[0] + (T.vm[1] - T.vm[0]) * i / 9, `wood_dig${(i % 4) + 1}`, 0.2]),
+  [T.fast[0], 'stone_dig1', 0.25], [T.fast[0] + 0.12, 'stone_dig2', 0.25], [T.fast[1] + 0.2, 'orb', 0.2],
+  [T.load[1], 'pop', 0.25], ...[0, 1, 2, 3, 4, 5].map((i) => [T.sail[0] + i * (T.sail[1] - T.sail[0]) / 6, `paddle${(i % 4) + 1}`, 0.3]),
+  [T.land[1], 'stone_dig4', 0.3], [T.serverRun[0], 'break', 0.2], [T.serverRun[1], 'pop', 0.25], [ev(15, 0.72), 'levelup', 0.25],
+  ...sells(ev(15, 0.75), end(15), 0.4),
+  [COVER_IN, 'wood_dig2', 0.3],
+].map(([s, n, g]) => [Math.round(s * 1000) / 1000, n, g]);
+
+// The loop: in the last line everything goes back to the first frame's state behind the cover
+const LOOP_T = ev(18, 0.05);
+window.renderAt = (t) => {
+  scenePieces(t >= LOOP_T ? 0 : t);
+  cover.position.y = coverY(t);
+  const cam = camAt(t);
+  world.look(cam.pos, cam.look);
+  camera.updateMatrixWorld();
+  bubbles(t >= LOOP_T ? 0 : t);
+  placeUI(camera);
+  life.update(t);
+  clouds.position.x = 4 * Math.sin(2 * Math.PI * t / TOTAL);
+  world.draw(t, TOTAL, 0, 0);
+};
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>
