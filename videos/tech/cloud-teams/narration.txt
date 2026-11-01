@@ -1,0 +1,20 @@
+subtitles:
+  - Steve's team is in the cloud now. Five people, three apps, one bill. Here's how teams keep it under control.
+  - First, who can do what. Every person and every service gets its own identity, with only the permissions it needs.
+  - Nobody uses the main root account day to day. It's locked away, with a second factor on every login.
+  - Next, environments. Development, staging and production live in separate accounts or projects.
+  - A mistake in development can't touch the real users. Changes move up step by step.
+  - Teams also let the provider run the hard parts. A managed database takes backups and keeps a standby copy by itself.
+  - If its machine fails, the standby takes over in a minute or two. Nobody gets paged at three A M to fix a disk.
+  - Then, money. Every resource gets tags, like which team and which app, so the bill makes sense.
+  - Budgets send an alert before the month goes over. Development machines shut down at night.
+  - Steady servers get a discount for a one or three year commitment. Batch jobs run on spot machines, cheap, but they can be taken back.
+  - Everything is watched. Metrics and logs flow into dashboards, and alerts fire when something looks wrong.
+  - An alert pages whoever is on call, with a link to the exact graph that broke.
+  - For disasters, backups are copied to another region, far away.
+  - If a whole region goes down, the team can bring the app back up in the other one.
+  - And how many clouds? Most teams pick one main provider and go deep.
+  - Spreading across all three means three sets of tools, skills and bills. Some teams still do it, for very good reasons.
+  - Staying in one cloud means depending on it. Teams accept that trade, with their eyes open.
+  - Tight permissions, separate environments, managed services, and a close eye on the bill.
+  - That's how teams really use cloud services.

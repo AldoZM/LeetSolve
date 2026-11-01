@@ -1,0 +1,391 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+// "How Teams Really Use Cloud Services", the same sea as part 1 (cloud-sea, turn 0). The three provider islands float
+// at the back; Steve's team works on a row of three islets in front (dev, staging and prod, rising left to right), with
+// a far islet for the backup region. Identities are keys with name tags, the root account is a locked chest, the
+// managed database is a bookshelf with a see-through standby copy, tags are name tags on the furnaces, the budget
+// alert is a bell, the monitoring board is a row of redstone lamps, and the many-cloud bridges cost emerald tolls.
+import { THREE, V, prog, easeInOut, pose } from '/vendor/lib/stage.js';
+import { loadTheme, makeWorld, makeTerrain, makeClouds, makeSign, makeBlock, makeChest, faceMatsFor, tex } from '/vendor/tema/mc.js';
+import { setTime, loadMobs, makeLife } from '/vendor/tema/vida.js';
+import { loadPeople, makePlayer, makeVillager, moveAlong } from '/vendor/tema/gente.js';
+import { bubble, placeUI, smoothCamera, arc, makeItem, put } from '/vendor/tema/aldea.js';
+import { makeLead, makeCracks } from '/vendor/tema/objetos.js';
+
+// ---------- timing ----------
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const TOTAL = subs[subs.length - 1].end_s;
+const ev = (line, f = 0) => subs[line].start_s + f * subs[line].duration_s;
+const end = (line) => subs[line].end_s;
+const during = (t, a, z) => t >= a && t < z;
+
+// ---------- world ----------
+const PLACE = '/vendor/tema/mundos/cloud-sea.json';
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'leaves', 'log_side', 'log_top', 'glass', 'stone',
+  'stone_bricks', 'smooth_stone', 'oak_planks', 'cobble', 'furnace_front', 'furnace_front_on', 'furnace_side',
+  'furnace_top', 'bookshelf', 'emerald', 'paper', 'written_book', 'padlock', 'name_tag', 'trial_key', 'clock', 'bell',
+  'tnt_side', 'tnt_top', 'tnt_bottom', 'redstone_lamp', 'redstone_lamp_on', 'red_wool', 'big_smoke_0', 'big_smoke_4',
+  'lead_knot', ...Array.from({ length: 10 }, (_, i) => `destroy_stage_${i}`)]);
+await loadPeople(imgs, ['steve', 'alex', 'villager', 'type_plains', 'prof_cleric', 'prof_librarian', 'prof_mason',
+  'prof_cartographer', 'prof_nitwit']);
+await loadMobs(imgs, ['squid', 'chicken']);
+const world = makeWorld({ fov: 40, offset: 0, fog: [110, 260], shaders: true });
+const { scene, camera } = world;
+const terrain = await makeTerrain(PLACE, { clear: [-20, 20, -12, 12] });
+scene.add(terrain);
+const clouds = makeClouds(imgs, { y: 34 });
+scene.add(clouds);
+const light = await setTime(world, 'day', { terrain, clouds, imgs });
+world.sun.target.position.set(0, 10, 30);
+
+// ---------- helpers ----------
+function glow(g, k) {
+  g.traverse((o) => {
+    if (!o.material) return;
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      if (!m.color) continue;
+      if (!m.userData.base0) m.userData.base0 = m.color.clone();
+      m.color.copy(m.userData.base0).multiplyScalar(1 + k);
+    }
+  });
+}
+const pulse = (t, a, z, period = 1.2) => (during(t, a, z) ? 0.6 * (0.5 - 0.5 * Math.cos((t - a) * 2 * Math.PI / period)) : 0);
+const pop = (t, a, d = 0.2) => Math.max(1e-3, easeInOut(Math.min(1, Math.max(0, (t - a) / d))));
+const furnace = () => makeBlock(imgs, 'furnace_side', { top: 'furnace_top', front: 'furnace_front' });
+const onMap = tex(imgs, 'furnace_front_on'), offMap = tex(imgs, 'furnace_front');
+const grassMats = faceMatsFor(tex(imgs, 'grass_side'), tex(imgs, 'grass_top'), tex(imgs, 'dirt'));
+const cubeGeo = new THREE.BoxGeometry(1, 1, 1);
+function makeIsland(x0, x1, z0, z1, y, { depth = 3 } = {}) {
+  const g = new THREE.Group();
+  for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) {
+    const m = new THREE.Mesh(cubeGeo, grassMats); m.position.set(x, y - 0.5, z); g.add(m);
+    const edge = Math.min(x - x0, x1 - x, z - z0, z1 - z);
+    for (let d = 1; d <= Math.min(depth, edge + 1); d++) put(imgs, g, d < 2 ? 'dirt' : 'stone', x, y - 1 - d, z);
+  }
+  scene.add(g);
+  return g;
+}
+const shade = (color, op, size, at) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(...size), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, depthWrite: false }));
+  m.position.copy(at); m.renderOrder = 5; scene.add(m);
+  m.set = (k) => { m.material.opacity = op * k; m.visible = k > 0.01; };
+  m.set(0);
+  return m;
+};
+
+// ---------- the three provider islands at the back (lines 14 to 16) ----------
+const PROV = [['AWS'], ['AZURE'], ['GOOGLE', 'CLOUD']].map((name, i) => {
+  const cx = -18 + 18 * i, y = 34, z0 = -12, z1 = -5;
+  const g = makeIsland(cx - 6, cx + 6, z0, z1, y, { depth: 4 });
+  const sign = makeSign(imgs, name, { w: 2.6, h: name.length > 1 ? 1.1 : 0.7 });
+  sign.position.set(cx, y + 1.3, z1 + 0.3);
+  scene.add(sign);
+  return { g, cx, y, top: V(cx, y + 0.6, z1) };
+});
+const MAIN = 2;   // the team's main provider (any of the three works the same)
+
+// ---------- the team's islets: dev, staging, prod (rising) and the backup region ----------
+// stacked like stairs toward the camera: dev low in front, staging, prod high at the back
+const ENV = [{ name: 'DEV', y: 6, z0: 42 }, { name: 'STAGING', y: 12, z0: 32 }, { name: 'PROD', y: 18, z0: 22 }].map((E) => {
+  E.cx = 0; E.z1 = E.z0 + 6;
+  E.g = makeIsland(E.cx - 4, E.cx + 4, E.z0, E.z1, E.y);
+  const sign = makeSign(imgs, [E.name], { w: 2.2, h: 0.6 });
+  sign.position.set(E.cx, E.y + 1.0, E.z1 + 0.4);
+  scene.add(sign);
+  E.f = [-2, 0, 2].map((dx) => { const f = furnace(); f.g.position.set(E.cx + dx, E.y + 0.5, E.z0 + 2); scene.add(f.g); return f; });
+  E.dark = shade(0x000018, 0.55, [9.4, 4, 7.4], V(E.cx, E.y + 1.2, (E.z0 + E.z1) / 2));
+  return E;
+});
+const [DEV, STG, PROD] = ENV;
+const DR = { cx: 0, y: 26, z0: 10, z1: 16 };
+DR.g = makeIsland(DR.cx - 4, DR.cx + 4, DR.z0, DR.z1, DR.y);
+const drSign = makeSign(imgs, ['OTHER', 'REGION'], { w: 2.2, h: 1.0 }); drSign.position.set(DR.cx, DR.y + 1.3, DR.z1 + 0.4); scene.add(drSign);
+DR.f = [-2, 0, 2].map((dx) => { const f = furnace(); f.g.position.set(DR.cx + dx, DR.y + 0.5, DR.z0 + 2); scene.add(f.g); return f; });
+// the shader pass copies a material's map once, so lit furnaces and the red lamp are separate meshes shown or hidden
+DR.fOn = DR.f.map((f) => { const o = makeBlock(imgs, 'furnace_side', { top: 'furnace_top', front: 'furnace_front_on' }); o.g.position.copy(f.g.position); o.g.visible = false; scene.add(o.g); return o; });
+DR.backup = makeChest(imgs, 0.9); DR.backup.g.position.set(DR.cx + 2.5, DR.y, DR.z1 - 1.5); scene.add(DR.backup.g);
+const PROD_DARK = shade(0x000018, 0.6, [9.4, 4, 7.4], V(PROD.cx, PROD.y + 1.2, (PROD.z0 + PROD.z1) / 2));
+
+// The release that climbs dev -> staging -> prod (line 4): a book
+const release = makeItem(imgs, 'written_book', 0.6); scene.add(release);
+// A mistake in dev (line 4): TNT that goes off only on the dev islet
+const tnt = makeBlock(imgs, 'tnt_side', { top: 'tnt_top', bottom: 'tnt_bottom' }); tnt.g.position.set(DEV.cx + 2.5, DEV.y + 0.5, DEV.z1 - 1.5); scene.add(tnt.g);
+const smokeMaps = [tex(imgs, 'big_smoke_0'), tex(imgs, 'big_smoke_4')];
+const blast = Array.from({ length: 10 }, (_, i) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeMaps[i % 2], color: 0x9A9A9A, transparent: true, depthWrite: false })); scene.add(s); return s; });
+
+// Managed database on prod (lines 5 and 6): primary bookshelf, see-through standby, the librarian copying
+const dbA = makeBlock(imgs, 'bookshelf', { top: 'oak_planks' }); dbA.g.position.set(PROD.cx - 2.5, PROD.y + 0.5, PROD.z1 - 1.5); scene.add(dbA.g);
+const dbB = makeBlock(imgs, 'bookshelf', { top: 'oak_planks' }); dbB.g.position.set(PROD.cx + 2.5, PROD.y + 0.5, PROD.z1 - 1.5); scene.add(dbB.g);
+const librarian = makeVillager(imgs, { profession: 'librarian', type: 'plains' }); librarian.g.position.set(PROD.cx, PROD.y, PROD.z1 - 1.0); scene.add(librarian.g);
+const copyPages = Array.from({ length: 3 }, () => { const p = makeItem(imgs, 'paper', 0.35); scene.add(p); return p; });
+const dbCracks = makeCracks(imgs); dbCracks.position.copy(dbA.g.position); scene.add(dbCracks);
+const dbSmoke = Array.from({ length: 6 }, (_, i) => { const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeMaps[i % 2], color: 0x606060, transparent: true, depthWrite: false })); scene.add(s); return s; });
+
+// Tags (line 7): name tags over the furnaces of every islet
+const TAGS = ENV.flatMap((E) => E.f.map((f) => { const n = makeItem(imgs, 'name_tag', 0.4); n.position.copy(f.g.position).add(V(0, 1.0, 0)); scene.add(n); return n; }));
+// Budget bell (line 8), the monitoring board (lines 10 and 11)
+const bell = makeItem(imgs, 'bell', 0.6); scene.add(bell);
+const BGY = Math.max(0, terrain.groundAt(-10, 3)) + 1;
+const BOARD = V(-10, BGY, 3);
+const board = new THREE.Group(); scene.add(board);
+for (let x = -3; x <= 3; x++) for (let y = 0; y <= 2; y++) put(imgs, board, 'stone_bricks', BOARD.x + x, BGY + y, BOARD.z - 1);
+const lamps = [-2, -1, 0, 1, 2].map((x) => { const b = makeBlock(imgs, 'redstone_lamp'); b.g.position.set(BOARD.x + x, BGY + 1.5, BOARD.z - 0.45); b.g.scale.set(0.8, 0.8, 0.3); scene.add(b.g); return b; });
+const lampOn = tex(imgs, 'redstone_lamp_on'), lampOff = tex(imgs, 'redstone_lamp'), redMap = tex(imgs, 'red_wool');
+const graph = makeItem(imgs, 'paper', 0.5); scene.add(graph);
+const redLamp = makeBlock(imgs, 'red_wool'); redLamp.g.position.copy(lamps[3].g.position).add(V(0, 0, 0.02)); redLamp.g.scale.set(0.82, 0.82, 0.32); redLamp.g.visible = false; scene.add(redLamp.g);
+
+// ---------- people ----------
+const teamSpots = [[-4, 9.5], [-2, 10.5], [0, 10.8], [2, 10.5], [4, 9.5]];
+const team = [makePlayer(imgs, { skin: 'steve' }), makePlayer(imgs, { skin: 'alex' }),
+  makeVillager(imgs, { profession: 'mason', type: 'plains' }), makeVillager(imgs, { profession: 'cleric', type: 'plains' }), makeVillager(imgs, { profession: 'cartographer', type: 'plains' })];
+const beach = (x, z) => V(x, Math.max(1, terrain.groundAt(x, z) + 1), z);
+team.forEach((p, i) => { p.g.position.copy(beach(...teamSpots[i])); p.g.rotation.y = 0; scene.add(p.g); });
+const keys = team.map(() => { const k = makeItem(imgs, 'trial_key', 0.4); scene.add(k); return k; });
+const clockItem = makeItem(imgs, 'clock', 0.4); scene.add(clockItem);
+const root = makeChest(imgs, 0.9); root.g.position.copy(beach(6, 8.5)); scene.add(root.g);
+const rootLock = makeItem(imgs, 'padlock', 0.6); scene.add(rootLock);
+const bill = makeItem(imgs, 'paper', 0.6); scene.add(bill);
+const onCall = makeVillager(imgs, { profession: 'nitwit', type: 'plains' }); onCall.g.position.copy(beach(-14.5, 4.5)); onCall.g.rotation.y = 0; scene.add(onCall.g);
+
+// Bridges to all three providers (line 15): leads from the team's beach to each island, with emerald tolls
+const bridges = PROV.map(() => { const l = makeLead({ width: 0.08 }); l.material.color.setScalar(0.6); scene.add(l); return l; });
+const tolls = PROV.map(() => { const e = makeItem(imgs, 'emerald', 0.45); scene.add(e); return e; });
+
+// Background life
+const loop = (cx, cz, w, h) => [[cx - w, cz - h], [cx + w, cz - h], [cx + w, cz + h], [cx - w, cz + h]];
+const sq = (x, z) => terrain.surfaceAt(x, z).y - 2.2;
+const life = makeLife(imgs, terrain, [
+  { kind: 'squid', path: loop(-14, 34, 3, 2), y: sq(-14, 34), offset: 0.1 },
+  { kind: 'squid', path: loop(18, 44, 3, 2), y: sq(18, 44), offset: 0.6 },
+  { kind: 'chicken', path: loop(14, -12, 1.5, 1.5), offset: 0.3 },
+], TOTAL, light);
+scene.add(life.g);
+
+// ---------- cover ----------
+const cover = makeSign(imgs, ['HOW TEAMS', 'REALLY', 'USE CLOUD', 'SERVICES'], { w: 3.4, h: 2.8 });
+const COVER_P = beach(0, 5).add(V(0, 2.4, 0));
+cover.position.copy(COVER_P);
+scene.add(cover);
+const COVER_OUT = ev(0, 0.12), COVER_IN = ev(17, 0.8);
+const coverY = (t) => COVER_P.y - 5.5 * easeInOut(prog(t, COVER_OUT, COVER_OUT + 0.8)) * (1 - easeInOut(prog(t, COVER_IN, COVER_IN + 0.8)));
+
+// ---------- events ----------
+const T = {
+  keys: [ev(1, 0.25), ev(1, 0.75)], lock: ev(2, 0.15), mfa: ev(2, 0.6),
+  release: [ev(4, 0.5), ev(4, 0.95)], tnt: [ev(4, 0.05), ev(4, 0.35)],
+  copy: [ev(5, 0.4), ev(5, 0.9)], dbFail: [ev(6, 0.0), ev(6, 0.2)], failover: ev(6, 0.3),
+  tags: ev(7, 0.3), bell: ev(8, 0.1), night: ev(8, 0.5),
+  commit: ev(9, 0.15), spot: [ev(9, 0.6), ev(9, 0.8)],
+  red: ev(10, 0.6), page: ev(11, 0.1),
+  backup: [ev(12, 0.15), ev(12, 0.7)], down: ev(13, 0.1), up: ev(13, 0.45),
+  bridges: [ev(15, 0.05), ev(15, 0.4)], cut: ev(16, 0.2),
+};
+
+// ---------- per frame ----------
+function scenePieces(t) {
+  team.forEach((p, i) => { p.head.rotation.x = 0; });
+  // identities (line 1): a key over each person; root chest locked, second factor (line 2)
+  keys.forEach((k, i) => { k.visible = during(t, T.keys[0] + 0.1 * i, ev(3, 0)); k.position.copy(team[i].g.position).add(V(0, 2.4, 0)); k.scale.setScalar(0.4 * pop(t, T.keys[0] + 0.1 * i)); });
+  rootLock.visible = during(t, T.lock, ev(3, 0)); rootLock.position.copy(root.g.position).add(V(0, 1.4, 0));
+  root.open(0);
+  clockItem.visible = during(t, T.mfa, ev(3, 0)); clockItem.position.copy(team[0].g.position).add(V(0.5, 2.4, 0)); clockItem.glow(1, t);
+  bill.visible = during(t, ev(0, 0.5), ev(1, 0)); bill.position.copy(beach(0, 9)).add(V(0, 3.2 + 0.08 * Math.sin(t * 3), 0));
+
+  // environments (lines 3 and 4): islets glow in turn; TNT goes off in dev only; the release climbs
+  ENV.forEach((E, i) => {
+    glow(E.g, pulse(t, ev(3, 0.15 + 0.25 * i), ev(3, 0.15 + 0.25 * i) + 1.2, 1.2) * 0.6);
+    E.f.forEach((f, j) => {
+      const nightOff = i === 0 && during(t, T.night, ev(9, 0.0));
+      const spotGone = i === 2 && j === 2 && during(t, T.spot[0], T.spot[1]);
+      f.g.visible = !spotGone;
+      f.mats[4].map = nightOff || (i === 2 && during(t, T.down, T.up + 0.6)) ? offMap : onMap;
+    });
+    E.dark.set(i === 0 ? prog(t, T.night, T.night + 0.4) * (1 - prog(t, ev(9, 0) - 0.3, ev(9, 0))) : 0);
+  });
+  tnt.g.visible = t < T.tnt[1];
+  tnt.mats.forEach((m) => { m.color.setScalar(m.userData.shade * (during(t, T.tnt[0], T.tnt[1]) && Math.floor(t * 8) % 2 ? 2.2 : 1)); });
+  blast.forEach((s, i) => {
+    const q = prog(t, T.tnt[1], T.tnt[1] + 1.2);
+    s.visible = q > 0 && q < 1;
+    const a = i * 2.39;
+    s.position.set(DEV.cx + 2.5 + Math.cos(a) * 1.6 * q, DEV.y + 1 + q * 1.4, DEV.z1 - 1.5 + Math.sin(a) * 1.6 * q);
+    s.scale.setScalar(1 + 2 * q); s.material.opacity = 0.9 * (1 - q);
+  });
+  const rk = prog(t, ...T.release);
+  release.visible = rk > 0 && rk < 1;
+  if (release.visible) {
+    const P = [DEV, STG, PROD].map((E) => V(E.cx, E.y + 1.8, E.z0 + 3.5));
+    release.position.copy(rk < 0.5 ? arc(P[0], P[1], easeInOut(rk * 2), 2) : arc(P[1], P[2], easeInOut(rk * 2 - 1), 2));
+  }
+
+  // managed database (lines 5 and 6)
+  copyPages.forEach((p, i) => { const a = T.copy[0] + 0.15 * i, k = prog(t, a, a + 0.6); p.visible = k > 0 && k < 1; if (p.visible) p.position.copy(arc(dbA.g.position.clone().add(V(0, 0.6, 0)), dbB.g.position.clone().add(V(0, 0.6, 0)), k, 1.2)); });
+  const failed = t >= T.dbFail[1] && t < ev(7, 0.8);
+  dbA.g.visible = !failed;
+  dbCracks.set(prog(t, ...T.dbFail));
+  dbSmoke.forEach((s, i) => { const q = ((t * 0.5) + i / 6) % 1; s.visible = failed; s.position.copy(dbA.g.position).add(V(Math.sin(i * 2) * 0.3, q * 2, Math.cos(i * 3) * 0.3)); s.scale.setScalar(0.6 + q); s.material.opacity = 0.8 * (1 - q); });
+  dbB.set({ opacity: t >= T.failover ? 1 : 0.35, glow: pulse(t, T.failover, end(6), 0.8) });
+  librarian.head.rotation.x = during(t, ...T.copy) ? 0.3 : 0;
+
+  // tags (line 7), the budget bell (line 8), the spot machine (line 9)
+  TAGS.forEach((n, i) => { n.visible = during(t, T.tags + 0.05 * i, end(9)); });
+  bell.visible = during(t, T.bell - 0.2, T.bell + 1.6); bell.position.set(STG.cx, STG.y + 4.2 + 0.1 * Math.sin(t * 9), STG.z0 + 3);
+
+  // monitoring (lines 10 and 11): lamps on, one turns red; the on-call villager gets the graph
+  redLamp.g.visible = during(t, T.red, end(11));
+  glow(redLamp.g, pulse(t, T.red, end(11), 0.6));
+  const gk = prog(t, T.page, T.page + 0.6);
+  graph.visible = during(t, T.page, end(11));
+  graph.position.copy(gk < 1 ? arc(V(BOARD.x + 1, BGY + 2.2, BOARD.z), onCall.g.position.clone().add(V(0, 2.1, 0)), gk, 1) : onCall.g.position.clone().add(V(0, 2.1, 0)));
+  onCall.head.rotation.x = during(t, T.page, end(11)) ? 0.3 : 0;
+
+  // disaster recovery (lines 12 and 13)
+  const bk = prog(t, ...T.backup);
+  copyPages.forEach(() => {});
+  DR.backup.open(during(t, T.backup[0], T.backup[1] + 0.4) ? 1 : 0);
+  PROD_DARK.set(prog(t, T.down, T.down + 0.4) * (1 - prog(t, ev(14, 0.3), ev(14, 0.6))));
+  DR.f.forEach((f, i) => { const on = t >= T.up + 0.15 * i && t < ev(14, 0.6); f.g.visible = !on; DR.fOn[i].g.visible = on; glow(DR.fOn[i].g, during(t, T.up, end(13)) ? pulse(t, T.up, end(13), 0.8) : 0); });
+
+  // bridges to every provider (line 15), cut back to one main provider (line 16)
+  const bkk = prog(t, ...T.bridges);
+  bridges.forEach((l, i) => {
+    const on = i === MAIN ? during(t, T.bridges[0], ev(17, 0)) : during(t, T.bridges[0], T.cut);
+    l.visible = on;
+    if (on) l.set(V(STG.cx, STG.y + 0.8, STG.z0 + 1), PROV[i].top, easeInOut(bkk));
+    tolls[i].visible = on && i !== MAIN && bkk >= 1;
+    tolls[i].position.copy(PROV[i].top.clone().lerp(V(STG.cx, STG.y + 0.8, STG.z0 + 1), 0.5)).add(V(0, 0.6 + 0.1 * Math.sin(t * 4 + i), 0));
+  });
+  PROV.forEach((P, i) => glow(P.g, i === MAIN ? pulse(t, ev(14, 0.3), end(14), 1.2) * 0.6 : 0));
+}
+
+// backup copies flying to the other region (line 12)
+const backupPages = Array.from({ length: 3 }, () => { const p = makeItem(imgs, 'paper', 0.4); scene.add(p); return p; });
+function backupFlight(t) {
+  backupPages.forEach((p, i) => { const a = T.backup[0] + 0.15 * i, k = prog(t, a, a + 1.0); p.visible = k > 0 && k < 1; if (p.visible) p.position.copy(arc(dbB.g.position.clone().add(V(0, 0.8, 0)), DR.backup.g.position.clone().add(V(0, 0.8, 0)), easeInOut(k), 3)); });
+}
+
+// ---------- bubbles ----------
+const B = {
+  team: bubble(['5 people, 3 apps, 1 bill'], { color: 0xFFFF55 }),
+  ids: bubble(['own identity each', 'only what it needs'], { color: 0xFFFF55 }),
+  root: bubble(['root account: locked away'], { color: 0xFF5555 }),
+  mfa: bubble(['+ second factor'], { color: 0x55FF55 }),
+  envs: bubble(['separate environments'], { color: 0xFFFF55 }),
+  mistake: bubble(['mistake in dev:', 'users never see it'], { color: 0x55FF55 }),
+  managed: bubble(['managed database', 'backups + standby copy'], { color: 0xFFFF55 }),
+  failover: bubble(['standby takes over'], { color: 0x55FF55 }),
+  tags: bubble(['tags: team + app'], { color: 0xFFFF55 }),
+  budget: bubble(['budget alert'], { color: 0xFF5555 }),
+  night: bubble(['dev: off at night'], { color: 0x55FF55 }),
+  commit: bubble(['steady: 1 or 3 year discount'], { color: 0x55FF55 }),
+  spot: bubble(['spot: cheap, can be taken back'], { color: 0xFFFF55 }),
+  watch: bubble(['metrics + logs + alerts'], { color: 0xFFFF55 }),
+  paged: bubble(['on call: paged, with the graph'], { color: 0xFF5555 }),
+  backup: bubble(['backups to another region'], { color: 0xFFFF55 }),
+  down: bubble(['region down'], { color: 0xFF5555 }),
+  up: bubble(['back up in the other region'], { color: 0x55FF55 }),
+  one: bubble(['one main provider'], { color: 0xFFFF55 }),
+  three: bubble(['three clouds = three of everything'], { color: 0xFF5555 }),
+  trade: bubble(['depending on one: a trade'], { color: 0xFFFF55 }),
+  r1: bubble(['tight permissions'], { color: 0xFFFF55 }),
+  r2: bubble(['separate environments'], { color: 0xFFFF55 }),
+  r3: bubble(['managed services'], { color: 0xFFFF55 }),
+  r4: bubble(['an eye on the bill'], { color: 0xFFFF55 }),
+};
+for (const b of Object.values(B)) scene.add(b);
+
+function bubbles(t) {
+  const over = (E, h = 4.2, dz = 0) => V(E.cx, E.y + h, (E.z0 + E.z1) / 2 + dz);
+  B.team.show(t, ev(0, 0.2), end(0), beach(0, 10).add(V(0, 4.4, 0)));
+  B.ids.show(t, T.keys[0] + 0.2, end(1), beach(0, 10).add(V(0, 4.4, 0)));
+  B.root.show(t, T.lock + 0.1, ev(2, 0.6), root.g.position.clone().add(V(0, 2.6, 0)));
+  B.mfa.show(t, T.mfa + 0.1, end(2), beach(0, 10).add(V(0, 4.4, 0)));
+  B.envs.show(t, ev(3, 0.05), end(3), over(STG, 5));
+  B.mistake.show(t, T.tnt[1] + 0.2, T.release[0], over(DEV));
+  B.managed.show(t, ev(5, 0.05), end(5), over(PROD, 4.4));
+  B.failover.show(t, T.failover + 0.1, end(6), over(PROD, 4.4));
+  B.tags.show(t, T.tags + 0.1, end(7), over(STG, 4.6));
+  B.budget.show(t, T.bell + 0.1, ev(8, 0.5), over(STG, 6));
+  B.night.show(t, T.night + 0.1, end(8), over(DEV, 4.2));
+  B.commit.show(t, T.commit, ev(9, 0.58), over(PROD, 4.4));
+  B.spot.show(t, T.spot[0], end(9), over(PROD, 4.4));
+  B.watch.show(t, ev(10, 0.1), T.red, V(BOARD.x, BGY + 4.6, BOARD.z));
+  B.paged.show(t, T.page + 0.2, end(11), V(BOARD.x, BGY + 4.6, BOARD.z));
+  B.backup.show(t, T.backup[0] + 0.2, end(12), over(DR, 4.4));
+  B.down.show(t, T.down + 0.2, end(13), over(PROD, 4.4));
+  B.up.show(t, T.up + 0.2, end(13), over(DR, 4.4));
+  B.one.show(t, ev(14, 0.2), end(14), PROV[MAIN].top.clone().add(V(0, 4, 0)));
+  B.three.show(t, T.bridges[1], end(15), V(0, 42, 6));
+  B.trade.show(t, ev(16, 0.1), end(16), V(0, 42, 6));
+  [B.r1, B.r2, B.r3, B.r4].forEach((b, i) => b.show(t, ev(17, 0.02 + i * 0.18), COVER_IN, V(0, 40 - 5.5 * i, 14)));
+}
+
+// ---------- camera ----------
+const look = (p, q) => pose(p, q);
+const COVER = look(COVER_P.clone().add(V(0, 1.0, 9)), COVER_P.clone().add(V(0, -0.2, 0)));
+const TEAM = look(V(0.5, 7, 32), beach(0.5, 9.5).add(V(0, 1.4, 0)));   // the team on the beach
+const ENVS = look(V(0, 34, 80), V(0, 13, 34));                      // dev, staging and prod
+const PRODV = look(V(PROD.cx, PROD.y + 5, PROD.z1 + 11), V(PROD.cx, PROD.y + 1, PROD.z1 - 2));
+const DEVV = look(V(DEV.cx, DEV.y + 5, DEV.z1 + 11), V(DEV.cx, DEV.y + 1, DEV.z1 - 2));
+const BOARDV = look(V(-11, BGY + 4.5, BOARD.z + 13), V(-11, BGY + 1.6, BOARD.z));
+const DRV = look(V(0, 38, 56), V(0, 21, 20));                       // prod and the other region
+const ALL = look(V(0, 44, 84), V(0, 20, 12));                       // everything, the three providers at the back
+const CAM = [
+  [0, COVER],
+  [ev(0, 0.1), TEAM, 1.2],
+  [ev(3, 0.0), ENVS, 1.4],
+  [ev(5, 0.0), PRODV, 1.2],
+  [ev(7, 0.0), ENVS, 1.2],
+  [ev(8, 0.3), DEVV, 1.0],
+  [ev(9, 0.0), PRODV, 1.1],
+  [ev(10, 0.0), BOARDV, 1.3],
+  [ev(12, 0.0), DRV, 1.4],
+  [ev(14, 0.0), ALL, 1.5],
+  [COVER_IN - 0.5, COVER, 1.8],
+];
+const camAt = smoothCamera(CAM, TOTAL, { sigma: 0.5 });
+
+// ---------- sounds ----------
+window.sfxCues = [
+  [ev(0, 0.5), 'book_put', 0.2],
+  ...[0, 1, 2, 3, 4].map((i) => [T.keys[0] + 0.1 * i, 'click', 0.16]), [T.lock, 'chest_locked', 0.28], [T.mfa, 'orb', 0.2],
+  ...[0, 1, 2].map((i) => [ev(3, 0.15 + 0.25 * i), 'pop', 0.18]),
+  [T.tnt[0], 'fuse', 0.3], [T.tnt[1], 'explode1', 0.3], [T.release[0], 'book_flip1', 0.2], [T.release[1], 'levelup', 0.2],
+  ...[0, 1, 2].map((i) => [T.copy[0] + 0.15 * i, 'book_put', 0.16]),
+  [T.dbFail[0], 'stone_dig1', 0.25], [T.dbFail[1], 'break', 0.28], [T.failover, 'orb', 0.22],
+  ...Array.from({ length: 9 }, (_, i) => [T.tags + 0.05 * i, 'click', 0.1]),
+  [T.bell, 'bell', 0.3], [T.night, 'fizz', 0.18], [T.commit, 'book_flip2', 0.2], [T.spot[0], 'break', 0.2], [T.spot[1], 'stone_dig3', 0.2],
+  [T.red, 'bell', 0.25], [T.page, 'villager_no2', 0.2],
+  [T.backup[0], 'chestopen', 0.22], [T.backup[1] + 0.4, 'chestclosed', 0.22], [T.down, 'fizz', 0.25], [T.up, 'levelup', 0.22],
+  [T.bridges[0], 'lead_tie', 0.25], ...[0, 1].map((i) => [T.bridges[1] + 0.3 * i, 'orb', 0.16]), [T.cut, 'shear', 0.25],
+  [COVER_IN, 'wood_dig2', 0.3],
+].map(([s, n, g]) => [Math.round(s * 1000) / 1000, n, g]);
+
+const LOOP_T = ev(18, 0.05);
+window.renderAt = (t) => {
+  const s = t >= LOOP_T ? 0 : t;
+  scenePieces(s);
+  backupFlight(s);
+  cover.position.y = coverY(t);
+  const cam = camAt(t);
+  world.look(cam.pos, cam.look);
+  camera.updateMatrixWorld();
+  bubbles(s);
+  placeUI(camera);
+  life.update(t);
+  clouds.position.x = 4 * Math.sin(2 * Math.PI * t / TOTAL);
+  world.draw(t, TOTAL, 0, 0);
+};
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

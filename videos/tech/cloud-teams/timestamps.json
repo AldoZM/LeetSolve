@@ -1,0 +1,138 @@
+{
+  "total_duration_s": 120.453,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Steve's team is in the cloud now. Five people, three apps, one bill. Here's how teams keep it under control.",
+      "start_s": 0.0,
+      "end_s": 8.105,
+      "duration_s": 8.105
+    },
+    {
+      "index": 1,
+      "text": "First, who can do what. Every person and every service gets its own identity, with only the permissions it needs.",
+      "start_s": 8.105,
+      "end_s": 14.83,
+      "duration_s": 6.725
+    },
+    {
+      "index": 2,
+      "text": "Nobody uses the main root account day to day. It's locked away, with a second factor on every login.",
+      "start_s": 14.83,
+      "end_s": 21.23,
+      "duration_s": 6.4
+    },
+    {
+      "index": 3,
+      "text": "Next, environments. Development, staging and production live in separate accounts or projects.",
+      "start_s": 21.23,
+      "end_s": 27.715,
+      "duration_s": 6.486
+    },
+    {
+      "index": 4,
+      "text": "A mistake in development can't touch the real users. Changes move up step by step.",
+      "start_s": 27.715,
+      "end_s": 33.837,
+      "duration_s": 6.122
+    },
+    {
+      "index": 5,
+      "text": "Teams also let the provider run the hard parts. A managed database takes backups and keeps a standby copy by itself.",
+      "start_s": 33.837,
+      "end_s": 41.214,
+      "duration_s": 7.377
+    },
+    {
+      "index": 6,
+      "text": "If its machine fails, the standby takes over in a minute or two. Nobody gets paged at three A M to fix a disk.",
+      "start_s": 41.214,
+      "end_s": 48.839,
+      "duration_s": 7.625
+    },
+    {
+      "index": 7,
+      "text": "Then, money. Every resource gets tags, like which team and which app, so the bill makes sense.",
+      "start_s": 48.839,
+      "end_s": 56.349,
+      "duration_s": 7.51
+    },
+    {
+      "index": 8,
+      "text": "Budgets send an alert before the month goes over. Development machines shut down at night.",
+      "start_s": 56.349,
+      "end_s": 62.038,
+      "duration_s": 5.689
+    },
+    {
+      "index": 9,
+      "text": "Steady servers get a discount for a one or three year commitment. Batch jobs run on spot machines, cheap, but they can be taken back.",
+      "start_s": 62.038,
+      "end_s": 70.27,
+      "duration_s": 8.232
+    },
+    {
+      "index": 10,
+      "text": "Everything is watched. Metrics and logs flow into dashboards, and alerts fire when something looks wrong.",
+      "start_s": 70.27,
+      "end_s": 77.001,
+      "duration_s": 6.731
+    },
+    {
+      "index": 11,
+      "text": "An alert pages whoever is on call, with a link to the exact graph that broke.",
+      "start_s": 77.001,
+      "end_s": 82.378,
+      "duration_s": 5.377
+    },
+    {
+      "index": 12,
+      "text": "For disasters, backups are copied to another region, far away.",
+      "start_s": 82.378,
+      "end_s": 87.606,
+      "duration_s": 5.228
+    },
+    {
+      "index": 13,
+      "text": "If a whole region goes down, the team can bring the app back up in the other one.",
+      "start_s": 87.606,
+      "end_s": 92.718,
+      "duration_s": 5.112
+    },
+    {
+      "index": 14,
+      "text": "And how many clouds? Most teams pick one main provider and go deep.",
+      "start_s": 92.718,
+      "end_s": 97.736,
+      "duration_s": 5.018
+    },
+    {
+      "index": 15,
+      "text": "Spreading across all three means three sets of tools, skills and bills. Some teams still do it, for very good reasons.",
+      "start_s": 97.736,
+      "end_s": 105.39,
+      "duration_s": 7.654
+    },
+    {
+      "index": 16,
+      "text": "Staying in one cloud means depending on it. Teams accept that trade, with their eyes open.",
+      "start_s": 105.39,
+      "end_s": 111.763,
+      "duration_s": 6.374
+    },
+    {
+      "index": 17,
+      "text": "Tight permissions, separate environments, managed services, and a close eye on the bill.",
+      "start_s": 111.763,
+      "end_s": 117.432,
+      "duration_s": 5.669
+    },
+    {
+      "index": 18,
+      "text": "That's how teams really use cloud services.",
+      "start_s": 117.432,
+      "end_s": 120.453,
+      "duration_s": 3.021
+    }
+  ]
+}
