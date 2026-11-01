@@ -2,6 +2,15 @@
 
 Registro de lo que se hizo en cada sesión, de la más reciente a la más antigua. El cómo trabajar está en `GUIA.md`.
 
+## 2026-11-01 (noche, PC de Windows): short "How a Virtual Machine Works"
+
+- Idea de Aldo; diseño en `videos/tech/vm/DISENO.md`, aprobado por Aldo el mismo día. Página `three/vm.html`, música `living_mice`.
+- **Lugar:** `mac-12` renombrado `vm-basin` en `mundos/` y `lugares.json`.
+- **Voz:** 25 min, 129.91 s. Whisper `small.en` con margen: todas las palabras.
+- **Cuadros fijos:** la primera distribución (casas al frente) tapaba al Illusioner y al hardware y dejaba dos cámaras dentro de una casa; se invirtió (hardware al frente, casas atrás). La casa de Steve quedaba enterrada en una duna cuesta arriba: pasó a la parte plana de la cuenca, con patio de piedra.
+- **Render revisado** con 59 cuadros. Corregido: el globo "runs on the real CPU" casi tocaba los subtítulos y el globo de la nube tapaba el centro de datos.
+- Final: 129.9 s, Living Mice. `export/How a Virtual Machine Works.mp4` con su descripción.
+
 ## 2026-11-01 (tarde, PC de Windows): short de Docker, Parte 2
 
 - Carpeta `videos/tech/docker-teams/` con `three/docker2.html`, en `docker-coast` como la Parte 1. Cambios contra el diseño al final de `videos/tech/docker/DISENO.md`.
@@ -561,8 +570,7 @@ Registro de lo que se hizo en cada sesión, de la más reciente a la más antigu
 
 ## Pendientes
 
-- **Shorts de tecnología:**
-  - Idea nueva de Aldo (2026-11-01): un short de cómo funciona una Virtual Machine (hipervisor, sistema operativo invitado, hardware virtual). Se puede reusar la casa de la máquina virtual de `three/docker.html`.
+- **Shorts de tecnología:** ninguno pendiente (Docker 1 y 2 y máquina virtual terminados el 2026-11-01). Streaming sigue como borrador sin aprobar.
 
 - **Música en los videos ya hechos:** con la regla nueva, a los videos sin música (#1 a #9, #16 a #19, #60, #102, #124, #2089, #3644, #3942, #2409, #3886 y los de la rama `laptop-videos`) hay que agregarles `"musica"` y correr `build.py mux`. Preguntar a Aldo qué canción lleva cada uno.
 

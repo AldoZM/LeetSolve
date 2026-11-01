@@ -1,0 +1,580 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+// "How a Virtual Machine Works", in a low sand basin of MacEntorno (vm-basin, turn 0: scene = export coordinates).
+// The real hardware is a row on a stone-brick platform: furnaces (CPU cores), chests (memory), barrels (disk) and a
+// rail (network). The hypervisor is an Illusioner, the mob that makes copies that look real. Each virtual machine is
+// a whole house with its own foundation, a villager inside (the guest OS) and see-through furnace, barrel and chest
+// (virtual hardware). Steve's own house is his laptop (type 2). Every event is tied to a narration line: ev(line, f).
+import { THREE, V, prog, easeInOut, pose } from '/vendor/lib/stage.js';
+import { loadTheme, makeWorld, makeTerrain, makeClouds, makeSign, makeBlock, makeChest, makeFrame, tex } from '/vendor/tema/mc.js';
+import { setTime, loadMobs, makeLife } from '/vendor/tema/vida.js';
+import { loadPeople, makePlayer, makeVillager, makeIllager, moveAlong, entityPart, skinMat } from '/vendor/tema/gente.js';
+import { bubble, placeUI, smoothCamera, arc, makeItem, put } from '/vendor/tema/aldea.js';
+import { makeTracks, makeMinecart } from '/vendor/tema/rieles.js';
+
+// ---------- timing ----------
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const TOTAL = subs[subs.length - 1].end_s;
+const ev = (line, f = 0) => subs[line].start_s + f * subs[line].duration_s;
+const end = (line) => subs[line].end_s;
+const during = (t, a, z) => t >= a && t < z;
+
+// ---------- world ----------
+const PLACE = '/vendor/tema/mundos/vm-basin.json';
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'leaves', 'log_side', 'log_top', 'glass', 'stone',
+  'stone_bricks', 'smooth_stone', 'oak_planks', 'cobble', 'quartz_block_side', 'quartz_block_top', 'furnace_front',
+  'furnace_front_on', 'furnace_side', 'furnace_top', 'barrel_side', 'barrel_top', 'barrel_bottom', 'rail', 'rail_corner',
+  'minecart', 'paper', 'filled_map', 'trade_glint', 'big_smoke_0', 'big_smoke_4', 'emerald', 'barrier']);
+await loadPeople(imgs, ['steve', 'villager', 'type_plains', 'prof_cleric', 'prof_librarian', 'prof_mason',
+  'prof_cartographer', 'prof_nitwit', 'illusioner']);
+await loadMobs(imgs, ['cow', 'sheep', 'creeper']);
+const world = makeWorld({ fov: 40, offset: 0, fog: [90, 220], shaders: true });
+const { scene, camera } = world;
+
+// The platform of the real machine, the container floor, Steve's house and the data center's extra platforms are
+// built by code; the terrain in those boxes is taken out
+const PLAT = [-34, -8, 4, 20], CFLOOR = [-6, 3, 10, 15], STEVEH = [-4, 0, 19, 23], STEVEYARD = [-5, 2, 19, 28];
+const DC = [[-34, -22, -12, -3], [-20, -8, -12, -3]];
+const PY = -3, HY = -2;   // top of the platform; floor of the houses (on their own foundation)
+const inBox = ([x0, x1, z0, z1], x, z) => x >= x0 && x <= x1 && z >= z0 && z <= z1;
+const data = await (await fetch(PLACE)).json();
+data.blocks = data.blocks.filter(([x, y, z]) => !(inBox(PLAT, x, z) && y >= -7) && !(inBox(CFLOOR, x, z) && y >= -3)
+  && !(inBox(STEVEYARD, x, z) && y >= -4) && !DC.some((b) => inBox(b, x, z) && y >= -7));
+const terrain = await makeTerrain(PLACE, { data, clear: [-38, 14, -14, 40] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+const light = await setTime(world, 'day', { terrain, clouds, imgs });
+world.sun.target.position.set(-16, 0, 10);
+
+const build = new THREE.Group();
+scene.add(build);
+for (let x = PLAT[0]; x <= PLAT[1]; x++) for (let z = PLAT[2]; z <= PLAT[3]; z++) {
+  for (let y = -7; y <= -5; y++) put(imgs, build, 'stone', x, y, z);
+  put(imgs, build, 'stone_bricks', x, -4, z);
+}
+const SH = -3;   // Steve's floor (his house stands on the flat part of the basin)
+for (let x = STEVEYARD[0]; x <= STEVEYARD[1]; x++) for (let z = STEVEYARD[2]; z <= STEVEYARD[3]; z++) put(imgs, build, z <= STEVEH[3] ? 'stone' : 'smooth_stone', x, -4, z);
+const cfloor = new THREE.Group();
+scene.add(cfloor);
+for (let x = CFLOOR[0]; x <= CFLOOR[1]; x++) for (let z = CFLOOR[2]; z <= CFLOOR[3]; z++) {
+  for (let y = -5; y <= -4; y++) put(imgs, cfloor, 'stone', x, y, z);
+  put(imgs, cfloor, 'smooth_stone', x, -3, z);
+}
+
+// ---------- helpers ----------
+const pixelMap = (img) => {
+  const c = document.createElement('canvas');
+  c.width = img.width; c.height = img.height;
+  c.getContext('2d').drawImage(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.magFilter = t.minFilter = THREE.NearestFilter;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+};
+function ghostify(g, op = 0.4) {
+  g.traverse((o) => {
+    if (!o.material) return;
+    o.material = (Array.isArray(o.material) ? o.material : [o.material]).map((m) => {
+      const c = m.clone();
+      c.transparent = true; c.opacity = op; c.depthWrite = false; c.alphaTest = 0;
+      return c;
+    });
+  });
+  return g;
+}
+function glow(g, k) {
+  g.traverse((o) => {
+    if (!o.material) return;
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      if (!m.color) continue;
+      if (!m.userData.base0) m.userData.base0 = m.color.clone();
+      m.color.copy(m.userData.base0).multiplyScalar(1 + k);
+    }
+  });
+}
+const pulse = (t, a, z, period = 1.2) => (during(t, a, z) ? 0.6 * (0.5 - 0.5 * Math.cos((t - a) * 2 * Math.PI / period)) : 0);
+const pop = (t, a, d = 0.2) => Math.max(1e-3, easeInOut(Math.min(1, Math.max(0, (t - a) / d))));
+const blockAt = (name, x, y, z, opts) => { const b = makeBlock(imgs, name, opts); b.g.position.set(x, y + 0.5, z); scene.add(b.g); return b; };
+
+// ---------- the real hardware (front row at z = 16, low, so the houses behind stay in sight) ----------
+const HZ = 16;
+const furnaces = Array.from({ length: 8 }, (_, i) => blockAt('furnace_side', -33 + i, PY, HZ, { top: 'furnace_top', front: 'furnace_front' }));
+const onMap = tex(imgs, 'furnace_front_on'), offMap = tex(imgs, 'furnace_front');
+const chests = [];
+for (let i = 0; i < 8; i++) for (let k = 0; k < 2; k++) {
+  const c = makeChest(imgs, 0.9);
+  c.g.position.set(-24 + i, PY + k, HZ);
+  scene.add(c.g);
+  chests.push({ ...c, col: i });
+}
+const barrels = [];
+for (let i = 0; i < 3; i++) for (let k = 0; k < 2; k++) barrels.push(blockAt('barrel_side', -15 + i, PY + k, HZ, { top: 'barrel_top', bottom: 'barrel_bottom' }));
+const RAIL = [V(-12, 0, HZ), V(-8, 0, HZ)];
+const tracks = makeTracks(imgs, [RAIL]);
+tracks.position.y = PY;
+scene.add(tracks);
+const cart = makeMinecart(imgs, { chest: false });
+scene.add(cart.g);
+const CART_ROUTE = [V(-12, PY, HZ), V(-8, PY, HZ)];
+
+// Allocation frames around the real blocks each VM gets (line 4): VM 1 green, VM 2 blue, VM 3 orange
+const VMCOL = [0x55FF55, 0x55AAFF, 0xFFAA00];
+const ALLOC = [{ f: [0, 1], c: [0, 1] }, { f: [2, 3, 4, 5], c: [2, 3, 4, 5] }, { f: [6, 7], c: [6, 7] }];
+const frames = ALLOC.map((a, v) => {
+  const g = new THREE.Group();
+  for (const i of a.f) { const f = makeFrame(1.06, 0.05, VMCOL[v]); f.position.set(-33 + i, PY + 0.5, HZ); g.add(f); }
+  for (const i of a.c) for (const k of [0, 1]) { const f = makeFrame(1.06, 0.05, VMCOL[v]); f.position.set(-24 + i, PY + k + 0.5, HZ); g.add(f); }
+  scene.add(g);
+  return g;
+});
+
+// ---------- the hypervisor: an Illusioner ----------
+const ILL = V(-21, PY, 12);
+const illusioner = makeIllager(imgs, { kind: 'illusioner' });
+illusioner.g.position.copy(ILL);
+scene.add(illusioner.g);
+const spell = Array.from({ length: 10 }, () => {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex(imgs, 'trade_glint'), color: 0xB070FF, transparent: true, depthWrite: false }));
+  s.scale.setScalar(0.22);
+  scene.add(s);
+  return s;
+});
+
+// ---------- houses (virtual machines) ----------
+// A 5 x 5 house with its own stone foundation, walls 3 high (glass front with a door), a roof, and inside a villager
+// (the guest) with see-through furnace, barrel and chest (virtual hardware). Origin x0, z0 = back left corner.
+const STYLES = {
+  linux: { wall: 'oak_planks', corner: 'log', roof: 'oak_planks', prof: 'librarian' },
+  windows: { wall: 'quartz', corner: 'quartz', roof: 'quartz', prof: 'cleric' },
+  old: { wall: 'cobble', corner: 'stone_bricks', roof: 'stone', prof: 'mason' },
+};
+function makeHouse(x0, z0, style, { floor = HY, interior = true, label = null } = {}) {
+  const S = STYLES[style];
+  const g = new THREE.Group();
+  const found = new THREE.Group();
+  const blocks = [];
+  for (let x = x0; x <= x0 + 4; x++) for (let z = z0; z <= z0 + 4; z++) put(imgs, found, 'stone', x, floor - 1, z);
+  g.add(found);
+  for (let y = floor; y <= floor + 2; y++) for (let x = x0; x <= x0 + 4; x++) for (let z = z0; z <= z0 + 4; z++) {
+    const edgeX = x === x0 || x === x0 + 4, edgeZ = z === z0 || z === z0 + 4;
+    if (!edgeX && !edgeZ) continue;
+    const front = z === z0 + 4;
+    if (front && x === x0 + 2 && y < floor + 2) continue;   // the door
+    const name = edgeX && edgeZ ? S.corner : front && y < floor + 2 ? 'glass' : S.wall;
+    blocks.push(put(imgs, g, name, x, y, z));
+  }
+  for (let x = x0; x <= x0 + 4; x++) for (let z = z0; z <= z0 + 4; z++) blocks.push(put(imgs, g, S.roof, x, floor + 3, z));
+  scene.add(g);
+  const h = { g, found, blocks, x0, z0, center: V(x0 + 2, floor, z0 + 2), front: V(x0 + 2, floor, z0 + 4.6) };
+  if (interior) {
+    h.guest = makeVillager(imgs, { profession: S.prof, type: 'plains' });
+    h.guest.g.position.set(x0 + 2, floor, z0 + 2.4);
+    g.add(h.guest.g);
+    const vf = makeBlock(imgs, 'furnace_side', { top: 'furnace_top', front: 'furnace_front' });
+    vf.g.position.set(x0 + 1, floor + 0.5, z0 + 1);
+    const vb = makeBlock(imgs, 'barrel_side', { top: 'barrel_top', bottom: 'barrel_bottom' });
+    vb.g.position.set(x0 + 2, floor + 0.5, z0 + 1);
+    const vc = makeChest(imgs, 0.9);
+    vc.g.position.set(x0 + 3, floor, z0 + 1);
+    h.virtual = [vf.g, vb.g, vc.g].map((o) => { ghostify(o, 0.45); g.add(o); return o; });
+    h.vfurnace = vf;
+  }
+  if (label) {
+    const s = makeSign(imgs, [label], { w: 1.4, h: 0.55, post: false });
+    s.position.set(x0 + 2, floor + 3.0, z0 + 4.56);
+    g.add(s);
+  }
+  return h;
+}
+const HOUSES = [makeHouse(-33, 5, 'linux', { label: 'VM 1' }), makeHouse(-27, 5, 'windows', { label: 'VM 2' }),
+                makeHouse(-21, 5, 'old', { label: 'VM 3' })];
+const HD = makeHouse(-15, 5, 'linux', { label: 'VM 4' });                 // the new one that boots slowly (line 14)
+const steveHouse = makeHouse(STEVEH[0], STEVEH[2], 'windows', { floor: SH, interior: false, label: 'LAPTOP' });
+// type 2 (line 12): a small Illusioner and a tiny house on a table inside Steve's house
+const table = put(imgs, scene, 'oak_planks', -2, SH, 21);
+const miniIll = makeIllager(imgs, { kind: 'illusioner' });
+miniIll.g.scale.setScalar(0.35);
+miniIll.g.position.set(-2.25, SH + 1, 21);
+scene.add(miniIll.g);
+const miniHouse = makeHouse(0, 0, 'linux', { interior: false });
+miniHouse.g.scale.setScalar(0.12);
+miniHouse.g.position.set(-1.7, SH + 1 + 0.12 * 3, 21.1 - 0.12 * 2);
+miniHouse.g.position.x -= 0.12 * 2;
+
+// The data center (line 13): two more platforms with houses rise behind the machine
+const dc = new THREE.Group();
+scene.add(dc);
+for (const [x0, x1, z0, z1] of DC) {
+  for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) put(imgs, dc, 'stone_bricks', x, -4, z);
+  for (let k = 0; k < 2; k++) {
+    const h = makeHouse(x0 + 1 + k * 6, z0 + 2, ['linux', 'windows', 'old'][(x0 + k) & 1 ? 1 : k + 0], { interior: false });
+    scene.remove(h.g);
+    dc.add(h.g);
+  }
+}
+
+// ---------- containers (line 15): two glass rooms on one shared floor ----------
+function makeRoom(a, b, y0) {
+  const g = new THREE.Group();
+  const panes = [];
+  for (let y = 0; y < 2; y++) for (let x = a; x <= a + 3; x++) for (let z = b; z <= b + 3; z++) {
+    if (x > a && x < a + 3 && z > b && z < b + 3) continue;
+    panes.push(put(imgs, g, 'glass', x, y0 + y, z));
+  }
+  const v = makeVillager(imgs, { profession: 'nitwit', type: 'plains' });
+  v.g.position.set(a + 1.5, y0, b + 1.5);
+  g.add(v.g);
+  scene.add(g);
+  return { g, panes, v };
+}
+const CY = -2;
+const ROOMS = [makeRoom(-6, 11, CY), makeRoom(-1, 11, CY)];
+
+// ---------- the creeper (line 9), CreeperModel 64 x 32 ----------
+function makeCreeper() {
+  const mat = skinMat([imgs.mob_creeper]);
+  const S = [64, 32];
+  const g = new THREE.Group();
+  const head = entityPart(mat, [0, 6, 0], [[0, 0, -4, -8, -4, 8, 8, 8]], [0, 0, 0], S);
+  const body = entityPart(mat, [0, 6, 0], [[16, 16, -4, 0, -2, 8, 12, 4]], [0, 0, 0], S);
+  const legs = [[-2, 4], [2, 4], [-2, -4], [2, -4]].map(([x, z]) => entityPart(mat, [x, 18, z], [[0, 16, -2, 0, -2, 4, 6, 4]], [0, 0, 0], S));
+  const inner = new THREE.Group();
+  inner.add(head, body, ...legs);
+  g.add(inner);
+  scene.add(g);
+  return { g, inner, legs, mat };
+}
+const creeper = makeCreeper();
+const smokeMaps = [tex(imgs, 'big_smoke_0'), tex(imgs, 'big_smoke_4')];
+const blast = Array.from({ length: 14 }, (_, i) => {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeMaps[i % 2], color: 0x9A9A9A, transparent: true, depthWrite: false }));
+  scene.add(s);
+  return s;
+});
+
+// ---------- people and items ----------
+const steve = makePlayer(imgs, { skin: 'steve' });
+steve.g.position.set(-0.6, SH, 26.2);
+steve.g.rotation.y = Math.PI - 0.25;
+const carto = makeVillager(imgs, { profession: 'cartographer', type: 'plains' });
+carto.g.position.set(-15.4, PY, 11.6);
+carto.g.rotation.y = -2.48;
+scene.add(steve.g, carto.g);
+const map = makeItem(imgs, 'filled_map', 0.6);
+scene.add(map);
+const paper = makeItem(imgs, 'paper', 0.4);
+scene.add(paper);
+const spark = makeItem(imgs, 'emerald', 0.35);
+scene.add(spark);
+
+// Background life: cows and sheep on the terraces to the east (closed loops, so the clip loops)
+const loop = (cx, cz, w, h) => [[cx - w, cz - h], [cx + w, cz - h], [cx + w, cz + h], [cx - w, cz + h]];
+const life = makeLife(imgs, terrain, [
+  { kind: 'cow', path: loop(20, -8, 2, 1.5), offset: 0.2 },
+  { kind: 'sheep', path: loop(18, 20, 1.5, 2), offset: 0.6 },
+], TOTAL, light);
+scene.add(life.g);
+
+// ---------- cover ----------
+const COVER_Z = 28;
+const cover = makeSign(imgs, ['HOW A', 'VIRTUAL', 'MACHINE', 'WORKS'], { w: 3.4, h: 2.8 });
+const coverBase = terrain.groundAt(-21, COVER_Z) + 2.3;
+cover.position.set(-21, coverBase, COVER_Z);
+scene.add(cover);
+const COVER_OUT = ev(0, 0.12), COVER_IN = ev(17, 0.8);
+const coverY = (t) => coverBase - 5.2 * easeInOut(prog(t, COVER_OUT, COVER_OUT + 0.8)) * (1 - easeInOut(prog(t, COVER_IN, COVER_IN + 0.8)));
+
+// ---------- events ----------
+const T = {
+  hyper: ev(3, 0.55),
+  alloc: [ev(4, 0.12), ev(4, 0.55), ev(4, 0.8)],
+  virtual: ev(5, 0.1),
+  direct: [ev(6, 0.08), ev(6, 0.4)],
+  trap: [ev(6, 0.55), ev(6, 0.95)],
+  snapTake: ev(8, 0.78),
+  creeper: [ev(9, 0.02), ev(9, 0.22)], fuse: ev(9, 0.24), boom: ev(9, 0.42),
+  snap: ev(10, 0.5),
+  restore: [ev(11, 0.3), ev(11, 0.72)],
+  type2: ev(12, 0.5),
+  dc: [ev(13, 0.08), ev(13, 0.45)],
+  boot: [ev(14, 0.08), ev(15, 0.75)],
+  rooms: [ev(15, 0.12), ev(15, 0.22)],
+};
+const CREEP_FROM = V(-19, PY, 12.8), CREEP_TO = V(-19, HY, 7.2);
+const ruinOrder = HOUSES[2].blocks.map((b, i) => i).sort((a, b) => ((a * 7919) % 97) - ((b * 7919) % 97));
+const keepAfterBoom = new Set(ruinOrder.slice(0, Math.floor(ruinOrder.length * 0.3)));
+
+// ---------- per frame ----------
+function scenePieces(t) {
+  // real hardware: furnaces burn when a guest's work runs on them
+  const burning = (i) => (during(t, T.direct[0] + 0.3, end(8)) && (i < 2 || (i >= 2 && i < 6 && t >= ev(7, 0)) || (i >= 6 && t >= ev(7, 0) && t < T.boom)))
+                      || (t >= ev(11, 0.75) && t < ev(17, 0)) || (t >= end(8) && t < ev(11, 0.75) && i < 6);
+  furnaces.forEach((f, i) => { f.mats[4].map = burning(i) ? onMap : offMap; });
+  furnaces.forEach((f) => glow(f.g, pulse(t, ev(2, 0.1), ev(2, 0.45))));
+  chests.forEach((c) => glow(c.g, pulse(t, ev(2, 0.3), ev(2, 0.65))));
+  barrels.forEach((b) => glow(b.g, pulse(t, ev(2, 0.5), ev(2, 0.85)) + pulse(t, ev(10, 0.05), ev(10, 0.5))));
+  cart.g.visible = true;
+  const ck = (t % 3.2) / 3.2;
+  cart.place(CART_ROUTE, during(t, ev(2, 0.65), end(2)) ? 4 * easeInOut(prog(t, ev(2, 0.68), ev(2, 0.95))) : 0);
+  frames.forEach((g, v) => { g.visible = t >= T.alloc[v]; g.scale.setScalar(1); glow(g, 0); });
+
+  // the hypervisor appears (line 3) and casts while it splits the hardware (line 4) and when it steps in (line 6)
+  illusioner.g.visible = t >= T.hyper;
+  illusioner.g.scale.setScalar(pop(t, T.hyper, 0.3));
+  const casting = during(t, T.alloc[0] - 0.2, T.alloc[2] + 0.6) || during(t, T.trap[0] + 0.15, T.trap[0] + 0.6) || during(t, T.hyper, T.hyper + 0.5);
+  illusioner.crossed.rotation.x = casting ? -2.2 : -0.75;
+  spell.forEach((s, i) => {
+    const q = ((t * 0.8) + i / spell.length) % 1;
+    s.visible = casting;
+    s.position.set(ILL.x + Math.sin(i * 2.4 + q * 4) * 0.7, ILL.y + 1.6 + q * 1.4, ILL.z + Math.cos(i * 2.4 + q * 4) * 0.7);
+    s.material.opacity = 1 - q;
+  });
+
+  // houses: virtual hardware appears (line 5); guests and foundations glow while booting their own OS (line 7)
+  HOUSES.forEach((h, v) => {
+    h.virtual.forEach((o) => { o.visible = t >= T.virtual; o.scale.setScalar(pop(t, T.virtual + 0.08 * v)); });
+    glow(h.found, pulse(t, ev(7, 0.05), end(7), 1.0));
+    glow(h.guest.g, pulse(t, ev(7, 0.05), end(7), 1.0) * 0.6);
+    h.guest.head.rotation.x = t >= ev(6, 0) && t < ev(17, 0) ? 0.2 * Math.max(0, Math.sin((t + v) * 3)) : 0;
+    h.vfurnace.mats[4].map = burning(v === 0 ? 0 : v === 1 ? 2 : 6) && t >= T.virtual ? onMap : offMap;
+  });
+  // VM 3: the creeper walks in, swells and explodes (line 9); the house is rebuilt from the snapshot (line 11)
+  const C = HOUSES[2];
+  const rk = prog(t, ...T.restore);
+  C.blocks.forEach((b, i) => {
+    const order = ruinOrder.indexOf(i) / ruinOrder.length;
+    b.visible = t < T.boom || keepAfterBoom.has(i) || rk > order;
+  });
+  C.guest.g.visible = t < T.boom || rk >= 1;
+  C.virtual.forEach((o) => { if (t >= T.boom && rk < 1) o.visible = false; });
+  const ck2 = prog(t, ...T.creeper);
+  creeper.g.visible = during(t, T.creeper[0], T.boom);
+  creeper.g.position.copy(CREEP_FROM.clone().lerp(CREEP_TO, easeInOut(ck2)));
+  creeper.g.rotation.y = Math.PI;
+  creeper.legs.forEach((l, i) => { l.rotation.x = ck2 > 0 && ck2 < 1 ? 0.6 * Math.sin(t * 12 + (i % 2) * Math.PI) : 0; });
+  const fk = prog(t, T.fuse, T.boom);
+  creeper.inner.scale.set(1 + 0.25 * fk, 1 + 0.12 * fk, 1 + 0.25 * fk);
+  creeper.mat.color.setScalar(fk > 0 && Math.floor(t * 8) % 2 === 0 ? 2.2 : 1);
+  blast.forEach((s, i) => {
+    const q = prog(t, T.boom, T.boom + 1.4);
+    s.visible = q > 0 && q < 1;
+    const a = i * 2.39;
+    s.position.set(CREEP_TO.x + Math.cos(a) * 2.2 * q, HY + 1 + Math.sin(i * 1.3) * 0.8 + q * 1.5, CREEP_TO.z + Math.sin(a) * 2.2 * q);
+    s.scale.setScalar(1.2 + 2.2 * q);
+    s.material.opacity = 0.9 * (1 - q);
+  });
+  // the snapshot: the cartographer takes a map of VM 3 (line 8) and shows it (lines 10 and 11)
+  const mapOn = during(t, T.snapTake, T.snapTake + 1.2) || during(t, T.snap, T.restore[1] + 0.4);
+  map.visible = mapOn;
+  map.position.copy(carto.g.position).add(V(0, 2.3 + 0.08 * Math.sin(t * 3), 0));
+  map.glow(during(t, T.restore[0] - 0.2, T.restore[1]) ? 1 : 0, t);
+  carto.head.rotation.x = mapOn ? 0.3 : 0;
+
+  // line 6: the guest's work goes straight to a real furnace; a disk write goes through the hypervisor to a barrel
+  const dk = prog(t, ...T.direct);
+  spark.visible = dk > 0 && dk < 1;
+  if (spark.visible) spark.position.copy(arc(V(-32, HY + 0.6, 6), V(-33, PY + 1.1, HZ + 0.6), easeInOut(dk), 1.5));
+  const pk = prog(t, ...T.trap);
+  paper.visible = pk > 0 && pk < 1;
+  if (paper.visible) {
+    const A = V(-31, HY + 0.8, 6), M = ILL.clone().add(V(0, 2.2, 0)), Bp = V(-14, PY + 2.2, HZ);
+    paper.position.copy(pk < 0.45 ? arc(A, M, easeInOut(pk / 0.45), 1.0) : pk < 0.55 ? M : arc(M, Bp, easeInOut((pk - 0.55) / 0.45), 1.0));
+  }
+
+  // type 2 (line 12): the small hypervisor and its tiny VM on Steve's table
+  miniIll.g.visible = miniHouse.g.visible = t >= T.type2;
+  miniIll.g.scale.setScalar(0.35 * pop(t, T.type2));
+  miniHouse.g.scale.setScalar(0.12 * pop(t, T.type2 + 0.15));
+  // the data center rises (line 13)
+  dc.visible = t >= T.dc[0];
+  dc.position.y = -7 * (1 - easeInOut(prog(t, ...T.dc)));
+  // VM 4 boots slowly (lines 14 and 15): foundation, then block by block
+  const bk = prog(t, ...T.boot);
+  HD.g.visible = bk > 0;
+  HD.found.visible = bk > 0;
+  HD.blocks.forEach((b, i) => { b.visible = bk > 0.08 + 0.92 * i / HD.blocks.length; });
+  HD.guest.g.visible = bk >= 1;
+  HD.virtual.forEach((o) => { o.visible = bk >= 1; });
+  // containers pop up in a moment (line 15)
+  ROOMS.forEach((R, i) => {
+    const k = prog(t, T.rooms[0] + 0.05 * i, T.rooms[1] + 0.05 * i);
+    R.g.visible = k > 0;
+    R.panes.forEach((p, j) => { p.visible = k * R.panes.length > j; });
+    R.v.g.visible = k >= 1;
+  });
+  glow(cfloor, pulse(t, ev(15, 0.12), ev(15, 0.6), 1.0));
+}
+
+// ---------- bubbles ----------
+const B = {
+  windows: bubble(['Steve\'s laptop: Windows'], { color: 0xFFFFFF }),
+  needs: bubble(['needs Linux', 'and an old system'], { color: 0xFFFF55 }),
+  three: bubble(['buy 3 computers?'], { color: 0xFF5555 }),
+  vms: bubble(['virtual machines', 'computers made of software'], { color: 0xFFFF55 }),
+  cpu: bubble(['CPU: 8 cores'], { color: 0xFFFFFF }),
+  ram: bubble(['memory: 16 GB'], { color: 0xFFFFFF }),
+  disk: bubble(['disk'], { color: 0xFFFFFF }),
+  net: bubble(['network'], { color: 0xFFFFFF }),
+  owns: bubble(['normally: one OS owns it all'], { color: 0xFFFFFF }),
+  hyper: bubble(['hypervisor'], { color: 0xFFFF55 }),
+  vm1: bubble(['VM 1: 2 cores, 4 GB'], { color: 0x55FF55 }),
+  vm2: bubble(['VM 2: 4 cores, 8 GB'], { color: 0x55AAFF }),
+  vcpu: bubble(['virtual CPU, disk, memory'], { color: 0xFFFF55 }),
+  looks: bubble(['to the guest: real'], { color: 0x55FF55 }),
+  direct: bubble(['runs on the real CPU'], { color: 0x55FF55 }),
+  steps: bubble(['hardware: hypervisor', 'steps in'], { color: 0xFFFF55 }),
+  guest: bubble(['guest: full OS + kernel'], { color: 0xFFFF55 }),
+  linux: bubble(['Linux'], { color: 0xFFFFFF }),
+  win: bubble(['Windows'], { color: 0xFFFFFF }),
+  old: bubble(['old system'], { color: 0xFFFFFF }),
+  crashed: bubble(['VM 3: crashed'], { color: 0xFF5555 }),
+  fine: bubble(['the others keep running'], { color: 0x55FF55 }),
+  files: bubble(['a VM = files on a disk'], { color: 0xFFFF55 }),
+  snap: bubble(['snapshot: VM 3', 'its whole state'], { color: 0xFFFF55 }),
+  rolled: bubble(['rolled back'], { color: 0x55FF55 }),
+  type1: bubble(['type 1: on the hardware'], { color: 0xFFFF55 }),
+  type2: bubble(['type 2: an app', 'like VirtualBox'], { color: 0xFFFF55 }),
+  cloud: bubble(['the cloud: VMs on', 'someone else\'s hardware'], { color: 0xFFFF55 }),
+  price: bubble(['a whole OS: more memory'], { color: 0xFF5555 }),
+  minute: bubble(['boot: up to a minute'], { color: 0xFF5555 }),
+  shared: bubble(['containers: one shared kernel'], { color: 0xFFFF55 }),
+  second: bubble(['start in a second'], { color: 0x55FF55 }),
+  noKernel: bubble(['no different kernel'], { color: 0xFF5555 }),
+  whole: bubble(['whole computers'], { color: 0xFFFF55 }),
+  light: bubble(['light, fast apps'], { color: 0x55FF55 }),
+  r1: bubble(['real hardware'], { color: 0xFFFF55 }),
+  r2: bubble(['a hypervisor splits it'], { color: 0xFFFF55 }),
+  r3: bubble(['full OSes side by side'], { color: 0xFFFF55 }),
+};
+for (const b of Object.values(B)) scene.add(b);
+
+function bubbles(t) {
+  const above = (h, y = 5.6) => h.center.clone().add(V(0, y, 0));
+  B.windows.show(t, ev(0, 0.12), ev(0, 0.42), V(-2, SH + 5.2, 21));
+  B.needs.show(t, ev(0, 0.42), ev(0, 0.72), V(-2, SH + 5.2, 21));
+  B.three.show(t, ev(0, 0.72), end(0), V(-2, SH + 5.2, 21));
+  B.vms.show(t, ev(1, 0.3), end(1), above(HOUSES[1], 4.6));
+  B.cpu.show(t, ev(2, 0.1), ev(2, 0.34), V(-29.5, PY + 2.4, HZ));
+  B.ram.show(t, ev(2, 0.34), ev(2, 0.56), V(-20.5, PY + 3.0, HZ));
+  B.disk.show(t, ev(2, 0.56), ev(2, 0.76), V(-14, PY + 2.8, HZ));
+  B.net.show(t, ev(2, 0.76), end(2), V(-10, PY + 1.8, HZ));
+  B.owns.show(t, ev(3, 0.02), ev(3, 0.5), V(-21, PY + 4.0, HZ));
+  B.hyper.show(t, T.hyper + 0.1, end(3), ILL.clone().add(V(0, 2.9, 0)));
+  B.vm1.show(t, T.alloc[0] + 0.05, T.alloc[1], above(HOUSES[0]));
+  B.vm2.show(t, T.alloc[1] + 0.05, end(4), above(HOUSES[1]));
+  B.vcpu.show(t, T.virtual + 0.1, ev(5, 0.55), above(HOUSES[1], 4.6));
+  B.looks.show(t, ev(5, 0.58), end(5), above(HOUSES[1], 4.6));
+  B.direct.show(t, T.direct[0] + 0.1, T.trap[0], V(-31, PY + 4.6, HZ - 2));
+  B.steps.show(t, T.trap[0] + 0.1, end(6), ILL.clone().add(V(0, 3.4, 0)));
+  B.guest.show(t, ev(7, 0.08), end(7), above(HOUSES[1], 4.8));
+  B.linux.show(t, ev(8, 0.2), end(8), above(HOUSES[0], 4.6));
+  B.win.show(t, ev(8, 0.38), end(8), above(HOUSES[1], 5.6));
+  B.old.show(t, ev(8, 0.56), end(8), above(HOUSES[2], 4.6));
+  B.crashed.show(t, T.boom + 0.2, end(9), above(HOUSES[2], 4.4));
+  B.fine.show(t, ev(9, 0.65), end(9), above(HOUSES[0], 5.6));
+  B.files.show(t, ev(10, 0.05), ev(10, 0.48), V(-14, PY + 3.4, HZ));
+  B.snap.show(t, T.snap + 0.05, end(10), carto.g.position.clone().add(V(0, 3.6, 0)));
+  B.rolled.show(t, T.restore[1], end(11), above(HOUSES[2], 4.6));
+  B.type1.show(t, ev(12, 0.05), ev(12, 0.48), ILL.clone().add(V(0, 3.0, 0)));
+  B.type2.show(t, T.type2 + 0.1, end(12), V(-2, SH + 3.4, 21));
+  B.cloud.show(t, T.dc[1], end(13), V(-21, 0.5, 12.5));
+  B.price.show(t, ev(14, 0.15), ev(14, 0.55), HD.center.clone().add(V(0, 5.2, 0)));
+  B.minute.show(t, ev(14, 0.58), end(14), HD.center.clone().add(V(0, 5.2, 0)));
+  B.shared.show(t, T.rooms[1], ev(15, 0.5), V(-1.5, CY + 3.6, 12.5));
+  B.second.show(t, ev(15, 0.5), ev(15, 0.72), V(-1.5, CY + 3.6, 12.5));
+  B.noKernel.show(t, ev(15, 0.72), end(15), V(-1.5, CY + 3.6, 12.5));
+  B.whole.show(t, ev(16, 0.05), end(16), above(HOUSES[1], 5.6));
+  B.light.show(t, ev(16, 0.5), end(16), V(-1.5, CY + 3.6, 12.5));
+  [B.r1, B.r2, B.r3].forEach((b, i) => b.show(t, ev(17, 0.02 + i * 0.25), COVER_IN, V(-21, 7.2 - 1.2 * i, 9)));
+}
+
+// ---------- camera ----------
+const look = (p, q) => pose(p, q);
+const COVER = look(V(-21, coverBase + 1.4, 37), V(-21, coverBase - 0.2, COVER_Z));
+const STEVEV = look(V(-1.5, SH + 4.5, 30), V(-1.5, SH + 1.6, 21));
+const STEVEIN = look(V(-2, SH + 1.9, 26.2), V(-2, SH + 1.1, 21));   // through the door: the table            // Steve's house
+const PLATV = look(V(-3, 9, 27), V(-24, -1, 8));                       // the whole machine from the front
+const HWV = look(V(0, 5, 27), V(-22, -2, 15));                          // the hardware row, along it
+const ILLV = look(V(-21, 1.8, 21), V(-21, -0.6, 10.5));                    // the hypervisor and the hardware behind
+const ALLOCV = look(V(-21, 13, 31), V(-24, -2, 10));                     // houses and hardware from above
+const HOUSEB = look(V(-25, 1.2, 18), V(-25, -1, 7));                    // inside VM 2 through its glass
+const SIXV = look(V(-40, 5, 22), V(-26, -1.5, 10));                         // VM 1, the furnaces and the hypervisor
+const ROWV = look(V(-12, 6, 25), V(-25, -0.5, 7));                      // the three houses
+const CRASHV = look(V(-13, 3.5, 18), V(-20, -0.5, 7));                    // VM 3 and its neighbors
+const SNAPV = look(V(-6, 4.5, 23), V(-17, -1, 11));                     // the cartographer and VM 3
+const DATAV = look(V(-21, 24, 36), V(-21, -3, 3));                         // the data center
+const PRICEV = look(V(6, 6, 22), V(-8, -1.5, 9));                         // VM 4 booting and the containers
+const RECAP = look(V(-2, 12, 30), V(-18, 0, 9));
+const CAM = [
+  [0, COVER],
+  [ev(0, 0.1), STEVEV, 1.3],
+  [ev(1, 0.0), PLATV, 1.4],
+  [ev(2, 0.0), HWV, 1.2],
+  [ev(3, 0.4), ILLV, 1.1],
+  [ev(4, 0.0), ALLOCV, 1.2],
+  [ev(5, 0.0), HOUSEB, 1.2],
+  [ev(6, 0.0), SIXV, 1.1],
+  [ev(7, 0.0), ROWV, 1.1],
+  [ev(9, 0.0), CRASHV, 1.0],
+  [ev(10, 0.0), SNAPV, 1.0],
+  [ev(11, 0.0), CRASHV, 1.0],
+  [ev(12, 0.0), ILLV, 1.2],
+  [ev(12, 0.45), STEVEIN, 1.2],
+  [ev(13, 0.0), DATAV, 1.5],
+  [ev(14, 0.0), PRICEV, 1.4],
+  [ev(16, 0.0), RECAP, 1.3],
+  [COVER_IN - 0.5, COVER, 1.8],
+];
+const camAt = smoothCamera(CAM, TOTAL, { sigma: 0.5 });
+
+// ---------- sounds ----------
+const yes = (a, z, step = 1.7) => { const out = []; for (let s = a; s < z; s += step) out.push([s, `villager_yes${(out.length % 3) + 1}`, 0.12]); return out; };
+window.sfxCues = [
+  [ev(0, 0.72), 'villager_no1', 0.2],
+  ...[0, 1, 2, 3].map((i) => [ev(2, 0.12 + 0.18 * i), 'click', 0.18]), [ev(2, 0.68), 'minecart_roll', 0.2],
+  [T.hyper, 'illusioner_mirror', 0.35],
+  ...T.alloc.map((a) => [a, 'orb', 0.2]), [T.alloc[0] - 0.1, 'illusioner_idle', 0.25],
+  ...[0, 1, 2].map((v) => [T.virtual + 0.08 * v, 'pop', 0.22]),
+  [T.direct[0] + 0.3, 'fire', 0.18], [T.trap[0] + 0.2, 'illusioner_mirror', 0.22], [T.trap[1], 'barrel_close', 0.22],
+  [ev(7, 0.05), 'levelup', 0.2],
+  [T.snapTake, 'book_put', 0.18],
+  [T.creeper[1], 'stone_step2', 0.2], [T.fuse, 'fuse', 0.35], [T.boom, 'explode2', 0.35],
+  ...yes(ev(9, 0.6), end(9)),
+  [T.snap, 'book_flip1', 0.25],
+  ...Array.from({ length: 6 }, (_, i) => [T.restore[0] + i * (T.restore[1] - T.restore[0]) / 6, `stone_dig${(i % 4) + 1}`, 0.2]), [T.restore[1], 'levelup', 0.22],
+  [T.type2, 'illusioner_mirror', 0.2],
+  ...[0, 1, 2].map((i) => [T.dc[0] + i * 0.15, `stone_step${i + 3}`, 0.22]),
+  ...Array.from({ length: 10 }, (_, i) => [T.boot[0] + i * (T.boot[1] - T.boot[0]) / 10, `wood_dig${(i % 4) + 1}`, 0.18]),
+  ...[0, 1, 2].map((i) => [T.rooms[0] + i * 0.05, `glass${i + 1}`, 0.15]), [T.rooms[1] + 0.1, 'orb', 0.2],
+  [COVER_IN, 'wood_dig2', 0.3],
+].map(([s, n, g]) => [Math.round(s * 1000) / 1000, n, g]);
+
+// The loop: in the last line everything goes back to the first frame's state behind the cover
+const LOOP_T = ev(18, 0.05);
+window.renderAt = (t) => {
+  const s = t >= LOOP_T ? 0 : t;
+  scenePieces(s);
+  cover.position.y = coverY(t);
+  const cam = camAt(t);
+  world.look(cam.pos, cam.look);
+  camera.updateMatrixWorld();
+  bubbles(s);
+  placeUI(camera);
+  life.update(t);
+  clouds.position.x = 4 * Math.sin(2 * Math.PI * t / TOTAL);
+  world.draw(t, TOTAL, 0, 0);
+};
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

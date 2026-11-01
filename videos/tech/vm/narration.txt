@@ -1,0 +1,20 @@
+subtitles:
+  - Your laptop runs Windows. But one project needs Linux, and another needs an old system. Do you buy three computers?
+  - No. You run virtual machines. Whole computers made of software, living inside your real one. Here's how.
+  - Start with the real machine. A processor, memory, a disk and a network card. That's the hardware.
+  - Normally one operating system owns all of it. To share it, you need a referee, called a hypervisor.
+  - The hypervisor splits the real hardware. This machine gets two cores and four gigabytes. That one gets four cores and eight.
+  - Each virtual machine sees its own processor, its own memory and its own disk. They're virtual, but to the guest they look real.
+  - Most of the guest's work runs straight on the real processor. When it touches the hardware, the hypervisor steps in.
+  - Inside, each one boots a full operating system, kernel and all. That's called the guest.
+  - And the guests don't have to match. Linux, Windows and an old system can run side by side on one machine.
+  - Each one is sealed off. If one crashes, or gets a virus, the others keep running, and so does the host.
+  - A virtual machine is just files on a disk. So you can take a snapshot, a copy of its whole state, at any moment.
+  - Break something? Roll back to the snapshot, and the machine is exactly as it was.
+  - Some hypervisors run straight on the hardware, like in a data center. Others run as an app on your computer, like VirtualBox.
+  - That's what the cloud rents you. A cloud server is usually a virtual machine on someone else's hardware.
+  - The price? Every virtual machine carries a whole operating system. That takes memory, and it can take a minute to boot.
+  - Containers skip that. They share the host's kernel, so they start in a second. But they can't bring a different kernel.
+  - So virtual machines give you whole computers, fully separated. Containers give you light, fast apps.
+  - Real hardware, a hypervisor that splits it, and full operating systems running side by side.
+  - That's a virtual machine.

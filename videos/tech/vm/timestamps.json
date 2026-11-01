@@ -1,0 +1,138 @@
+{
+  "total_duration_s": 129.911,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Your laptop runs Windows. But one project needs Linux, and another needs an old system. Do you buy three computers?",
+      "start_s": 0.0,
+      "end_s": 8.139,
+      "duration_s": 8.139
+    },
+    {
+      "index": 1,
+      "text": "No. You run virtual machines. Whole computers made of software, living inside your real one. Here's how.",
+      "start_s": 8.139,
+      "end_s": 15.547,
+      "duration_s": 7.408
+    },
+    {
+      "index": 2,
+      "text": "Start with the real machine. A processor, memory, a disk and a network card. That's the hardware.",
+      "start_s": 15.547,
+      "end_s": 22.548,
+      "duration_s": 7.001
+    },
+    {
+      "index": 3,
+      "text": "Normally one operating system owns all of it. To share it, you need a referee, called a hypervisor.",
+      "start_s": 22.548,
+      "end_s": 29.276,
+      "duration_s": 6.728
+    },
+    {
+      "index": 4,
+      "text": "The hypervisor splits the real hardware. This machine gets two cores and four gigabytes. That one gets four cores and eight.",
+      "start_s": 29.276,
+      "end_s": 37.545,
+      "duration_s": 8.268
+    },
+    {
+      "index": 5,
+      "text": "Each virtual machine sees its own processor, its own memory and its own disk. They're virtual, but to the guest they look real.",
+      "start_s": 37.545,
+      "end_s": 45.668,
+      "duration_s": 8.123
+    },
+    {
+      "index": 6,
+      "text": "Most of the guest's work runs straight on the real processor. When it touches the hardware, the hypervisor steps in.",
+      "start_s": 45.668,
+      "end_s": 52.613,
+      "duration_s": 6.945
+    },
+    {
+      "index": 7,
+      "text": "Inside, each one boots a full operating system, kernel and all. That's called the guest.",
+      "start_s": 52.613,
+      "end_s": 59.221,
+      "duration_s": 6.608
+    },
+    {
+      "index": 8,
+      "text": "And the guests don't have to match. Linux, Windows and an old system can run side by side on one machine.",
+      "start_s": 59.221,
+      "end_s": 66.487,
+      "duration_s": 7.266
+    },
+    {
+      "index": 9,
+      "text": "Each one is sealed off. If one crashes, or gets a virus, the others keep running, and so does the host.",
+      "start_s": 66.487,
+      "end_s": 73.183,
+      "duration_s": 6.696
+    },
+    {
+      "index": 10,
+      "text": "A virtual machine is just files on a disk. So you can take a snapshot, a copy of its whole state, at any moment.",
+      "start_s": 73.183,
+      "end_s": 80.752,
+      "duration_s": 7.569
+    },
+    {
+      "index": 11,
+      "text": "Break something? Roll back to the snapshot, and the machine is exactly as it was.",
+      "start_s": 80.752,
+      "end_s": 86.198,
+      "duration_s": 5.445
+    },
+    {
+      "index": 12,
+      "text": "Some hypervisors run straight on the hardware, like in a data center. Others run as an app on your computer, like VirtualBox.",
+      "start_s": 86.198,
+      "end_s": 94.093,
+      "duration_s": 7.895
+    },
+    {
+      "index": 13,
+      "text": "That's what the cloud rents you. A cloud server is usually a virtual machine on someone else's hardware.",
+      "start_s": 94.093,
+      "end_s": 100.387,
+      "duration_s": 6.295
+    },
+    {
+      "index": 14,
+      "text": "The price? Every virtual machine carries a whole operating system. That takes memory, and it can take a minute to boot.",
+      "start_s": 100.387,
+      "end_s": 107.725,
+      "duration_s": 7.338
+    },
+    {
+      "index": 15,
+      "text": "Containers skip that. They share the host's kernel, so they start in a second. But they can't bring a different kernel.",
+      "start_s": 107.725,
+      "end_s": 114.438,
+      "duration_s": 6.713
+    },
+    {
+      "index": 16,
+      "text": "So virtual machines give you whole computers, fully separated. Containers give you light, fast apps.",
+      "start_s": 114.438,
+      "end_s": 121.37,
+      "duration_s": 6.931
+    },
+    {
+      "index": 17,
+      "text": "Real hardware, a hypervisor that splits it, and full operating systems running side by side.",
+      "start_s": 121.37,
+      "end_s": 128.25,
+      "duration_s": 6.88
+    },
+    {
+      "index": 18,
+      "text": "That's a virtual machine.",
+      "start_s": 128.25,
+      "end_s": 129.911,
+      "duration_s": 1.661
+    }
+  ]
+}

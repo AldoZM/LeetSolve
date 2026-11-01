@@ -1,0 +1,1 @@
+How a virtual machine works, in Minecraft: hypervisor, guests, snapshots. #vm #shorts
