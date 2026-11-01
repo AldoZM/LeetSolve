@@ -552,6 +552,10 @@ Registro de lo que se hizo en cada sesión, de la más reciente a la más antigu
 
 ## Pendientes
 
+- **Shorts de tecnología:**
+  - Docker Parte 2, "How Teams Really Use Docker" (diseño en `videos/tech/docker/DISENO.md`).
+  - Idea nueva de Aldo (2026-11-01): un short de cómo funciona una Virtual Machine (hipervisor, sistema operativo invitado, hardware virtual). Se puede reusar la casa de la máquina virtual de `three/docker.html`.
+
 - **Música en los videos ya hechos:** con la regla nueva, a los videos sin música (#1 a #9, #16 a #19, #60, #102, #124, #2089, #3644, #3942, #2409, #3886 y los de la rama `laptop-videos`) hay que agregarles `"musica"` y correr `build.py mux`. Preguntar a Aldo qué canción lleva cada uno.
 
 - **Guía de árboles (`videos/trees/tree-basics/`):** el largo está terminado (falta que Aldo lo vea y lo escuche). Siguiente: que Aldo apruebe la muestra `shorts/02-dfs` y hacer los otros 4 shorts (1, 3, 4 y 5). El tráiler `corto/` sigue sin voz. Estado en `videos/trees/tree-basics/PARA_AGY.md`.
