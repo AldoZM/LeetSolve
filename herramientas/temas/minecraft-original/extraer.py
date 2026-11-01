@@ -57,9 +57,11 @@ BLOCKS = {  # output name -> texture inside the jar
     'ladder': 'block/ladder', 'ender_atlas': 'entity/chest/ender', 'bricks': 'block/bricks',
     # Docker (videos/tech/docker): image layers as shulker boxes (entity atlases, 64 x 64), the boat (128 x 64), the
     # lantern (flask), the old Python, smoke and the trade sparkles of the broken and working shop
-    **{f'shulker_{c}': f'entity/shulker/shulker_{c}' for c in ('gray', 'blue', 'yellow', 'lime', 'purple', 'orange')},
+    **{f'shulker_{c}': f'entity/shulker/shulker_{c}' for c in ('gray', 'blue', 'yellow', 'lime', 'purple', 'orange', 'cyan')},
     'boat_oak': 'entity/boat/oak', 'lantern': 'block/lantern', 'light_blue_wool': 'block/light_blue_wool',
     'big_smoke_0': 'particle/big_smoke_0', 'big_smoke_4': 'particle/big_smoke_4', 'trade_glint': 'particle/glint',
+    # Docker, part 2 (videos/tech/docker-teams): the volume's barrel
+    **{n: f'block/{n}' for n in ('barrel_side', 'barrel_top', 'barrel_top_open', 'barrel_bottom')},
 }
 GUI = {
     'generic_54': 'gui/container/generic_54', 'hotbar': 'gui/sprites/hud/hotbar',

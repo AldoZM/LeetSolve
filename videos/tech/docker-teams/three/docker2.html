@@ -1,0 +1,823 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+// "How Teams Really Use Docker", the same beach as part 1 (docker-coast, turn 0: scene = export coordinates).
+// Steve's platform and the server island come from part 1. New: the registry is a harbor in the sea (a wooden pier
+// with a warehouse wall where image stacks stand with their name:tag), the volume is a barrel fed by a hopper next to
+// the shop's glass room, Compose is a second book on a lectern, the private network is a rail line with name
+// stations inside a fence, the published port is the fence's only gate, and the pipeline is a builder villager and an
+// iron golem on the harbor. Every event is tied to a narration line of timestamps.json: ev(line, fraction).
+import { THREE, V, prog, easeInOut, pose } from '/vendor/lib/stage.js';
+import { loadTheme, makeWorld, makeTerrain, makeClouds, makeSign, makeBlock, faceMatsFor, tex } from '/vendor/tema/mc.js';
+import { setTime, loadMobs, makeLife } from '/vendor/tema/vida.js';
+import { loadPeople, makePlayer, makeVillager, moveAlong, entityPart, skinMat } from '/vendor/tema/gente.js';
+import { bubble, placeUI, smoothCamera, arc, makeItem, makeLectern, put } from '/vendor/tema/aldea.js';
+import { makeLead, swingArm, shakeNo, makeFencePost } from '/vendor/tema/objetos.js';
+import { makeTracks, makeMinecart } from '/vendor/tema/rieles.js';
+
+// ---------- timing ----------
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const TOTAL = subs[subs.length - 1].end_s;
+const ev = (line, f = 0) => subs[line].start_s + f * subs[line].duration_s;
+const end = (line) => subs[line].end_s;
+const during = (t, a, z) => t >= a && t < z;
+
+// ---------- world ----------
+const PLACE = '/vendor/tema/mundos/docker-coast.json';
+const SHULKERS = ['gray', 'blue', 'yellow', 'lime', 'purple', 'orange', 'cyan'];
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'leaves', 'log_side', 'log_top', 'glass', 'smooth_stone',
+  'stone_bricks', 'stone', 'oak_planks', 'bookshelf', 'blue_wool', 'light_blue_wool', 'lantern', 'boat_oak', 'big_smoke_0',
+  'big_smoke_4', 'trade_glint', 'emerald', 'paper', 'barrier', 'written_book', 'lectern_front', 'lectern_top', 'clock',
+  'redstone_lamp_on', 'hopper_outside', 'hopper_top', 'hopper_inside', 'barrel_side', 'barrel_top', 'barrel_top_open',
+  'barrel_bottom', 'rail', 'rail_corner', 'minecart', 'lead_knot', ...SHULKERS.map((c) => `shulker_${c}`)]);
+await loadPeople(imgs, ['steve', 'alex', 'villager', 'type_plains', 'prof_cleric', 'prof_librarian', 'prof_nitwit',
+  'prof_mason', 'prof_cartographer']);
+await loadMobs(imgs, ['squid', 'chicken', 'iron_golem']);
+const world = makeWorld({ fov: 40, offset: 0, fog: [90, 220], shaders: true });
+const { scene, camera } = world;
+
+// Steve's platform and the server island as in part 1, plus the harbor (the registry) on the sea
+const PLAT = [-1, 13, -3, 5], ISLE = [-38, -29, -2, 5], HARB = [-26, -17, 20, 28];
+const FL = 2, FLS = -4, HY = -5;   // top of Steve's platform, of the island and of the harbor's pier
+const inBox = ([x0, x1, z0, z1], x, z) => x >= x0 && x <= x1 && z >= z0 && z <= z1;
+const data = await (await fetch(PLACE)).json();
+data.blocks = data.blocks.filter(([x, y, z]) => !(inBox(PLAT, x, z) && y >= -2) && !(inBox(ISLE, x, z) && y >= -8)
+                                               && !(inBox(HARB, x, z) && y >= -6));
+const terrain = await makeTerrain(PLACE, { data, clear: [-4, 14, 6, 30] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+const light = await setTime(world, 'day', { terrain, clouds, imgs });
+world.sun.target.position.set(-8, 0, 12);
+const G = 1;  // sand top in front of the platform
+
+const build = new THREE.Group();
+scene.add(build);
+for (let x = PLAT[0]; x <= PLAT[1]; x++) for (let z = PLAT[2]; z <= PLAT[3]; z++) {
+  for (let y = -2; y <= 0; y++) put(imgs, build, 'stone', x, y, z);
+  put(imgs, build, 'smooth_stone', x, 1, z);
+}
+for (let x = ISLE[0]; x <= ISLE[1]; x++) for (let z = ISLE[2]; z <= ISLE[3]; z++) {
+  for (let y = -8; y <= -6; y++) put(imgs, build, 'stone_bricks', x, y, z);
+  put(imgs, build, 'smooth_stone', x, -5, z);
+}
+const serverSign = makeSign(imgs, ['SERVER'], { w: 1.7, h: 0.6 });
+serverSign.position.set(-37.2, FLS + 1.0, -1.4);
+serverSign.rotation.y = 0.5;
+scene.add(serverSign);
+
+// The harbor: a plank pier on log piles, and a three-block plank wall at the back with log corners
+const harbor = new THREE.Group();
+scene.add(harbor);
+for (let x = HARB[0]; x <= HARB[1]; x++) for (let z = HARB[2]; z <= HARB[3]; z++) put(imgs, harbor, 'oak_planks', x, HY - 1, z);
+for (const x of [HARB[0], HARB[1]]) for (const z of [HARB[2], HARB[3]]) for (let y = HY - 4; y <= HY - 2; y++) put(imgs, harbor, 'log', x, y, z);
+for (let x = HARB[0]; x <= HARB[1]; x++) for (let y = HY; y <= HY + 2; y++) {
+  put(imgs, harbor, x === HARB[0] || x === HARB[1] ? 'log' : 'oak_planks', x, y, HARB[2]);
+}
+const SLOT = [V(-24.0, HY, 21.5), V(-21.5, HY, 21.5), V(-19.0, HY, 21.5)];   // shelf places for the image stacks
+const tagSign = (s, x) => {
+  const sg = makeSign(imgs, [s], { w: 1.75, h: 0.5 });
+  sg.position.set(x, HY + 0.95, 22.75);
+  sg.scale.setScalar(0.85);
+  scene.add(sg);
+  return sg;
+};
+const TAGS = [tagSign('blog:2.0', SLOT[0].x), tagSign('shop:1.2', SLOT[1].x), tagSign('shop:1.3', SLOT[2].x)];
+
+// ---------- textures of entities and odd models (whole atlases, not squeezed to 16 x 16) ----------
+const loadImg = (src) => new Promise((res) => { const i = new Image(); i.onload = () => res(i); i.src = src; });
+const pixelMap = (img, sx = 0, sy = 0, w = img.width, h = img.height) => {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  c.getContext('2d').drawImage(img, sx, sy, w, h, 0, 0, w, h);
+  const t = new THREE.CanvasTexture(c);
+  t.magFilter = t.minFilter = THREE.NearestFilter;
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+};
+const basic = (map, extra = {}) => new THREE.MeshBasicMaterial({ map, transparent: true, alphaTest: 0.1, ...extra });
+
+// Shulker box (ShulkerModel without head), as in part 1; ghost boxes are see-through (layers already there)
+function makeShulker(color, { ghost = false } = {}) {
+  const mat = basic(pixelMap(imgs[`shulker_${color}`]), ghost ? { opacity: 0.32, depthWrite: false, alphaTest: 0 } : {});
+  const base = entityPart(mat, [0, 24, 0], [[0, 28, -8, -8, -8, 16, 8, 16]]);
+  const lid = entityPart(mat, [0, 24, 0], [[0, 0, -8, -16, -8, 16, 12, 16]]);
+  const g = new THREE.Group();
+  g.add(base, lid);
+  return { g, mat };
+}
+const stackOf = (colors, at, opts = {}) => colors.map((c, i) => {
+  const s = makeShulker(c, opts);
+  s.g.position.copy(at).add(V(0, i, 0));
+  s.g.visible = false;
+  scene.add(s.g);
+  return s;
+});
+
+// Lantern block model (template_lantern), as in part 1
+const lanternMap = pixelMap(imgs.lantern, 0, 0, 16, 16);
+function uvBox(w, h, d, side, top) {
+  const geo = new THREE.BoxGeometry(w / 16, h / 16, d / 16);
+  const uv = geo.attributes.uv;
+  for (let f = 0; f < 6; f++) {
+    const [u0, v0, u1, v1] = f === 2 || f === 3 ? top : side;
+    for (let k = 0; k < 4; k++) {
+      const i = f * 4 + k;
+      uv.setXY(i, (u0 + uv.getX(i) * (u1 - u0)) / 16, 1 - (v0 + (1 - uv.getY(i)) * (v1 - v0)) / 16);
+    }
+  }
+  return geo;
+}
+function makeLantern() {
+  const g = new THREE.Group();
+  const mat = basic(lanternMap);
+  const body = new THREE.Mesh(uvBox(6, 7, 6, [0, 2, 6, 9], [0, 9, 6, 15]), mat);
+  body.position.y = 3.5 / 16;
+  const cap = new THREE.Mesh(uvBox(4, 2, 4, [1, 0, 5, 2], [1, 10, 5, 14]), mat);
+  cap.position.y = 8 / 16;
+  g.add(body, cap);
+  return g;
+}
+
+// Boat (BoatModel, 128 x 64), as in part 1: length along x, origin on the water line
+function makeBoat() {
+  const mat = basic(pixelMap(imgs.boat_oak));
+  const S = [128, 64], P = Math.PI;
+  const m = new THREE.Group();
+  m.add(entityPart(mat, [0, 3, 1], [[0, 0, -14, -9, -3, 28, 16, 3]], [P / 2, 0, 0], S),
+        entityPart(mat, [-15, 4, 4], [[0, 19, -13, -7, -1, 18, 6, 2]], [0, 3 * P / 2, 0], S),
+        entityPart(mat, [15, 4, 0], [[0, 27, -8, -7, -1, 16, 6, 2]], [0, P / 2, 0], S),
+        entityPart(mat, [0, 4, -9], [[0, 35, -14, -7, -1, 28, 6, 2]], [0, P, 0], S),
+        entityPart(mat, [0, 4, 9], [[0, 43, -14, -7, -1, 28, 6, 2]], [0, 0, 0], S));
+  m.position.y = -1.125 + 0.2;
+  const g = new THREE.Group();
+  g.add(m);
+  scene.add(g);
+  return g;
+}
+
+// Hopper (block model hopper.json): the 16 x 6 x 16 bowl on top, the 8 x 6 x 8 middle and the 4 x 4 x 4 spout down
+function makeHopper() {
+  const side = tex(imgs, 'hopper_outside');
+  const g = new THREE.Group();
+  const part = (w, h, d, y, top = side) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w / 16, h / 16, d / 16), faceMatsFor(side, top, side));
+    m.position.y = y / 16;
+    g.add(m);
+  };
+  part(16, 6, 16, 13, tex(imgs, 'hopper_top'));
+  part(8, 6, 8, 7);
+  part(4, 4, 4, 2);
+  return g;
+}
+
+// Iron golem (IronGolemModel, 128 x 128, as in the Git and server shorts); arms swing while it runs the tests
+function makeGolem() {
+  const mat = skinMat([imgs.mob_iron_golem]);
+  const S = [128, 128];
+  const g = new THREE.Group();
+  const head = entityPart(mat, [0, -7, -2], [[0, 0, -4, -12, -5.5, 8, 10, 8], [24, 0, -1, -5, -7.5, 2, 4, 2]], [0, 0, 0], S);
+  const body = entityPart(mat, [0, -7, 0], [[0, 40, -9, -2, -6, 18, 12, 11], [0, 70, -4.5, 10, -3, 9, 5, 6, 0.5]], [0, 0, 0], S);
+  const arms = [entityPart(mat, [0, -7, 0], [[60, 21, -13, -2.5, -3, 4, 30, 6]], [0, 0, 0], S),
+                entityPart(mat, [0, -7, 0], [[60, 58, 9, -2.5, -3, 4, 30, 6]], [0, 0, 0], S)];
+  const legs = [entityPart(mat, [-4, 11, 0], [[37, 0, -3.5, -3, -3, 6, 16, 5]], [0, 0, 0], S),
+                entityPart(mat, [5, 11, 0], [[60, 0, -3.5, -3, -3, 6, 16, 5]], [0, 0, 0], S)];
+  g.add(head, body, ...arms, ...legs);
+  scene.add(g);
+  return { g, head, arms };
+}
+
+// ---------- the stall (the app), as in part 1 ----------
+const smokeMaps = [tex(imgs, 'big_smoke_0'), tex(imgs, 'big_smoke_4')];
+function makeStall({ python = 'blue_wool', lantern = true, prof = 'cleric', counterItem = 'emerald' } = {}) {
+  const g = new THREE.Group();
+  const keeper = makeVillager(imgs, { profession: prof, type: 'plains' });
+  g.add(keeper.g);
+  const parts = { python: put(imgs, g, python, 1, 0, 0), counter: put(imgs, g, 'oak_planks', 0, 0, 1) };
+  parts.lantern = makeLantern();
+  parts.lantern.position.set(1, 1, 0);
+  parts.lantern.visible = lantern;
+  g.add(parts.lantern);
+  const item = makeItem(imgs, counterItem, 0.42);
+  g.add(item);
+  const sparks = Array.from({ length: 4 }, () => {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex(imgs, 'trade_glint'), color: 0x66FF66, transparent: true, depthWrite: false }));
+    s.scale.setScalar(0.16);
+    g.add(s);
+    return s;
+  });
+  const smoke = Array.from({ length: 8 }, (_, i) => {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeMaps[i % 2], color: 0x606060, transparent: true, depthWrite: false }));
+    g.add(s);
+    return s;
+  });
+  const st = { g, keeper, parts };
+  st.update = (t, { sell = false, crash = false, seed = 0 } = {}) => {
+    const ph = ((t + seed) % 1.6) / 1.6;
+    item.visible = sell && ph < 0.7;
+    if (item.visible) { item.position.set(0, 1.25 + 0.5 * ph, 1); item.material.opacity = 1 - prog(ph, 0.5, 0.7); }
+    keeper.head.rotation.x = sell ? 0.25 * Math.max(0, Math.sin(ph * Math.PI * 4)) : keeper.head.rotation.x;
+    sparks.forEach((s, i) => {
+      const q = (ph + i * 0.25) % 1;
+      s.visible = sell;
+      s.position.set(Math.sin(i * 2.1) * 0.45, 1.9 + q * 0.6, 0.1 + Math.cos(i * 2.1) * 0.35);
+      s.material.opacity = 1 - q;
+    });
+    smoke.forEach((s, i) => {
+      const q = ((t + seed) * 0.45 + i / smoke.length) % 1;
+      s.visible = crash;
+      s.position.set(1 + Math.sin(i * 1.7 + q * 3) * 0.3, 1.0 + q * 2.4, Math.cos(i * 2.3) * 0.25);
+      s.scale.setScalar(0.6 + q * 0.9);
+      s.material.opacity = 0.85 * (1 - q);
+    });
+    shakeNo(keeper, t, crash);
+    if (!crash && !sell) keeper.head.rotation.x = 0;
+  };
+  return st;
+}
+
+// ---------- glass rooms (containers), as in part 1 ----------
+function makeRoom(a, b, y0, stallOpts) {
+  const g = new THREE.Group();
+  const panes = [];
+  for (let y = 0; y < 2; y++) for (let x = a; x <= a + 3; x++) for (let z = b; z <= b + 3; z++) {
+    if (x > a && x < a + 3 && z > b && z < b + 3) continue;
+    panes.push(put(imgs, g, 'glass', x, y0 + y, z));
+  }
+  const stall = makeStall(stallOpts);
+  stall.g.position.set(a + 1, y0, b + 1);
+  g.add(stall.g);
+  const sheet = new THREE.Mesh(new THREE.BoxGeometry(4, 0.14, 4),
+    new THREE.MeshBasicMaterial({ color: 0x7FC8FF, transparent: true, opacity: 0.55, depthWrite: false }));
+  sheet.position.set(a + 1.5, y0 + 2.07, b + 1.5);
+  sheet.visible = false;
+  g.add(sheet);
+  g.visible = false;
+  scene.add(g);
+  const r = { g, panes, stall, sheet, center: V(a + 1.5, y0, b + 1.5) };
+  r.build = (k) => panes.forEach((p, i) => { p.visible = k * panes.length > i; });
+  return r;
+}
+const SHOP = makeRoom(4, 2, FL, {});
+const DB = makeRoom(9, 2, FL, { python: 'bookshelf', lantern: false, prof: 'librarian', counterItem: 'written_book' });
+const CACHE = makeRoom(-1, 2, FL, { python: 'redstone_lamp_on', lantern: false, prof: 'cartographer', counterItem: 'clock' });
+const SRV = makeRoom(-36, 0, FLS, {});
+
+// ---------- the volume: a barrel between the shop and the database, fed by a hopper ----------
+const BARREL = V(8, FL, 4);
+const barrel = makeBlock(imgs, 'barrel_side', { top: 'barrel_top', bottom: 'barrel_bottom' });
+barrel.g.position.copy(BARREL).add(V(0, 0.5, 0));
+scene.add(barrel.g);
+const hopper = makeHopper();
+hopper.position.copy(BARREL).add(V(0, 1, 0));
+scene.add(hopper);
+const openMap = tex(imgs, 'barrel_top_open'), shutMap = tex(imgs, 'barrel_top');
+
+// ---------- the images ----------
+// Alex's machine is further back on the beach (z 17), out of the shots of the platform
+const STACK = V(3.5, G, 12.5), ALEXSTACK = V(9.5, terrain.groundAt(9.5, 17), 17), ALEXSHOP = V(11.5, terrain.groundAt(11.5, 17), 17);
+const SHOP12 = ['gray', 'blue', 'yellow', 'lime'], SHOP13 = ['gray', 'blue', 'yellow', 'cyan'], BLOG = ['gray', 'blue', 'purple', 'orange'];
+const steveStack = stackOf(SHOP12, STACK);
+const alexBlog = stackOf(BLOG, ALEXSTACK);
+const alexGhost = stackOf(['gray', 'blue'], ALEXSHOP, { ghost: true });     // layers Alex already has
+const alexNew = stackOf(['yellow', 'lime'], ALEXSHOP.clone().add(V(0, 2, 0)));
+const shelfBlog = stackOf(BLOG, SLOT[0]);
+const shelf12 = stackOf(SHOP12, SLOT[1]);
+const BUILD = V(-21.5, HY, 27.0);
+const built13 = stackOf(SHOP13, BUILD);                                      // built by the pipeline, then shelved
+const SERVERSTACK = V(-30.6, FLS, -1.0);
+const server13 = stackOf(SHOP13, SERVERSTACK);
+const server12 = stackOf(SHOP12, SERVERSTACK);
+const half = (colors) => colors.map((c) => { const s = makeShulker(c); s.g.scale.setScalar(0.5); s.g.visible = false; scene.add(s.g); return s; });
+const cargoPush = half(SHOP12), cargoPull = half(['yellow', 'lime']), cargo13 = half(SHOP13), cargo12 = half(SHOP12);
+const skipLeads = [0, 1].map(() => { const l = makeLead({ width: 0.05 }); l.material.color.setScalar(0.5); scene.add(l); return l; });
+
+// The Compose file on a lectern in front of the platform
+const LECTERN2 = V(0.5, G, 10.2);
+const lectern = makeLectern(imgs);
+lectern.g.position.copy(LECTERN2);
+lectern.g.rotation.y = 0.25;
+scene.add(lectern.g);
+lectern.setBook(['compose.yaml', 'services:', { s: 'shop', color: 0x1E7A1E }, { s: 'db', color: 0x1E7A1E }, { s: 'cache', color: 0x1E7A1E }]);
+
+// ---------- the private network: rails with name stations, inside a fence with one gate ----------
+const RAIL_Z = 7;
+const tracks = makeTracks(imgs, [[V(0, 0, RAIL_Z), V(11, 0, RAIL_Z)]]);
+tracks.position.y = G;
+scene.add(tracks);
+const railBits = [...tracks.children].sort((a, b) => a.position.x - b.position.x);
+const ROUTE = [V(0.5, G, RAIL_Z), V(10.5, G, RAIL_Z)];
+const cart = makeMinecart(imgs, { chest: true });
+scene.add(cart.g);
+const station = (s, x) => {
+  const sg = makeSign(imgs, [s], { w: 1.2, h: 0.5 });
+  sg.position.set(x, G + 0.85, 6.1);
+  sg.scale.setScalar(0.9);
+  scene.add(sg);
+  return sg;
+};
+const STATIONS = [station('cache', 0.5), station('shop', 5.5), station('db', 10.5)];
+const FENCE_Z = 8.5, GATE_X = 5;
+const fence = new THREE.Group();
+scene.add(fence);
+const posts = [];
+const railMat = faceMatsFor(tex(imgs, 'oak_planks'));
+for (let x = -1; x <= 12; x++) {
+  if (x === GATE_X) continue;
+  const p = makeFencePost(imgs, 'oak_planks');
+  p.position.set(x, G, FENCE_Z);
+  fence.add(p);
+  posts.push(p);
+  if (x < 12 && x + 1 !== GATE_X) for (const y of [0.4375, 0.8125]) {
+    const r = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.1875, 0.125), railMat);
+    r.position.set(0.5, y, 0);
+    p.add(r);
+  }
+}
+// The gate (fence gate model: two halves that swing open), with its own materials so only the gate glows
+const gateMat = faceMatsFor(tex(imgs, 'oak_planks'));
+const gate = new THREE.Group();
+gate.position.set(GATE_X, G, FENCE_Z);
+fence.add(gate);
+const gateHalves = [-1, 1].map((s) => {
+  const hinge = new THREE.Group();
+  hinge.position.set(s * 0.5, 0, 0);
+  const leaf = new THREE.Group();
+  for (const y of [0.4375, 0.8125]) {
+    const r = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.1875, 0.125), gateMat);
+    r.position.set(-s * 0.25, y, 0);
+    leaf.add(r);
+  }
+  const post = new THREE.Mesh(new THREE.BoxGeometry(0.125, 0.6875, 0.125), gateMat);
+  post.position.set(-s * 0.4375, 0.65, 0);
+  leaf.add(post);
+  hinge.add(leaf);
+  gate.add(hinge);
+  return hinge;
+});
+
+// ---------- boats ----------
+const WATER = -6.1;
+const DOCK = V(-14.5, WATER, 12.5), MOOR_E = V(-15.2, WATER, 24.5);
+const S1 = V(-24.0, WATER, 18.7), S2 = V(-20.0, WATER, 18.7);
+const PIER = V(-27.6, WATER, 3.8), PIER2 = V(-27.6, WATER, 0.6);
+const boatA = makeBoat(), boatB = makeBoat(), boatC = makeBoat();
+
+// ---------- people ----------
+const steve = makePlayer(imgs, { skin: 'steve' });
+const alex = makePlayer(imgs, { skin: 'alex' });
+const customer = makeVillager(imgs, { profession: 'nitwit', type: 'plains' });
+const outsider = makeVillager(imgs, { profession: 'nitwit', type: 'plains' });
+const builder = makeVillager(imgs, { profession: 'mason', type: 'plains' });
+scene.add(steve.g, alex.g, customer.g, outsider.g, builder.g);
+builder.g.position.set(-24.0, HY, 27.0);
+builder.g.rotation.y = Math.PI / 2;
+const golem = makeGolem();
+golem.g.position.set(-18.8, HY, 27.0);
+golem.g.rotation.y = -Math.PI / 2;
+const at = (x, z, y = G) => V(x, y, z);
+
+// Background life: squids in the sea, chickens on the grass behind the beach (closed loops, so the clip loops)
+const squidY = (x, z) => terrain.surfaceAt(x, z).y - 2.2;
+const loop = (cx, cz, w, h) => [[cx - w, cz - h], [cx + w, cz - h], [cx + w, cz + h], [cx - w, cz + h]];
+const life = makeLife(imgs, terrain, [
+  { kind: 'squid', path: loop(-14, 34, 3, 2), y: squidY(-14, 34), offset: 0.1 },
+  { kind: 'squid', path: loop(-44, -6, 3, 3), y: squidY(-44, -6), offset: 0.6 },
+  { kind: 'chicken', path: loop(20, -16, 2, 1.5), offset: 0.3 },
+  { kind: 'chicken', path: loop(24, 14, 1.5, 2), offset: 0.7 },
+], TOTAL, light);
+scene.add(life.g);
+
+// ---------- cover ----------
+const COVER_Z = 21;
+const cover = makeSign(imgs, ['HOW TEAMS', 'USE', 'DOCKER'], { w: 3.4, h: 2.2 });
+const coverBase = terrain.groundAt(4, COVER_Z) + 2.0;
+cover.position.set(4, coverBase, COVER_Z);
+scene.add(cover);
+const COVER_OUT = ev(0, 0.12), COVER_IN = ev(17, 0.8);
+const coverY = (t) => coverBase - 4.5 * easeInOut(prog(t, COVER_OUT, COVER_OUT + 0.8)) * (1 - easeInOut(prog(t, COVER_IN, COVER_IN + 0.8)));
+
+// ---------- events ----------
+const T = {
+  push: { swing: ev(2, 0.05), load: [ev(2, 0.08), ev(2, 0.24)], sail: [ev(2, 0.26), ev(2, 0.6)], land: [ev(2, 0.62), ev(2, 0.76)] },
+  pull: { load: [ev(3, 0.02), ev(3, 0.12)], sail: [ev(3, 0.12), ev(3, 0.42)], land: [ev(3, 0.44), ev(3, 0.6)], ghost: ev(3, 0.62) },
+  orders: [0, 1, 2].map((i) => ev(4, 0.08 + 0.1 * i)),
+  del1: [ev(4, 0.58), ev(4, 0.66)],
+  reb1: [ev(5, 0.5), ev(5, 0.66)],
+  barrel: ev(6, 0.05), hopper: ev(6, 0.14),
+  feed: [0, 1, 2].map((i) => ev(6, 0.45 + 0.12 * i)),
+  del2: [ev(7, 0.06), ev(7, 0.14)],
+  reb2: [ev(7, 0.3), ev(7, 0.44)],
+  plug: ev(7, 0.5),
+  open: ev(7, 0.64),
+  book: ev(9, 0.5),
+  up: [ev(10, 0.18), ev(10, 0.42)],
+  rails: [ev(11, 0.02), ev(11, 0.25)],
+  fence: [ev(11, 0.06), ev(11, 0.3)],
+  ride: [ev(11, 0.55), ev(11, 0.82)],
+  outsider: [ev(12, 0.05), ev(12, 0.3)],
+  gate: ev(12, 0.48),
+  customer: [ev(12, 0.5), ev(12, 0.82)],
+  pipe: [0, 1, 2, 3].map((i) => ev(14, 0.1 + 0.07 * i)),
+  tests: [ev(14, 0.4), ev(14, 0.62)],
+  shelve: [ev(14, 0.72), ev(14, 0.86)],
+  deploy: { load: [ev(15, 0.0), ev(15, 0.1)], sail: [ev(15, 0.1), ev(15, 0.42)], land: [ev(15, 0.44), ev(15, 0.54)], run: [ev(15, 0.55), ev(15, 0.66)] },
+  crash: ev(16, 0.02),
+  roll: { load: [ev(16, 0.3), ev(16, 0.38)], sail: [ev(16, 0.38), ev(16, 0.6)], land: [ev(16, 0.62), ev(16, 0.7)], fixed: ev(16, 0.74) },
+};
+
+// Steve, Alex and the villagers: [time, place, yaw]
+const STEVE = [
+  [0, at(0.8, 12.4), 1.18], [ev(3, 0.9), at(0.8, 12.4), 1.18],
+  [ev(4, 0.0), at(2.4, 6.9), Math.PI * 0.85], [ev(8, 0.6), at(2.4, 6.9), Math.PI * 0.85],
+  [ev(9, 0.3), at(1.9, 10.9), -2.03],
+];
+const ALEX = [[0, V(13.2, terrain.groundAt(13.2, 18.2), 18.2), -2.4]];
+const CUSTOMER = [[0, at(1.0, 14.8), Math.PI], [T.customer[0], at(1.0, 14.8), Math.PI],
+                  [ev(12, 0.65), at(5.0, 9.6), Math.PI], [T.customer[1], at(5.0, 6.3), Math.PI]];
+const OUT0 = V(15, terrain.groundAt(15, 12), 12);
+const OUTSIDER = [[0, OUT0, Math.PI], [T.outsider[0], OUT0, Math.PI], [T.outsider[1], at(10.5, 9.4), Math.PI]];
+
+// ---------- per frame ----------
+function glow(g, k) {
+  g.traverse((o) => {
+    if (!o.material) return;
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      if (!m.color) continue;
+      if (!m.userData.base0) m.userData.base0 = m.color.clone();
+      m.color.copy(m.userData.base0).multiplyScalar(1 + k);
+    }
+  });
+}
+const pulse = (t, a, z, period = 1.2) => (during(t, a, z) ? 0.6 * (0.5 - 0.5 * Math.cos((t - a) * 2 * Math.PI / period)) : 0);
+const pop = (t, a) => Math.max(1e-3, easeInOut(Math.min(1, Math.max(0, (t - a) / 0.2))));
+
+// A boat from keys [time, place]: glides between places (eased), turned along the leg it is on
+function boatAt(b, keys, t, yaw0 = 0) {
+  let p = keys[0][1].clone(), yaw = yaw0;
+  for (let i = 0; i + 1 < keys.length; i++) {
+    const [t0, a] = keys[i], [t1, z] = keys[i + 1];
+    if (a.distanceTo(z) < 1e-3) continue;
+    if (t >= t0) { yaw = Math.atan2(-(z.z - a.z), z.x - a.x); p = a.clone().lerp(z, easeInOut(prog(t, t0, t1))); }
+  }
+  b.position.copy(p);
+  b.position.y = WATER + 0.06 * Math.sin(t * 2.2 + p.x);
+  b.rotation.y = yaw;
+}
+// Boxes carried by boat: from their places onto the boat, then off the boat to their new places
+function carry(boxes, t, { from, boat, to, load, land, show = [load[0], land[1]] }) {
+  const lk = prog(t, ...load), dk = prog(t, ...land);
+  boxes.forEach((s, i) => {
+    s.g.visible = during(t, ...show);
+    if (!s.g.visible) return;
+    const onBoat = boat.position.clone().add(V(0, 0.15 + i * 0.5, 0));
+    if (lk < 1) s.g.position.copy(arc(from(i), onBoat, easeInOut(lk), 2));
+    else if (dk <= 0) s.g.position.copy(onBoat);
+    else s.g.position.copy(arc(onBoat, to(i), easeInOut(dk), 2));
+    s.g.scale.setScalar(dk > 0 ? 0.5 + 0.5 * dk : 0.5 + 0.5 * (1 - lk));
+  });
+}
+
+// The shop's room: up at the start, broken (line 4), up again (line 5), broken and up again (line 7)
+const shopK = (t) => {
+  if (t < T.del1[0]) return 1;
+  if (t < T.reb1[0]) return 1 - prog(t, ...T.del1);
+  if (t < T.del2[0]) return prog(t, ...T.reb1);
+  if (t < T.reb2[0]) return 1 - prog(t, ...T.del2);
+  return prog(t, ...T.reb2);
+};
+const paperBits = Array.from({ length: 9 }, () => { const p = makeItem(imgs, 'paper', 0.38); scene.add(p); return p; });
+const COUNTER = V(5, FL + 1.3, 4);
+
+function scenePieces(t) {
+  // Steve's image on the beach, Alex's blog image next to hers
+  steveStack.forEach((s) => { s.g.visible = true; });
+  alexBlog.forEach((s) => { s.g.visible = true; });
+  shelfBlog.forEach((s) => { s.g.visible = true; });
+
+  // push (line 2): a copy of Steve's stack goes on boat A, sails to the harbor and is shelved as shop:1.2
+  boatAt(boatA, [[0, DOCK], [T.push.sail[0], DOCK], [T.push.sail[1], MOOR_E], [T.pull.sail[0], MOOR_E], [T.pull.sail[1], DOCK]], t, Math.PI / 2);
+  carry(cargoPush, t, { from: (i) => STACK.clone().add(V(0, i, 0)), boat: boatA, to: (i) => SLOT[1].clone().add(V(0, i, 0)),
+                        load: T.push.load, land: T.push.land });
+  shelf12.forEach((s, i) => { s.g.visible = t >= T.push.land[1]; });
+  TAGS[1].visible = t >= T.push.land[1] - 0.05;
+  TAGS[1].scale.setScalar(0.85 * pop(t, T.push.land[1] - 0.05));
+  // pull (line 3): only the two layers Alex doesn't have travel; the two she has light up as ghosts tied to hers
+  carry(cargoPull, t, { from: (i) => SLOT[1].clone().add(V(0, i + 2, 0)), boat: boatA, to: (i) => ALEXSHOP.clone().add(V(0, i + 2, 0)),
+                        load: T.pull.load, land: T.pull.land });
+  alexNew.forEach((s) => { s.g.visible = t >= T.pull.land[1]; });
+  alexGhost.forEach((s, i) => { s.g.visible = t >= T.pull.ghost; s.g.scale.setScalar(pop(t, T.pull.ghost)); });
+  skipLeads.forEach((l, i) => {
+    if (t < T.pull.ghost || t >= end(3)) { l.visible = false; return; }
+    l.set(ALEXSTACK.clone().add(V(0.5, i + 0.5, 0)), ALEXSHOP.clone().add(V(-0.5, i + 0.5, 0)), easeInOut(prog(t, T.pull.ghost, T.pull.ghost + 0.5)));
+  });
+  const skipGlow = pulse(t, T.pull.ghost, end(3));
+  for (const i of [0, 1]) { glow(alexBlog[i].g, skipGlow); glow(alexGhost[i].g, skipGlow); }
+
+  // the shop's container: orders written on its own layer (line 4), lost when it is deleted
+  const k = shopK(t);
+  SHOP.g.visible = true;
+  SHOP.build(k);
+  const shopUp = k >= 1;
+  SHOP.stall.g.visible = shopUp;
+  SHOP.stall.update(t, { sell: shopUp && t < ev(13, 0) && !during(t, T.reb2[1], T.plug), seed: 0.3 });
+  SHOP.sheet.visible = during(t, T.orders[0], T.del1[0] + 0.02);
+  SHOP.sheet.material.opacity = 0.55 * prog(t, T.orders[0], T.orders[0] + 0.3);
+  // papers 0..2: onto the sheet (line 4); 3..5: into the hopper and down to the barrel (line 6); 6..8: out of the barrel (line 7)
+  paperBits.forEach((p) => { p.visible = false; });
+  T.orders.forEach((a, i) => {
+    const p = paperBits[i], rest = V(4.7 + 0.6 * i, FL + 2.22, 3.2 + 0.25 * i);
+    const kk = prog(t, a, a + 0.45);
+    p.visible = t >= a && t < T.del1[0] + 0.02;
+    if (p.visible) p.position.copy(kk < 1 ? arc(COUNTER, rest, easeInOut(kk), 0.8) : rest);
+  });
+  T.feed.forEach((a, i) => {
+    const p = paperBits[3 + i], top = BARREL.clone().add(V(0, 2.1, 0)), inside = BARREL.clone().add(V(0, 0.6, 0));
+    const k1 = prog(t, a, a + 0.45), k2 = prog(t, a + 0.45, a + 0.7);
+    p.visible = k1 > 0 && k2 < 1;
+    if (p.visible) p.position.copy(k1 < 1 ? arc(COUNTER, top, easeInOut(k1), 1.0) : top.clone().lerp(inside, k2));
+  });
+  [0, 1, 2].forEach((i) => {
+    const p = paperBits[6 + i], a = T.open + 0.08 * i;
+    const kk = prog(t, a, a + 0.4), back = prog(t, end(7) - 0.4, end(7));
+    p.visible = kk > 0 && back < 1;
+    if (p.visible) p.position.copy(BARREL.clone().add(V((i - 1) * 0.45, 0.6 + 2.0 * easeInOut(kk) * (1 - easeInOut(back)), 0.6)));
+  });
+  // the volume: barrel and hopper placed in line 6 and kept; they glow when the new container plugs in (line 7)
+  barrel.g.visible = t >= T.barrel;
+  barrel.g.scale.setScalar(pop(t, T.barrel));
+  hopper.visible = t >= T.hopper;
+  hopper.scale.setScalar(pop(t, T.hopper));
+  barrel.mats[2].map = during(t, T.open, end(7)) ? openMap : shutMap;
+  const plugGlow = pulse(t, T.plug, ev(7, 0.8), 0.8) + pulse(t, T.feed[0], ev(6, 0.95), 1.0) * 0.5;
+  glow(barrel.g, plugGlow);
+  glow(hopper, plugGlow);
+
+  // Compose (lines 9 and 10): the book opens; db and cache go up together, the shop's room glows with them
+  lectern.open(prog(t, T.book, T.book + 0.3) * (1 - prog(t, ev(13, 0), ev(13, 0) + 0.3)));
+  for (const R of [DB, CACHE]) {
+    R.g.visible = t >= T.up[0];
+    R.build(prog(t, ...T.up));
+    R.stall.g.visible = t >= T.up[1];
+    R.stall.update(t, { sell: t >= T.up[1] + 0.3 && t < ev(13, 0), seed: R === DB ? 0.8 : 1.3 });
+  }
+  glow(SHOP.g, pulse(t, T.up[0], ev(10, 0.8), 0.9));
+
+  // the network (line 11): rails laid, stations, the fence; the cart rides from shop to db
+  const rk = prog(t, ...T.rails);
+  railBits.forEach((m, i) => { m.visible = rk * railBits.length > i; });
+  STATIONS.forEach((s, i) => { s.visible = t >= T.rails[0] + 0.1 * i; s.scale.setScalar(0.9 * pop(t, T.rails[0] + 0.1 * i)); });
+  const fk = prog(t, ...T.fence);
+  posts.forEach((p, i) => { p.visible = fk * posts.length > i; });
+  gate.visible = fk >= 1;
+  const gk = easeInOut(prog(t, T.gate, T.gate + 0.3));
+  gateHalves.forEach((h, i) => { h.rotation.y = (i === 0 ? -1 : 1) * gk * Math.PI / 2; });
+  glow(gate, pulse(t, T.gate, end(12), 1.0));
+  cart.g.visible = t >= T.rails[1];
+  if (cart.g.visible) cart.place(ROUTE, 5 + 5 * easeInOut(prog(t, ...T.ride)));
+
+  // the pipeline (line 14): boxes placed one by one at the harbor, the golem checks, the stack is shelved as 1.3
+  built13.forEach((s, i) => {
+    s.g.visible = t >= T.pipe[i];
+    s.g.scale.setScalar(pop(t, T.pipe[i]));
+    const sk = easeInOut(prog(t, ...T.shelve));
+    s.g.position.copy(arc(BUILD.clone().add(V(0, i, 0)), SLOT[2].clone().add(V(0, i, 0)), sk, 1.5));
+  });
+  built13.forEach((s) => glow(s.g, during(t, T.tests[0] + 0.15, T.tests[1] + 0.3) ? 0.45 : 0));
+  TAGS[2].visible = t >= T.shelve[1];
+  TAGS[2].scale.setScalar(0.85 * pop(t, T.shelve[1]));
+  golem.arms.forEach((a, i) => { a.rotation.x = during(t, ...T.tests) ? -0.6 * Math.sin((t - T.tests[0]) * 6 + i * Math.PI) : 0; });
+  golem.head.rotation.y = 0.25 * Math.sin(t * 0.8);
+  builder.head.rotation.x = during(t, T.pipe[0] - 0.2, T.pipe[3] + 0.3) ? 0.3 : 0;
+
+  // deploy (line 15): boat B takes a copy of 1.3 to the server, which runs it
+  boatAt(boatB, [[0, S1], [T.deploy.sail[0], S1], [T.deploy.sail[1], PIER]], t, 0);
+  carry(cargo13, t, { from: (i) => SLOT[2].clone().add(V(0, i, 0)), boat: boatB, to: (i) => SERVERSTACK.clone().add(V(0, i, 0)),
+                      load: T.deploy.load, land: T.deploy.land });
+  server13.forEach((s) => { s.g.visible = during(t, T.deploy.land[1], T.roll.land[0]); });
+  SRV.g.visible = t >= T.deploy.run[0];
+  SRV.build(prog(t, ...T.deploy.run));
+  SRV.stall.g.visible = t >= T.deploy.run[1];
+  const crashing = during(t, T.crash, T.roll.fixed);
+  SRV.stall.update(t, { sell: t >= T.deploy.run[1] + 0.3 && !crashing, crash: crashing, seed: 0.4 });
+  // rollback (line 16): boat C brings shop:1.2 from the shelf; 1.3 goes away
+  boatAt(boatC, [[0, S2], [T.roll.sail[0], S2], [T.roll.sail[1], PIER2]], t, 0);
+  carry(cargo12, t, { from: (i) => SLOT[1].clone().add(V(0, i, 0)), boat: boatC, to: (i) => SERVERSTACK.clone().add(V(0, i, 0)),
+                      load: T.roll.load, land: T.roll.land });
+  server12.forEach((s) => { s.g.visible = t >= T.roll.land[1]; });
+
+  // people
+  moveAlong(steve, STEVE, t);
+  steve.arms[1].rotation.set(0, 0, 0);
+  for (const a of [T.push.swing, T.del1[0] - 0.05, T.del2[0] - 0.05]) swingArm(steve, prog(t, a - 0.15, a + 0.15));
+  moveAlong(alex, ALEX, t);
+  moveAlong(customer, CUSTOMER, t);
+  moveAlong(outsider, OUTSIDER, t);
+  shakeNo(outsider, t, during(t, T.outsider[1], ev(12, 0.75)));
+  if (!during(t, T.outsider[1], ev(12, 0.75))) outsider.head.rotation.x = 0;
+  cover.position.y = coverY(t);
+}
+
+// ---------- items over things ----------
+const barrier = makeItem(imgs, 'barrier', 0.8);
+scene.add(barrier);
+const barrier2 = makeItem(imgs, 'barrier', 0.9);
+scene.add(barrier2);
+function items(t) {
+  barrier.visible = during(t, T.outsider[1], end(12));
+  barrier.position.set(10.5, G + 1.1, FENCE_Z);
+  barrier2.visible = during(t, ev(13, 0.45), end(13));
+  barrier2.position.set(-33.5, FLS + 1.4, 1.5);
+}
+
+// ---------- bubbles ----------
+const B = {
+  works: bubble(['shop image: works'], { color: 0x55FF55 }),
+  team: bubble(['the team?'], { color: 0xFF5555 }),
+  servers: bubble(['the servers?'], { color: 0xFF5555 }),
+  registry: bubble(['registry', 'like Docker Hub'], { color: 0xFFFF55 }),
+  push: bubble(['docker push'], { color: 0xFFFF55 }),
+  tag: bubble(['name:tag', 'shop:1.2'], { color: 0xFFFF55 }),
+  pull: bubble(['docker pull shop:1.2'], { color: 0xFFFF55 }),
+  skipped: bubble(['already have them:', 'skipped'], { color: 0x55FF55 }),
+  orders: bubble(['orders'], { color: 0xFFFFFF }),
+  gone: bubble(['orders: gone!'], { color: 0xFF5555 }),
+  thrown: bubble(['its own layer', 'went with it'], { color: 0xFF5555 }),
+  replace: bubble(['replace, don\'t keep'], { color: 0xFFFF55 }),
+  volume: bubble(['volume', 'outside the container'], { color: 0xFFFF55 }),
+  uses: bubble(['uses it, doesn\'t own it'], { color: 0xFFFFFF }),
+  fresh: bubble(['new container'], { color: 0xFFFF55 }),
+  still: bubble(['every order still there'], { color: 0x55FF55 }),
+  shop: bubble(['shop'], { color: 0xFFFFFF }),
+  db: bubble(['database'], { color: 0xFFFFFF }),
+  cache: bubble(['cache'], { color: 0xFFFFFF }),
+  oneByOne: bubble(['docker run shop', 'docker run db', 'docker run cache'], { color: 0xFFFFFF }),
+  file: bubble(['one file: compose.yaml'], { color: 0xFFFF55 }),
+  up: bubble(['docker compose up'], { color: 0xFFFF55 }),
+  allUp: bubble(['all three: running'], { color: 0x55FF55 }),
+  network: bubble(['private network'], { color: 0xFFFF55 }),
+  byName: bubble(['found by name: db'], { color: 0x55FF55 }),
+  noEntry: bubble(['nothing gets in'], { color: 0xFF5555 }),
+  port: bubble(['published port', '8080'], { color: 0xFFFF55 }),
+  door: bubble(['the only door'], { color: 0x55FF55 }),
+  prod: bubble(['production'], { color: 0xFFFF55 }),
+  noHand: bubble(['no builds by hand'], { color: 0xFF5555 }),
+  merged: bubble(['pipeline: build once'], { color: 0xFFFF55 }),
+  tests: bubble(['tests ok'], { color: 0x55FF55 }),
+  pushed: bubble(['pushed: shop:1.3'], { color: 0xFFFF55 }),
+  deploy: bubble(['docker pull shop:1.3'], { color: 0xFFFF55 }),
+  tested: bubble(['tested = running'], { color: 0x55FF55 }),
+  broke: bubble(['shop:1.3 breaks!'], { color: 0xFF5555 }),
+  rollback: bubble(['docker run shop:1.2'], { color: 0xFFFF55 }),
+  stillThere: bubble(['old image still', 'in the registry'], { color: 0x55FF55 }),
+  r1: bubble(['build once'], { color: 0xFFFF55 }),
+  r2: bubble(['share through a registry'], { color: 0xFFFF55 }),
+  r3: bubble(['data in volumes'], { color: 0xFFFF55 }),
+  r4: bubble(['start it all with Compose'], { color: 0xFFFF55 }),
+};
+for (const b of Object.values(B)) scene.add(b);
+
+function bubbles(t) {
+  const S = STACK;
+  B.works.show(t, ev(0, 0.15), ev(0, 0.45), S.clone().add(V(0, 5.0, 0)));
+  B.team.show(t, ev(0, 0.44), ev(0, 0.68), V(13.2, ALEXSTACK.y + 2.6, 18.2));
+  B.servers.show(t, ev(0, 0.72), end(0), V(-33.5, FLS + 4.2, 1.5));
+  B.registry.show(t, ev(1, 0.12), end(1), V(-21.5, HY + 5.4, 21.5));
+  B.push.show(t, T.push.swing, T.push.land[0], boatA.position.clone().add(V(0, 3.2, 0)));
+  B.tag.show(t, T.push.land[1], end(2), SLOT[1].clone().add(V(0, 5.6, 0)));
+  B.pull.show(t, ev(3, 0.0), T.pull.land[0], V(13.2, ALEXSTACK.y + 2.6, 18.2));
+  B.skipped.show(t, T.pull.ghost + 0.1, end(3), ALEXSHOP.clone().add(V(0, 4.6, 0)));
+  B.orders.show(t, T.orders[1], T.del1[0], V(5.5, FL + 3.1, 3.5));
+  B.gone.show(t, T.del1[1], end(4), V(5.5, FL + 3.1, 3.5));
+  B.thrown.show(t, ev(5, 0.04), ev(5, 0.5), V(5.5, FL + 3.1, 3.5));
+  B.replace.show(t, ev(5, 0.55), end(5), V(5.5, FL + 3.4, 3.5));
+  B.volume.show(t, T.barrel + 0.1, ev(6, 0.55), BARREL.clone().add(V(0, 3.1, 0)));
+  B.uses.show(t, ev(6, 0.6), end(6), BARREL.clone().add(V(0, 3.1, 0)));
+  B.fresh.show(t, T.reb2[0], T.open, V(5.5, FL + 3.4, 3.5));
+  B.still.show(t, T.open + 0.15, end(7), BARREL.clone().add(V(0, 3.6, 0)));
+  B.shop.show(t, ev(8, 0.05), end(8), V(5.5, FL + 3.0, 3.5));
+  B.db.show(t, ev(8, 0.38), end(8), V(10.5, FL + 3.0, 3.5));
+  B.cache.show(t, ev(8, 0.6), end(8), V(0.5, FL + 3.0, 3.5));
+  B.oneByOne.show(t, ev(9, 0.02), ev(9, 0.45), V(5.5, FL + 4.2, 3.5));
+  B.file.show(t, T.book + 0.1, end(9), LECTERN2.clone().add(V(0, 2.7, 0)));
+  B.up.show(t, ev(10, 0.0), ev(10, 0.5), V(5.5, FL + 4.6, 3.5));
+  B.allUp.show(t, ev(10, 0.52), end(10), V(5.5, FL + 4.6, 3.5));
+  B.network.show(t, ev(11, 0.12), ev(11, 0.52), V(5.5, G + 2.6, RAIL_Z + 1));
+  B.byName.show(t, T.ride[1], end(11), V(10.5, FL + 3.0, 4));
+  B.noEntry.show(t, ev(12, 0.12), ev(12, 0.46), V(10.5, G + 3.0, 9.4));
+  B.port.show(t, T.gate, ev(12, 0.8), V(GATE_X, G + 2.8, FENCE_Z));
+  B.door.show(t, ev(12, 0.8), end(12), V(GATE_X, G + 2.8, FENCE_Z));
+  B.prod.show(t, ev(13, 0.05), ev(13, 0.45), V(-33.5, FLS + 4.2, 1.5));
+  B.noHand.show(t, ev(13, 0.48), end(13), V(-33.5, FLS + 4.2, 1.5));
+  B.merged.show(t, ev(14, 0.02), T.tests[0], BUILD.clone().add(V(0, 5.6, 0)));
+  B.tests.show(t, T.tests[0] + 0.15, T.shelve[0], BUILD.clone().add(V(2.2, 4.2, 0)));
+  B.pushed.show(t, T.shelve[1], end(14), SLOT[2].clone().add(V(0, 5.6, 0)));
+  B.deploy.show(t, ev(15, 0.02), T.deploy.land[0], boatB.position.clone().add(V(0, 3.0, 0)));
+  B.tested.show(t, T.deploy.run[1] + 0.1, end(15), V(-33.5, FLS + 4.2, 1.5));
+  B.broke.show(t, T.crash + 0.05, ev(16, 0.36), V(-33.5, FLS + 4.2, 1.5));
+  B.rollback.show(t, ev(16, 0.36), T.roll.land[1], V(-33.5, FLS + 4.2, 1.5));
+  B.stillThere.show(t, T.roll.fixed, end(16), V(-33.5, FLS + 4.2, 1.5));
+  [B.r1, B.r2, B.r3, B.r4].forEach((b, i) => b.show(t, ev(17, 0.02 + i * 0.2), COVER_IN, V(5.5, FL + 7.2 - 1.1 * i, 3)));
+}
+
+// ---------- camera ----------
+const look = (p, q) => pose(p, q);
+const COVER = look(V(4, 3.6, 30), V(4, 2.1, COVER_Z));
+const STACKV = look(V(6.5, 4.8, 19.5), V(3.0, 2.4, 11.5));   // Steve's image, from the front
+const OPEN = look(V(17, 15, 28), V(-18, -4, 6));            // the beach stacks, Alex, the harbor and the island
+const HARBORV = look(V(-21.5, 8, 38), V(-21.5, -2.8, 22.5));     // the harbor from the sea
+const PUSHV = look(V(-5, 9, 31), V(-15, -3, 18));            // the boat from the beach to the harbor
+const ALEXV = look(V(11.8, 5, 29.5), V(11.8, 1.8, 17));    // Alex's stacks
+const ROOMV = look(V(8, 7.5, 13.5), V(6, 2.3, 3.5));        // the shop's room and the barrel
+const ROOMS3 = look(V(6, 14, 17), V(6, 1.5, 1));            // the three rooms
+const BOOKV = look(V(0.0, 3.2, 13.6), V(0.5, 1.7, 10.2));   // the Compose book
+const NETV = look(V(15, 9, 17), V(5, 1.5, 5.5));             // rails, stations, fence and gate
+const ISLAND = look(V(-26, 3.5, 11), V(-34.5, -2.4, 1.5));  // the server
+const PIPEV = look(V(-21.5, 3.5, 39), V(-21.5, -3.2, 25));    // the pipeline on the harbor
+const SAILV = look(V(-7, 10, 19), V(-27, -4, 9));          // harbor to island
+const LAND = look(V(-22, 3, 13), V(-32.5, -2.5, 2.5));      // the island
+const ROLLV = look(V(-5, 18, 30), V(-26, -4, 10));           // harbor and island
+const RECAP = look(V(9, 13, 19), V(6, 3.0, 1));
+const CAM = [
+  [0, COVER],
+  [ev(0, 0.1), STACKV, 1.0],
+  [ev(0, 0.36), ALEXV, 0.9],
+  [ev(0, 0.64), OPEN, 1.0],
+  [ev(1, 0.0), HARBORV, 1.3],
+  [ev(2, 0.0), PUSHV, 1.2],
+  [ev(2, 0.6), HARBORV, 1.0],
+  [ev(3, 0.0), PUSHV, 1.0],
+  [ev(3, 0.4), ALEXV, 1.0],
+  [ev(4, 0.0), ROOMV, 1.3],
+  [ev(8, 0.0), ROOMS3, 1.2],
+  [ev(9, 0.45), BOOKV, 1.0],
+  [ev(10, 0.0), ROOMS3, 1.0],
+  [ev(11, 0.0), NETV, 1.2],
+  [ev(13, 0.0), ISLAND, 1.4],
+  [ev(14, 0.0), PIPEV, 1.3],
+  [ev(15, 0.0), SAILV, 1.2],
+  [ev(15, 0.45), LAND, 1.2],
+  [ev(16, 0.25), ROLLV, 1.0],
+  [ev(16, 0.68), LAND, 0.9],
+  [ev(17, 0.0), RECAP, 1.4],
+  [COVER_IN - 0.5, COVER, 1.8],
+];
+const camAt = smoothCamera(CAM, TOTAL, { sigma: 0.5 });
+
+// ---------- sounds (game sounds, at the moment they happen) ----------
+const sells = (a, z, seed = 0) => { const out = []; for (let s = Math.ceil((a + seed) / 1.6) * 1.6 - seed; s < z; s += 1.6) out.push([s, `villager_yes${(out.length % 3) + 1}`, 0.14]); return out; };
+const glassBreak = (a) => [[a, 'glass1', 0.3], [a + 0.05, 'glass2', 0.25], [a + 0.1, 'glass3', 0.22]];
+const glassUp = (a, z) => [0, 1, 2, 3].map((i) => [a + (z - a) * i / 4, `stone_dig${i + 1}`, 0.18]);
+const sail = ([a, z]) => [0, 1, 2, 3].map((i) => [a + i * (z - a) / 4, `paddle${(i % 4) + 1}`, 0.26]);
+window.sfxCues = [
+  ...sells(0.3, ev(4, 0.5), 0.3),
+  [T.push.swing, 'click', 0.2], [T.push.load[1], 'pop', 0.25], ...sail(T.push.sail), [T.push.land[1], 'shulker_close', 0.3],
+  ...sail(T.pull.sail), [T.pull.land[1], 'pop', 0.25], [T.pull.ghost, 'lead_tie', 0.3], [T.pull.ghost + 0.2, 'orb', 0.2],
+  ...T.orders.map((a) => [a, 'book_put', 0.2]),
+  ...glassBreak(T.del1[0]), [T.del1[1] + 0.1, 'villager_no1', 0.22],
+  ...glassUp(...T.reb1),
+  [T.barrel, 'wood_dig1', 0.3], [T.hopper, 'stone_dig2', 0.28], ...T.feed.map((a) => [a + 0.5, 'barrel_close', 0.16]),
+  ...glassBreak(T.del2[0]), ...glassUp(...T.reb2), [T.plug, 'click', 0.25], [T.open, 'barrel_open', 0.3], [T.open + 0.3, 'orb', 0.2],
+  [T.book, 'book_flip1', 0.3],
+  ...glassUp(...T.up), [T.up[1] + 0.1, 'levelup', 0.22],
+  ...[0, 1, 2, 3].map((i) => [T.rails[0] + i * (T.rails[1] - T.rails[0]) / 4, `stone_step${i + 1}`, 0.2]),
+  ...[0, 1, 2].map((i) => [T.fence[0] + i * (T.fence[1] - T.fence[0]) / 3, `wood_dig${i + 1}`, 0.2]),
+  [T.ride[0], 'minecart_roll', 0.25], [T.ride[1], 'bell', 0.2],
+  [T.outsider[1], 'villager_no2', 0.25], [T.gate, 'door_open', 0.3], ...sells(T.customer[1], end(12), 0.3),
+  [ev(13, 0.48), 'chest_locked', 0.25],
+  ...T.pipe.map((a, i) => [a, `stone_dig${i + 1}`, 0.25]), [T.tests[0], 'golem_hit', 0.22], [T.tests[0] + 0.2, 'orb', 0.22],
+  [T.shelve[1], 'shulker_close', 0.28],
+  [T.deploy.load[1], 'pop', 0.22], ...sail(T.deploy.sail), [T.deploy.land[1], 'stone_dig4', 0.28], ...glassUp(...T.deploy.run),
+  ...sells(T.deploy.run[1] + 0.3, T.crash, 0.4),
+  [T.crash, 'fizz', 0.3], [T.crash + 0.15, 'villager_no3', 0.26], ...sail(T.roll.sail), [T.roll.land[1], 'stone_dig1', 0.28],
+  [T.roll.fixed, 'levelup', 0.22], ...sells(T.roll.fixed + 0.2, end(16), 0.4),
+  [COVER_IN, 'wood_dig2', 0.3],
+].map(([s, n, g]) => [Math.round(s * 1000) / 1000, n, g]);
+
+// The loop: in the last line everything goes back to the first frame's state behind the cover
+const LOOP_T = ev(18, 0.05);
+window.renderAt = (t) => {
+  scenePieces(t >= LOOP_T ? 0 : t);
+  items(t >= LOOP_T ? 0 : t);
+  cover.position.y = coverY(t);
+  const cam = camAt(t);
+  world.look(cam.pos, cam.look);
+  camera.updateMatrixWorld();
+  bubbles(t >= LOOP_T ? 0 : t);
+  placeUI(camera);
+  life.update(t);
+  clouds.position.x = 4 * Math.sin(2 * Math.PI * t / TOTAL);
+  world.draw(t, TOTAL, 0, 0);
+};
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>

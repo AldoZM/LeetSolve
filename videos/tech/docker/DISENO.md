@@ -1,6 +1,6 @@
 # Diseño: shorts de Docker ("How Docker Works" y "How Teams Really Use Docker"), todo en 3D
 
-Estado: **aprobado por Aldo (2026-10-31)**; Parte 1 terminada el 2026-11-01 (`export/How Docker Works.mp4`); Parte 2 pendiente. Lo que cambió al construirla:
+Estado: **aprobado por Aldo (2026-10-31)**; Parte 1 terminada el 2026-11-01 (`export/How Docker Works.mp4`); Parte 2 terminada el 2026-11-01 (`export/How Teams Really Use Docker.mp4`, página `videos/tech/docker-teams/three/docker2.html`; cambios en "Parte 2: lo que cambió al construirla", al final). Lo que cambió al construir la Parte 1:
 - Lugar: `mac-03`, renombrado `docker-coast` (giro 0, así la escena usa las coordenadas de la exportación). La plataforma de Steve (x −1..13, z −3..5), la isla del servidor (x −38..−29, z −2..5) y el lote de la máquina virtual (x 8..12, z 16..20) se hacen por código.
 - El Dockerfile del video tiene 4 pasos: `FROM python:3.12` (cajas gris y azul), `RUN pip install flask` (amarilla), `COPY . .` (verde) y `CMD python app.py` (sin caja). Se quitó `COPY requirements.txt` para que cada paso que agrega archivos tenga su caja.
 - La imagen viaja en un bote sin cofre: la pila (a la mitad del tamaño) va encima, así se ve qué se manda.
@@ -212,3 +212,15 @@ Unas 330 palabras (entre 125 y 135 s).
 6. Parte 1: render, hojas de cuadros al 20, 55 y 90 % de cada línea, loop, `How Docker Works.mp4` en `export/`.
 7. Parte 2: los mismos pasos en `videos/tech/docker-teams/` (`three/docker2.html`), con `How Teams Really Use Docker.mp4`.
 8. Descripciones en `export/descripciones-tecnologia.md` y entrada en `BITACORA.md`.
+
+## Parte 2: lo que cambió al construirla
+
+- Carpeta `videos/tech/docker-teams/`, mismo lugar (`docker-coast`) y música `clark`.
+- **El registry** es un muelle de tablas sobre pilotes en el mar (x −26..−17, z 20..28) con una pared al fondo; las pilas `blog:2.0`, `shop:1.2` y `shop:1.3` van frente a la pared con su letrero. Sin aldeano encargado (no cabía en las tomas).
+- **Alex** tiene su máquina más atrás en la playa (z 17), para no tapar las tomas de la plataforma. En el `pull` solo viajan las dos capas que le faltan; las dos que ya tiene aparecen translúcidas, unidas con riendas a las de su imagen `blog`.
+- **El volumen** es un barril con una tolva encima, en el hueco entre el cuarto de `shop` y el de `db`. Los pedidos bajan por la tolva; al abrir el barril salen flotando.
+- **Compose:** el libro `compose.yaml` en un atril en la arena; `db` (estantes, bibliotecario) y `cache` (lámpara de redstone, cartógrafo) se levantan juntos y el cuarto de `shop` brilla con ellos.
+- **La red** son rieles frente a los cuartos con letreros `cache`, `shop` y `db`; la vagoneta con cofre va de `shop` a `db`. La cerca está al frente, con la única puerta en x = 5 (`8080`). Un aldeano de fuera choca con la cerca frente a `db` (barrera) y el cliente entra por la puerta.
+- **El pipeline** está al frente del muelle: un albañil arma la pila (caja cyan = versión 1.3), el gólem la revisa (`tests ok`) y la pila pasa a su lugar. Dos botes salen del lado sur del muelle hacia la isla: uno lleva la 1.3 y el otro la 1.2 al volver atrás.
+- Caja de shulker cyan y barril agregados a `extraer.py`.
+

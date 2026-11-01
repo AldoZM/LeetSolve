@@ -1,0 +1,20 @@
+subtitles:
+  - Steve's image works. But his whole team, and every server, needs that same image. How do they get it?
+  - Through a registry, like Docker Hub. Think of it as a harbor where images are stored and shared.
+  - docker push sends Steve's image there, with a name and a tag, like shop, version one point two.
+  - Anyone on the team runs docker pull and gets the exact same layers. Layers they already have are skipped.
+  - Now, a problem. The shop saves its orders inside the container. Steve deletes the container, and the orders are gone.
+  - A container's own layer is thrown away with it. Containers are meant to be replaced, not kept.
+  - So the data goes in a volume, storage that lives outside the container. The container uses it, but doesn't own it.
+  - Delete the container, start a new one, connect the same volume, and every order is still there.
+  - Real apps aren't one container. The shop also needs a database and a cache, each in its own container.
+  - Starting them one by one gets old fast. With Docker Compose, you describe all of them in one file.
+  - Then one command, docker compose up, starts the whole set together.
+  - Compose also puts them on a private network. The shop finds the database just by its name, D B.
+  - From outside the machine, nothing gets in, unless you publish a port, like eighty eighty. That's the only door.
+  - Last step, shipping to production. The team never builds images by hand on the server.
+  - When code is merged, a pipeline builds the image once, runs the tests, and pushes it to the registry.
+  - The servers pull that exact image and run it. What was tested is exactly what runs.
+  - And if the new version breaks? Run the previous tag. The old image is still in the registry.
+  - Build once, share through a registry, keep data in volumes, and start everything with Compose.
+  - That's how teams really use Docker.

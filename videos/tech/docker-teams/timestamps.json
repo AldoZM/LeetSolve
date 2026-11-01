@@ -1,0 +1,138 @@
+{
+  "total_duration_s": 120.25,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Steve's image works. But his whole team, and every server, needs that same image. How do they get it?",
+      "start_s": 0.0,
+      "end_s": 6.467,
+      "duration_s": 6.467
+    },
+    {
+      "index": 1,
+      "text": "Through a registry, like Docker Hub. Think of it as a harbor where images are stored and shared.",
+      "start_s": 6.467,
+      "end_s": 12.719,
+      "duration_s": 6.252
+    },
+    {
+      "index": 2,
+      "text": "docker push sends Steve's image there, with a name and a tag, like shop, version one point two.",
+      "start_s": 12.719,
+      "end_s": 19.53,
+      "duration_s": 6.81
+    },
+    {
+      "index": 3,
+      "text": "Anyone on the team runs docker pull and gets the exact same layers. Layers they already have are skipped.",
+      "start_s": 19.53,
+      "end_s": 26.494,
+      "duration_s": 6.964
+    },
+    {
+      "index": 4,
+      "text": "Now, a problem. The shop saves its orders inside the container. Steve deletes the container, and the orders are gone.",
+      "start_s": 26.494,
+      "end_s": 33.983,
+      "duration_s": 7.489
+    },
+    {
+      "index": 5,
+      "text": "A container's own layer is thrown away with it. Containers are meant to be replaced, not kept.",
+      "start_s": 33.983,
+      "end_s": 40.309,
+      "duration_s": 6.326
+    },
+    {
+      "index": 6,
+      "text": "So the data goes in a volume, storage that lives outside the container. The container uses it, but doesn't own it.",
+      "start_s": 40.309,
+      "end_s": 47.192,
+      "duration_s": 6.883
+    },
+    {
+      "index": 7,
+      "text": "Delete the container, start a new one, connect the same volume, and every order is still there.",
+      "start_s": 47.192,
+      "end_s": 53.4,
+      "duration_s": 6.208
+    },
+    {
+      "index": 8,
+      "text": "Real apps aren't one container. The shop also needs a database and a cache, each in its own container.",
+      "start_s": 53.4,
+      "end_s": 59.815,
+      "duration_s": 6.414
+    },
+    {
+      "index": 9,
+      "text": "Starting them one by one gets old fast. With Docker Compose, you describe all of them in one file.",
+      "start_s": 59.815,
+      "end_s": 66.531,
+      "duration_s": 6.716
+    },
+    {
+      "index": 10,
+      "text": "Then one command, docker compose up, starts the whole set together.",
+      "start_s": 66.531,
+      "end_s": 71.7,
+      "duration_s": 5.169
+    },
+    {
+      "index": 11,
+      "text": "Compose also puts them on a private network. The shop finds the database just by its name, D B.",
+      "start_s": 71.7,
+      "end_s": 78.763,
+      "duration_s": 7.063
+    },
+    {
+      "index": 12,
+      "text": "From outside the machine, nothing gets in, unless you publish a port, like eighty eighty. That's the only door.",
+      "start_s": 78.763,
+      "end_s": 86.388,
+      "duration_s": 7.625
+    },
+    {
+      "index": 13,
+      "text": "Last step, shipping to production. The team never builds images by hand on the server.",
+      "start_s": 86.388,
+      "end_s": 92.016,
+      "duration_s": 5.627
+    },
+    {
+      "index": 14,
+      "text": "When code is merged, a pipeline builds the image once, runs the tests, and pushes it to the registry.",
+      "start_s": 92.016,
+      "end_s": 98.992,
+      "duration_s": 6.976
+    },
+    {
+      "index": 15,
+      "text": "The servers pull that exact image and run it. What was tested is exactly what runs.",
+      "start_s": 98.992,
+      "end_s": 104.902,
+      "duration_s": 5.911
+    },
+    {
+      "index": 16,
+      "text": "And if the new version breaks? Run the previous tag. The old image is still in the registry.",
+      "start_s": 104.902,
+      "end_s": 111.059,
+      "duration_s": 6.156
+    },
+    {
+      "index": 17,
+      "text": "Build once, share through a registry, keep data in volumes, and start everything with Compose.",
+      "start_s": 111.059,
+      "end_s": 117.531,
+      "duration_s": 6.472
+    },
+    {
+      "index": 18,
+      "text": "That's how teams really use Docker.",
+      "start_s": 117.531,
+      "end_s": 120.25,
+      "duration_s": 2.719
+    }
+  ]
+}

@@ -2,6 +2,15 @@
 
 Registro de lo que se hizo en cada sesión, de la más reciente a la más antigua. El cómo trabajar está en `GUIA.md`.
 
+## 2026-11-01 (tarde, PC de Windows): short de Docker, Parte 2
+
+- Carpeta `videos/tech/docker-teams/` con `three/docker2.html`, en `docker-coast` como la Parte 1. Cambios contra el diseño al final de `videos/tech/docker/DISENO.md`.
+- **`extraer.py`:** barril (`barrel_side`, `barrel_top`, `barrel_top_open`, `barrel_bottom`) y caja de shulker cyan.
+- **Voz:** 24 min, 120.25 s. Whisper `small.en` con margen: sin palabras perdidas ("dock or pull" y "Impose" eran del `base`).
+- **Cuadros fijos** (dos por línea, con la voz real): las pilas de Alex tapaban las tomas de los cuartos (su máquina pasó a z 17), el gólem tapaba el almacén (cámara más alta y el pipeline al frente del muelle), Steve tapaba el libro de Compose, la toma de la red no alcanzaba `db` (ahora en diagonal) y la pila del servidor tapaba el puesto (pasó a la esquina de atrás). La apertura quedó en tres tomas cortas: la pila de Steve, Alex y la isla.
+- **Render revisado** con 59 cuadros (20, 55 y 90 % de cada línea, inicio y final). Corregido: el globo `compose.yaml` muy cerca de los subtítulos, y dos tomas del mar con las pilas del puerto enormes en primer plano.
+- Final: 120.3 s, 106 sonidos, Clark, 132 bloques de subtítulos. `export/How Teams Really Use Docker.mp4` con su descripción.
+
 ## 2026-11-01 (madrugada, PC de Windows): short de Docker, Parte 1
 
 - **Diseño** de las dos partes en `videos/tech/docker/DISENO.md` (aprobado, `13b4e4b`). Parte 1 "How Docker Works" (imágenes, capas, contenedores); Parte 2 "How Teams Really Use Docker" queda pendiente.
@@ -553,7 +562,6 @@ Registro de lo que se hizo en cada sesión, de la más reciente a la más antigu
 ## Pendientes
 
 - **Shorts de tecnología:**
-  - Docker Parte 2, "How Teams Really Use Docker" (diseño en `videos/tech/docker/DISENO.md`).
   - Idea nueva de Aldo (2026-11-01): un short de cómo funciona una Virtual Machine (hipervisor, sistema operativo invitado, hardware virtual). Se puede reusar la casa de la máquina virtual de `three/docker.html`.
 
 - **Música en los videos ya hechos:** con la regla nueva, a los videos sin música (#1 a #9, #16 a #19, #60, #102, #124, #2089, #3644, #3942, #2409, #3886 y los de la rama `laptop-videos`) hay que agregarles `"musica"` y correr `build.py mux`. Preguntar a Aldo qué canción lleva cada uno.
