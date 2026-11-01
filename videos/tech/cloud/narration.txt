@@ -1,0 +1,20 @@
+subtitles:
+  - Steve's shop outgrew his one server. Buy ten more machines and a building to keep them in? There's a better way.
+  - Rent them. That's the cloud. Someone else's data centers, by the minute, from anywhere.
+  - Three companies run most of it. Amazon Web Services, the first and the biggest. Microsoft Azure. And Google Cloud.
+  - They sell the same building blocks, with different names. Here are the main ones.
+  - Compute. Virtual machines you rent. E C 2 on AWS, Azure Virtual Machines, and Compute Engine on Google Cloud.
+  - Storage. Buckets where you drop files of any size. S 3, Azure Blob Storage, and Google Cloud Storage.
+  - Databases they run for you, with backups and copies included. And private networks to wire it all together.
+  - You choose how much to manage. Rent bare machines, and you run the system yourself. That's infrastructure as a service.
+  - Hand over your code, and they run it. That's a platform. Or use finished software, like email. That's software as a service.
+  - Or go serverless. A function wakes up only when a request comes in, and you pay only for that moment.
+  - All of this lives in regions around the world. Each region has zones, separate data centers.
+  - You pick a region close to your users, and keep copies in more than one zone.
+  - You pay for what you use. Ten machines for an hour cost about the same as one machine for ten hours.
+  - That's why you can start small, and grow in minutes, without buying a single server.
+  - But it cuts both ways. A machine you forget keeps running, and keeps billing.
+  - And security is shared. The provider guards the buildings and the hardware.
+  - You guard everything you put there. Your settings, your data, and who gets in.
+  - Rented building blocks, three big providers, regions everywhere, and you pay for what you use.
+  - That's how cloud services work.

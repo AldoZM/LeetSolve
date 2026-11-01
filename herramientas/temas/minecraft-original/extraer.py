@@ -66,6 +66,8 @@ BLOCKS = {  # output name -> texture inside the jar
     # the load balancer's bell
     **{n: f'block/{n}' for n in ('cartography_table_side1', 'cartography_table_side3', 'cartography_table_top')},
     'trial_key': 'item/trial_key', 'bell': 'item/bell',
+    # Cloud (videos/tech/cloud): object storage buckets and the serverless dispenser
+    'bucket': 'item/bucket', 'dispenser_front': 'block/dispenser_front',
 }
 GUI = {
     'generic_54': 'gui/container/generic_54', 'hotbar': 'gui/sprites/hud/hotbar',

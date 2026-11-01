@@ -1,6 +1,6 @@
 # Diseño: shorts de la nube ("How Cloud Services Work" y "How Teams Really Use Cloud Services"), todo en 3D
 
-Estado: **pedido de Aldo (2026-11-01)**: un short de servicios en la nube (GCP, AWS y Azure) y luego su Parte 2 de uso en equipo, como Docker y la máquina virtual. Lo demás es propuesta de Claude y está marcado **(propuesta)**.
+Estado: **pedido de Aldo (2026-11-01); las dos partes terminadas el mismo día** (`export/How Cloud Services Work.mp4` y `export/How Teams Really Use Cloud Services.mp4`; cambios en la bitácora): un short de servicios en la nube (GCP, AWS y Azure) y luego su Parte 2 de uso en equipo, como Docker y la máquina virtual. Lo demás es propuesta de Claude y está marcado **(propuesta)**.
 
 ## Intención
 

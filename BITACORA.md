@@ -2,6 +2,16 @@
 
 Registro de lo que se hizo en cada sesión, de la más reciente a la más antigua. El cómo trabajar está en `GUIA.md`.
 
+## 2026-11-01 (noche, PC de Windows): shorts de la nube, Partes 1 y 2
+
+- Pedido de Aldo: servicios en la nube (GCP, AWS y Azure) y su Parte 2 de uso en equipo. Diseño de las dos en `videos/tech/cloud/DISENO.md`.
+- **Lugar:** `mac-11` renombrado `cloud-sea` (playa al norte, mar abierto al sur). La nube es literal: islas flotantes hechas por código (`makeIsland`, pasto con su tinte y base de tierra y piedra que se angosta).
+- **Parte 1** (`three/cloud.html`, música `sweden`, 121.6 s): tres islas en escalera hacia la cámara (AWS arriba atrás, Azure en medio, Google Cloud abajo al frente) con los mismos cuatro puestos (horno = cómputo, cubetas = almacenamiento, librero con bibliotecario = base administrada, cerca = red privada); los niveles IaaS, PaaS, SaaS y serverless en un islote con una toma por nivel; mapa de regiones y tres islotes de zonas; contador de hornos rentados; gólem del proveedor y el saqueador que choca con el candado de Steve.
+- **Parte 2** (`videos/tech/cloud-teams/three/cloudteams.html`, música `mice_on_venus`, 120.5 s): el equipo en la playa con llaves y el cofre raíz con candado; islotes `DEV`, `STAGING` y `PROD` en escalera, la TNT que solo estalla en dev y el libro que sube; base administrada con copia translúcida que toma el lugar; etiquetas, campana de presupuesto, dev oscuro de noche, horno spot que desaparece; tablero de lámparas con una roja; otra región con su cofre de respaldos; riendas a las tres nubes con peaje y solo una se queda.
+- **`extraer.py`:** cubeta (`bucket`) y frente del dispensador.
+- **Hallazgo (en `GUIA.md`):** con `shaders: true` cambiar `mats[i].map` después del primer cuadro no se ve; para estados (horno encendido, lámpara roja) van dos mallas y se alterna `visible`.
+- Revisado con cuadros fijos y 59 cuadros del video terminado. Corregido: tomas que cortaban las islas, globos de las tres islas encimados con el resumen, los niveles en una sola toma lejana, el mapa tapado por las zonas, el equipo de espaldas y el letrero de la portada de la Parte 2 con un renglón de 10 letras (se cortaba).
+
 ## 2026-11-01 (noche, PC de Windows): "How Teams Really Use Virtual Machines" y "VM vs Docker"
 
 - Pedidos de Aldo. Diseños en `videos/tech/vm-teams/DISENO.md` y `videos/tech/vm-vs-docker/DISENO.md`.
@@ -579,7 +589,7 @@ Registro de lo que se hizo en cada sesión, de la más reciente a la más antigu
 
 ## Pendientes
 
-- **Shorts de tecnología:** siguientes, los de la nube (Parte 1 "How Cloud Services Work" y Parte 2 "How Teams Really Use Cloud Services", diseño en `videos/tech/cloud/DISENO.md`). Streaming sigue como borrador sin aprobar.
+- **Shorts de tecnología:** ninguno pendiente (Docker, máquina virtual, VM vs Docker y nube, todos con su Parte 2, terminados el 2026-11-01). Streaming sigue como borrador sin aprobar.
 
 - **Música en los videos ya hechos:** con la regla nueva, a los videos sin música (#1 a #9, #16 a #19, #60, #102, #124, #2089, #3644, #3942, #2409, #3886 y los de la rama `laptop-videos`) hay que agregarles `"musica"` y correr `build.py mux`. Preguntar a Aldo qué canción lleva cada uno.
 

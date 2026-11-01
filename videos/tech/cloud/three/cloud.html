@@ -1,0 +1,468 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+// "How Cloud Services Work", over the open sea of MacEntorno (cloud-sea, turn 0: scene = export coordinates).
+// The cloud is literal: three islands float in the sky over the beach, one per provider, stacked like stairs toward
+// the camera (AWS high at the back, Azure in the middle, Google Cloud low in front), each with the same four stalls:
+// compute (a furnace), object storage (a bucket), managed databases (a bookshelf) and private networks (a fence ring).
+// Steve's single server is a house on the beach. A small islet holds the four service levels, a world map shows the
+// regions, three islets are the zones, and an iron golem guards the provider's side of shared responsibility.
+import { THREE, V, prog, easeInOut, pose } from '/vendor/lib/stage.js';
+import { loadTheme, makeWorld, makeTerrain, makeClouds, makeSign, makeBlock, faceMatsFor, drawText, tex } from '/vendor/tema/mc.js';
+import { setTime, loadMobs, makeLife } from '/vendor/tema/vida.js';
+import { loadPeople, makePlayer, makeVillager, makeIllager, moveAlong, entityPart, skinMat } from '/vendor/tema/gente.js';
+import { bubble, placeUI, smoothCamera, arc, makeItem, makeLectern, put } from '/vendor/tema/aldea.js';
+import { makeFencePost, shakeNo, swingArm } from '/vendor/tema/objetos.js';
+
+// ---------- timing ----------
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const TOTAL = subs[subs.length - 1].end_s;
+const ev = (line, f = 0) => subs[line].start_s + f * subs[line].duration_s;
+const end = (line) => subs[line].end_s;
+const during = (t, a, z) => t >= a && t < z;
+
+// ---------- world ----------
+const PLACE = '/vendor/tema/mundos/cloud-sea.json';
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'leaves', 'log_side', 'log_top', 'glass', 'stone',
+  'stone_bricks', 'smooth_stone', 'oak_planks', 'cobble', 'quartz_block_side', 'quartz_block_top', 'furnace_front',
+  'furnace_front_on', 'furnace_side', 'furnace_top', 'bookshelf', 'bucket', 'dispenser_front', 'emerald', 'paper',
+  'written_book', 'lectern_front', 'lectern_top', 'padlock', 'barrier', 'name_tag', 'trade_glint', 'clock']);
+await loadPeople(imgs, ['steve', 'villager', 'type_plains', 'prof_cleric', 'prof_librarian', 'prof_mason',
+  'prof_cartographer', 'prof_nitwit', 'vindicator']);
+await loadMobs(imgs, ['squid', 'chicken', 'iron_golem']);
+const world = makeWorld({ fov: 40, offset: 0, fog: [110, 260], shaders: true });
+const { scene, camera } = world;
+const STEVEH = [-9, -4, -6, -1];
+const inBox = ([x0, x1, z0, z1], x, z) => x >= x0 && x <= x1 && z >= z0 && z <= z1;
+const data = await (await fetch(PLACE)).json();
+data.blocks = data.blocks.filter(([x, y, z]) => !(inBox(STEVEH, x, z) && y >= 1));
+const terrain = await makeTerrain(PLACE, { data, clear: [-20, 20, -12, 12] });
+scene.add(terrain);
+const clouds = makeClouds(imgs, { y: 34 });
+scene.add(clouds);
+const light = await setTime(world, 'day', { terrain, clouds, imgs });
+world.sun.target.position.set(0, 14, 14);
+const GY = Math.max(1, terrain.groundAt(-6, -3) + 1);   // beach floor at Steve's house
+
+// ---------- helpers ----------
+function glow(g, k) {
+  g.traverse((o) => {
+    if (!o.material) return;
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      if (!m.color) continue;
+      if (!m.userData.base0) m.userData.base0 = m.color.clone();
+      m.color.copy(m.userData.base0).multiplyScalar(1 + k);
+    }
+  });
+}
+const pulse = (t, a, z, period = 1.2) => (during(t, a, z) ? 0.6 * (0.5 - 0.5 * Math.cos((t - a) * 2 * Math.PI / period)) : 0);
+const pop = (t, a, d = 0.2) => Math.max(1e-3, easeInOut(Math.min(1, Math.max(0, (t - a) / d))));
+const furnace = () => makeBlock(imgs, 'furnace_side', { top: 'furnace_top', front: 'furnace_front' });
+const onMap = tex(imgs, 'furnace_front_on'), offMap = tex(imgs, 'furnace_front');
+
+// ---------- floating islands ----------
+// A grass island x0..x1, z0..z1 with its top at y; the underside tapers down like the game's floating islands
+const grassMats = faceMatsFor(tex(imgs, 'grass_side'), tex(imgs, 'grass_top'), tex(imgs, 'dirt'));
+const cubeGeo = new THREE.BoxGeometry(1, 1, 1);
+function makeIsland(x0, x1, z0, z1, y, { depth = 4 } = {}) {
+  const g = new THREE.Group();
+  const grass = (x, yy, z) => { const m = new THREE.Mesh(cubeGeo, grassMats); m.position.set(x, yy + 0.5, z); g.add(m); };
+  for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) {
+    grass(x, y - 1, z);
+    const edge = Math.min(x - x0, x1 - x, z - z0, z1 - z);
+    for (let d = 1; d <= Math.min(depth, edge + 1); d++) put(imgs, g, d < 2 ? 'dirt' : 'stone', x, y - 1 - d, z);
+  }
+  scene.add(g);
+  return g;
+}
+const PROV = [
+  { name: ['AWS'], cx: 0, y: 27, z0: 1, z1: 9, prof: 'cleric', names: ['EC2', 'S3'] },
+  { name: ['AZURE'], cx: 0, y: 18, z0: 14, z1: 22, prof: 'librarian', names: ['Azure VMs', 'Blob Storage'] },
+  { name: ['GOOGLE', 'CLOUD'], cx: 0, y: 9, z0: 27, z1: 35, prof: 'cartographer', names: ['Compute Engine', 'Cloud Storage'] },
+];
+// stall columns on each island: compute, storage, database, network
+const COLS = [-5, -1.7, 1.7, 5];
+for (const P of PROV) {
+  P.g = makeIsland(P.cx - 7, P.cx + 7, P.z0, P.z1, P.y);
+  const back = P.z0 + 2;
+  P.compute = furnace(); P.compute.g.position.set(P.cx + COLS[0], P.y + 0.5, back); scene.add(P.compute.g);
+  P.storage = new THREE.Group();
+  for (const dx of [-0.35, 0.35]) { const b = makeItem(imgs, 'bucket', 0.7); b.visible = true; b.position.set(dx, 0.4, 0); P.storage.add(b); }
+  P.storage.position.set(P.cx + COLS[1], P.y, back);
+  scene.add(P.storage);
+  P.db = makeBlock(imgs, 'bookshelf', { top: 'oak_planks' }); P.db.g.position.set(P.cx + COLS[2], P.y + 0.5, back); scene.add(P.db.g);
+  P.dbKeeper = makeVillager(imgs, { profession: 'librarian', type: 'plains' });
+  P.dbKeeper.g.position.set(P.cx + COLS[2], P.y, back + 1.1);
+  scene.add(P.dbKeeper.g);
+  P.net = new THREE.Group();
+  for (const [dx, dz] of [[-0.8, -0.8], [0, -0.8], [0.8, -0.8], [-0.8, 0], [0.8, 0], [-0.8, 0.8], [0.8, 0.8]]) {
+    const p = makeFencePost(imgs, 'oak_planks'); p.position.set(dx, 0, dz); p.scale.setScalar(0.8); P.net.add(p);
+  }
+  P.net.position.set(P.cx + COLS[3], P.y, back);
+  scene.add(P.net);
+  P.trader = makeVillager(imgs, { profession: P.prof, type: 'plains' });
+  P.trader.g.position.set(P.cx - 6, P.y, P.z1 - 1.2);
+  scene.add(P.trader.g);
+  const sign = makeSign(imgs, P.name, { w: 2.6, h: P.name.length > 1 ? 1.1 : 0.7 });
+  sign.position.set(P.cx + 5.2, P.y + 1.2, P.z1 + 0.2);
+  scene.add(sign);
+}
+const [AWS, AZ, GC] = PROV;
+
+// Steve's rented machines on the Google Cloud island's front row (lines 1, 12 to 14)
+const RENT = Array.from({ length: 10 }, (_, i) => { const f = furnace(); f.g.position.set(GC.cx - 4.5 + i, GC.y + 0.5, GC.z0 + 5); scene.add(f.g); return f; });
+const forgot = furnace();
+forgot.g.position.set(GC.cx + 6.5, GC.y + 0.5, GC.z1 - 0.5);
+scene.add(forgot.g);
+
+// ---------- Steve's server on the beach ----------
+const house = new THREE.Group();
+scene.add(house);
+for (let x = STEVEH[0]; x <= STEVEH[1]; x++) for (let z = STEVEH[2]; z <= STEVEH[3]; z++) put(imgs, house, 'stone', x, GY - 1, z);
+for (let y = GY; y <= GY + 2; y++) for (let x = -8; x <= -5; x++) for (let z = -5; z <= -2; z++) {
+  const edge = x === -8 || x === -5 || z === -5 || z === -2;
+  if (!edge || (z === -2 && x === -6 && y < GY + 2)) continue;
+  put(imgs, house, z === -2 && y < GY + 2 ? 'glass' : 'cobble', x, y, z);
+}
+for (let x = -8; x <= -5; x++) for (let z = -5; z <= -2; z++) put(imgs, house, 'stone_bricks', x, GY + 3, z);
+const homeF = furnace(); homeF.g.position.set(-6.5, GY + 0.5, -3.5); scene.add(homeF.g);
+const steve = makePlayer(imgs, { skin: 'steve' });
+scene.add(steve.g);
+const crowd = Array.from({ length: 6 }, (_, i) => { const c = makeVillager(imgs, { profession: 'nitwit', type: 'plains' }); c.g.position.set(-9 + (i % 3) * 1.4, GY, 0.8 + Math.floor(i / 3) * 1.3); c.g.rotation.y = Math.PI; scene.add(c.g); return c; });
+const coins = Array.from({ length: 6 }, () => { const e = makeItem(imgs, 'emerald', 0.35); scene.add(e); return e; });
+
+// ---------- the four levels on a small islet (lines 7 to 9) ----------
+const LV = { y: 5, z: 44 };
+makeIsland(-9, 9, LV.z - 2, LV.z + 2, LV.y, { depth: 3 });
+const lvX = [-6.5, -2.2, 2.2, 6.5];
+// IaaS: an empty stone plot with a furnace; Steve's blocks (his system) appear on it
+const iaas = new THREE.Group(); scene.add(iaas);
+for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) put(imgs, iaas, 'smooth_stone', lvX[0] + a, LV.y - 1, LV.z + b);
+const iaasF = furnace(); iaasF.g.position.set(lvX[0], LV.y + 0.5, LV.z - 1); scene.add(iaasF.g);
+const iaasBlocks = [[-1, 0, 0], [1, 0, 0], [-1, 1, 0], [1, 1, 0], [0, 1, -1]].map(([a, y, b]) => put(imgs, scene, 'oak_planks', lvX[0] + a, LV.y + y, LV.z + b));
+// PaaS: a lectern; Steve's book flies onto it and a villager starts selling
+const paas = makeLectern(imgs); paas.g.position.set(lvX[1], LV.y, LV.z); scene.add(paas.g);
+paas.setBook(['shop code', { s: 'app.py', color: 0x1E7A1E }]);
+const paasV = makeVillager(imgs, { profession: 'cleric', type: 'plains' }); paasV.g.position.set(lvX[1], LV.y, LV.z - 1.2); scene.add(paasV.g);
+const book = makeItem(imgs, 'written_book', 0.5); scene.add(book);
+// SaaS: a finished quartz hut with an EMAIL sign
+const saas = new THREE.Group(); scene.add(saas);
+for (let y = 0; y < 2; y++) for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) if (a !== 0 || b !== 0 || y === 1) put(imgs, saas, 'quartz', lvX[2] + a, LV.y + y, LV.z + b);
+const mailSign = makeSign(imgs, ['EMAIL'], { w: 1.3, h: 0.5, post: false }); mailSign.position.set(lvX[2], LV.y + 1.5, LV.z + 1.53); saas.add(mailSign);
+// Serverless: a dispenser; an emerald pops out each time a request comes
+const disp = makeBlock(imgs, 'furnace_side', { top: 'furnace_top', front: 'dispenser_front' }); disp.g.position.set(lvX[3], LV.y + 0.5, LV.z); scene.add(disp.g);
+const reqs = Array.from({ length: 3 }, () => { const e = makeItem(imgs, 'emerald', 0.35); scene.add(e); return e; });
+
+// ---------- the regions map and the three zones (lines 10 and 11) ----------
+const MAP = V(34, 15, 8);
+const mapCanvas = document.createElement('canvas');
+mapCanvas.width = 480; mapCanvas.height = 320;
+{
+  const c = mapCanvas.getContext('2d');
+  c.fillStyle = '#d9c99c'; c.fillRect(0, 0, 480, 320);
+  c.fillStyle = '#6f9ccf'; c.fillRect(16, 16, 448, 288);
+  c.fillStyle = '#7fae5a';
+  const land = [[40, 50, 120, 90], [70, 140, 60, 110], [210, 40, 90, 70], [230, 110, 70, 110], [300, 60, 130, 90], [380, 200, 60, 50]];
+  for (const [x, y, w, h] of land) for (let a = 0; a < w; a += 16) for (let b = 0; b < h; b += 16) if ((a * 7 + b * 13 + x) % 5) c.fillRect(x + a, y + b, 16, 16);
+  c.strokeStyle = '#4a3418'; c.lineWidth = 8; c.strokeRect(4, 4, 472, 312);
+  drawText(c, 'REGIONS', 240, 36, 3, 0x2a1a08, false);
+}
+const mapTex = new THREE.CanvasTexture(mapCanvas);
+mapTex.magFilter = THREE.NearestFilter; mapTex.colorSpace = THREE.SRGBColorSpace;
+const mapPlane = new THREE.Mesh(new THREE.PlaneGeometry(9, 6), new THREE.MeshBasicMaterial({ map: mapTex }));
+mapPlane.position.copy(MAP);
+scene.add(mapPlane);
+const MARKS = [[-2.7, 1.2], [-2.2, -0.8], [-0.4, 1.6], [0.2, -0.2], [2.1, 1.0], [2.7, -1.5]].map(([dx, dy]) => {
+  const m = makeItem(imgs, 'emerald', 0.6); m.position.set(MAP.x + dx, MAP.y + dy, MAP.z + 0.2); scene.add(m); m.visible = true; return m;
+});
+const NEAR = 4;   // the region close to Steve's users
+const ZONES = [-3.5, 0, 3.5].map((dx) => {
+  const g = makeIsland(MAP.x + dx - 1, MAP.x + dx + 1, MAP.z + 4, MAP.z + 7, 8.5, { depth: 2 });
+  const f = furnace(); f.g.position.set(MAP.x + dx, 9, MAP.z + 5.5); scene.add(f.g);
+  return { g, f };
+});
+const zoneSigns = ['ZONE A', 'ZONE B', 'ZONE C'].map((s, i) => { const sg = makeSign(imgs, [s], { w: 1.6, h: 0.5 }); sg.position.set(MAP.x - 3.5 + 3.5 * i, 9.7, MAP.z + 7.3); sg.scale.setScalar(0.8); scene.add(sg); return sg; });
+
+// ---------- shared responsibility (lines 15 and 16) on the Google Cloud island ----------
+function makeGolem() {
+  const mat = skinMat([imgs.mob_iron_golem]);
+  const S = [128, 128];
+  const g = new THREE.Group();
+  const head = entityPart(mat, [0, -7, -2], [[0, 0, -4, -12, -5.5, 8, 10, 8], [24, 0, -1, -5, -7.5, 2, 4, 2]], [0, 0, 0], S);
+  const body = entityPart(mat, [0, -7, 0], [[0, 40, -9, -2, -6, 18, 12, 11], [0, 70, -4.5, 10, -3, 9, 5, 6, 0.5]], [0, 0, 0], S);
+  const arms = [entityPart(mat, [0, -7, 0], [[60, 21, -13, -2.5, -3, 4, 30, 6]], [0, 0, 0], S),
+                entityPart(mat, [0, -7, 0], [[60, 58, 9, -2.5, -3, 4, 30, 6]], [0, 0, 0], S)];
+  const legs = [entityPart(mat, [-4, 11, 0], [[37, 0, -3.5, -3, -3, 6, 16, 5]], [0, 0, 0], S),
+                entityPart(mat, [5, 11, 0], [[60, 0, -3.5, -3, -3, 6, 16, 5]], [0, 0, 0], S)];
+  g.add(head, body, ...arms, ...legs);
+  scene.add(g);
+  return { g, head, arms };
+}
+const golem = makeGolem();
+golem.g.position.set(GC.cx - 2.5, GC.y, GC.z0 + 0.9);
+golem.g.rotation.y = 0.5;
+const vind = makeIllager(imgs, { kind: 'vindicator' });
+scene.add(vind.g);
+const padlock = makeItem(imgs, 'padlock', 0.6); scene.add(padlock);
+const tag = makeItem(imgs, 'name_tag', 0.5); scene.add(tag);
+const barrier = makeItem(imgs, 'barrier', 0.8); scene.add(barrier);
+
+// Background life
+const loop = (cx, cz, w, h) => [[cx - w, cz - h], [cx + w, cz - h], [cx + w, cz + h], [cx - w, cz + h]];
+const sq = (x, z) => terrain.surfaceAt(x, z).y - 2.2;
+const life = makeLife(imgs, terrain, [
+  { kind: 'squid', path: loop(-14, 30, 3, 2), y: sq(-14, 30), offset: 0.1 },
+  { kind: 'squid', path: loop(16, 46, 3, 2), y: sq(16, 46), offset: 0.6 },
+  { kind: 'chicken', path: loop(14, -12, 1.5, 1.5), offset: 0.3 },
+], TOTAL, light);
+scene.add(life.g);
+
+// ---------- cover ----------
+const cover = makeSign(imgs, ['HOW CLOUD', 'SERVICES', 'WORK'], { w: 3.4, h: 2.2 });
+const COVER_P = V(-6.5, GY + 2.2, 4.5);
+cover.position.copy(COVER_P);
+scene.add(cover);
+const COVER_OUT = ev(0, 0.12), COVER_IN = ev(17, 0.8);
+const coverY = (t) => COVER_P.y - 5 * easeInOut(prog(t, COVER_OUT, COVER_OUT + 0.8)) * (1 - easeInOut(prog(t, COVER_IN, COVER_IN + 0.8)));
+
+// ---------- events ----------
+const T = {
+  full: ev(0, 0.3), rent: [ev(1, 0.05), ev(1, 0.35)],
+  islands: [ev(2, 0.15), ev(2, 0.45), ev(2, 0.75)],
+  iaas: [ev(7, 0.4), ev(7, 0.85)], book: [ev(8, 0.05), ev(8, 0.25)], saas: ev(8, 0.6),
+  reqs: [ev(9, 0.35), ev(9, 0.55), ev(9, 0.75)],
+  near: ev(11, 0.1), copies: [ev(11, 0.45), ev(11, 0.6)],
+  ten: [ev(12, 0.3), ev(12, 0.62)], one: [ev(12, 0.62), ev(12, 1.0)],
+  grow: [ev(13, 0.3), ev(13, 0.8)], forgot: ev(14, 0.3),
+  vind: [ev(16, 0.1), ev(16, 0.4)], lock: ev(16, 0.42),
+};
+const STEVE = [[0, V(-6.5, GY, 1.5), Math.PI], [ev(1, 0.3), V(-6.5, GY, 1.5), Math.PI], [ev(1, 0.3) + 0.01, V(GC.cx - 6, GC.y, GC.z0 + 4.6), Math.PI],
+               [ev(6, 0.99), V(GC.cx - 6, GC.y, GC.z0 + 4.6), Math.PI], [ev(7, 0.0), V(lvX[0] + 1.7, LV.y, LV.z + 1.0), -Math.PI / 2],
+               [ev(10, 0.0), V(lvX[0] + 1.7, LV.y, LV.z + 1.0), -Math.PI / 2], [ev(10, 0.01), V(GC.cx + 2, GC.y, GC.z1 - 0.6), Math.PI]];
+const VIND = [[0, V(GC.cx + 6, GC.y, GC.z1 - 0.5), -Math.PI / 2], [T.vind[0], V(GC.cx + 6, GC.y, GC.z1 - 0.5), -Math.PI / 2], [T.vind[1], V(GC.cx + 3.4, GC.y, GC.z1 - 0.6), -Math.PI / 2]];
+// how many of Steve's rented machines run at time t (lines 1, 12 to 14)
+const rented = (t) => {
+  if (t < T.rent[1]) return 0;
+  if (t < T.ten[0]) return 1;
+  if (t < T.ten[1]) return 1 + Math.floor(9 * prog(t, T.ten[0], T.ten[0] + 0.6));
+  if (t < T.grow[0]) return 1;
+  if (t < ev(17, 0)) return 1 + Math.floor(5 * prog(t, ...T.grow));
+  return 0;
+};
+
+// ---------- per frame ----------
+function scenePieces(t) {
+  // the beach: Steve's one server, full; the crowd waits
+  homeF.mats[4].map = onMap;
+  crowd.forEach((c, i) => { c.g.visible = t < ev(2, 0); shakeNo(c, t + i, during(t, T.full, ev(1, 0.3))); if (!during(t, T.full, ev(1, 0.3))) c.head.rotation.x = 0; });
+  moveAlong(steve, STEVE, t);
+  steve.arms[1].rotation.set(0, 0, 0);
+  for (let s = T.iaas[0]; s < T.iaas[1]; s += 0.45) swingArm(steve, prog(t, s - 0.15, s + 0.15));
+  // emeralds flow from Steve to the island while he rents (line 1 on)
+  coins.forEach((e, i) => {
+    const ph = ((t * 0.9) + i / coins.length) % 1;
+    e.visible = during(t, T.rent[0], ev(2, 0.3));
+    if (e.visible) e.position.copy(arc(V(-6.5, GY + 1.6, 1.5), V(GC.cx - 4.5, GC.y + 1.2, GC.z0 + 5), ph, 6));
+  });
+
+  // islands appear one by one in line 2 (they are there, the camera finds them), stalls glow by line
+  PROV.forEach((P, i) => {
+    const show = t >= T.rent[0] - 0.5 || i === 2;
+    P.g.visible = true;
+    glow(P.g, pulse(t, T.islands[i], T.islands[i] + 1.4, 1.4) * 0.5);
+    glow(P.compute.g, pulse(t, ev(4, 0.0), end(4), 1.0));
+    P.compute.mats[4].map = during(t, ev(4, 0), end(4)) ? onMap : offMap;
+    glow(P.storage, pulse(t, ev(5, 0.0), end(5), 1.0));
+    glow(P.db.g, pulse(t, ev(6, 0.0), ev(6, 0.55), 1.0));
+    glow(P.net, pulse(t, ev(6, 0.55), end(6), 1.0));
+    P.dbKeeper.head.rotation.x = 0.2 * Math.max(0, Math.sin((t + i) * 3));
+    P.trader.head.rotation.y = 0.4 * Math.sin(t * 0.8 + i);
+  });
+  // Steve's rented machines on the Google Cloud island
+  const n = rented(t);
+  RENT.forEach((f, i) => { f.g.visible = i < n; f.mats[4].map = onMap; f.g.scale.setScalar(1); });
+  forgot.g.visible = during(t, T.forgot, ev(17, 0));
+  forgot.mats[4].map = onMap;
+  glow(forgot.g, pulse(t, T.forgot, end(14), 0.8));
+
+  // levels (lines 7 to 9)
+  iaasBlocks.forEach((b, i) => { b.visible = t >= T.iaas[0] + i * (T.iaas[1] - T.iaas[0]) / 5; });
+  iaasF.mats[4].map = t >= T.iaas[0] ? onMap : offMap;
+  const bk = prog(t, ...T.book);
+  book.visible = bk > 0 && bk < 1;
+  if (book.visible) book.position.copy(arc(V(lvX[0] + 1.7, LV.y + 1.8, LV.z + 1.0), V(lvX[1], LV.y + 1.3, LV.z), easeInOut(bk), 2));
+  paas.open(prog(t, T.book[1], T.book[1] + 0.3));
+  paasV.g.visible = t >= T.book[1];
+  paasV.head.rotation.x = t >= T.book[1] + 0.3 ? 0.25 * Math.max(0, Math.sin(t * 6)) : 0;
+  saas.visible = t >= T.saas;
+  saas.scale.setScalar(1);
+  reqs.forEach((e, i) => {
+    const k = prog(t, T.reqs[i], T.reqs[i] + 0.6);
+    e.visible = k > 0 && k < 1;
+    if (e.visible) e.position.copy(arc(V(lvX[3], LV.y + 0.8, LV.z + 0.6), V(lvX[3], LV.y + 0.4, LV.z + 2.2), k, 1.2));
+  });
+  glow(disp.g, T.reqs.reduce((a, r) => a + pulse(t, r, r + 0.6, 0.6), 0));
+
+  // regions and zones (lines 10 and 11)
+  MARKS.forEach((m, i) => { m.scale.setScalar(0.6 * (1 + (i === NEAR ? pulse(t, T.near, end(11), 0.8) : 0))); m.glow(i === NEAR && t >= T.near ? 1 : 0, t); });
+  ZONES.forEach((Z, i) => { Z.f.g.visible = i < 2 ? t >= T.copies[i] : false; Z.f.mats[4].map = onMap; Z.f.g.scale.setScalar(pop(t, T.copies[Math.min(i, 1)])); });
+
+  // shared responsibility (lines 15 and 16)
+  golem.head.rotation.y = 0.3 * Math.sin(t * 0.8);
+  golem.arms.forEach((a, i) => { a.rotation.x = during(t, ev(15, 0.3), end(15)) ? -0.5 * Math.sin((t - ev(15, 0.3)) * 4 + i * Math.PI) : 0; });
+  vind.g.visible = during(t, T.vind[0] - 0.1, end(16));
+  moveAlong(vind, VIND, t);
+  shakeNo(vind, t, t >= T.lock + 0.2);
+  padlock.visible = during(t, T.lock, end(16));
+  padlock.position.set(GC.cx + 2, GC.y + 2.6, GC.z1 - 0.6);
+  barrier.visible = during(t, T.lock + 0.2, end(16));
+  barrier.position.set(GC.cx + 2.8, GC.y + 1.2, GC.z1 - 0.6);
+  tag.visible = during(t, ev(16, 0.0), end(16));
+  tag.position.set(GC.cx + 2, GC.y + 3.4, GC.z1 - 0.6);
+}
+
+// ---------- bubbles ----------
+const B = {
+  full: bubble(['one server: full'], { color: 0xFF5555 }),
+  buy: bubble(['buy 10 more?'], { color: 0xFF5555 }),
+  rent: bubble(['rent them: the cloud'], { color: 0x55FF55 }),
+  minute: bubble(['paid by the minute'], { color: 0xFFFF55 }),
+  aws: bubble(['Amazon Web Services', 'first and biggest'], { color: 0xFFFF55 }),
+  azure: bubble(['Microsoft Azure'], { color: 0xFFFF55 }),
+  gcp: bubble(['Google Cloud'], { color: 0xFFFF55 }),
+  same: bubble(['same blocks, different names'], { color: 0x55FF55 }),
+  c0: bubble(['EC2'], { color: 0xFFFFFF }), c1: bubble(['Azure Virtual Machines'], { color: 0xFFFFFF }), c2: bubble(['Compute Engine'], { color: 0xFFFFFF }),
+  s0: bubble(['S3'], { color: 0xFFFFFF }), s1: bubble(['Azure Blob Storage'], { color: 0xFFFFFF }), s2: bubble(['Cloud Storage'], { color: 0xFFFFFF }),
+  compute: bubble(['compute: rented VMs'], { color: 0xFFFF55 }),
+  storage: bubble(['storage: buckets'], { color: 0xFFFF55 }),
+  db: bubble(['managed databases'], { color: 0xFFFF55 }),
+  net: bubble(['private networks'], { color: 0xFFFF55 }),
+  iaas: bubble(['IaaS', 'you run the system'], { color: 0xFFFF55 }),
+  paas: bubble(['PaaS', 'you give the code'], { color: 0xFFFF55 }),
+  saas: bubble(['SaaS', 'finished software'], { color: 0xFFFF55 }),
+  fn: bubble(['serverless', 'pay per request'], { color: 0x55FF55 }),
+  regions: bubble(['regions around the world'], { color: 0xFFFF55 }),
+  zones: bubble(['each region: zones', 'separate data centers'], { color: 0xFFFF55 }),
+  near: bubble(['close to your users'], { color: 0x55FF55 }),
+  copies: bubble(['copies in 2 zones'], { color: 0x55FF55 }),
+  pay: bubble(['10 machines x 1 hour'], { color: 0xFFFF55 }),
+  pay2: bubble(['= 1 machine x 10 hours'], { color: 0xFFFF55 }),
+  grow: bubble(['start small, grow in minutes'], { color: 0x55FF55 }),
+  forgot: bubble(['forgotten: still billing'], { color: 0xFF5555 }),
+  provider: bubble(['provider: buildings', 'and hardware'], { color: 0xFFFF55 }),
+  you: bubble(['you: settings, data', 'and who gets in'], { color: 0xFFFF55 }),
+  r1: bubble(['rented building blocks'], { color: 0xFFFF55 }),
+  r2: bubble(['three big providers'], { color: 0xFFFF55 }),
+  r3: bubble(['regions everywhere'], { color: 0xFFFF55 }),
+  r4: bubble(['pay for what you use'], { color: 0xFFFF55 }),
+};
+for (const b of Object.values(B)) scene.add(b);
+
+function bubbles(t) {
+  const st = (P, c, h = 2.6) => V(P.cx + COLS[c], P.y + h, P.z0 + 2);
+  B.full.show(t, T.full, ev(0, 0.62), V(-6.5, GY + 5.2, -3.5));
+  B.buy.show(t, ev(0, 0.62), end(0), V(-6.5, GY + 5.2, -3.5));
+  B.rent.show(t, ev(1, 0.0), ev(1, 0.55), V(GC.cx - 3, GC.y + 3.4, GC.z0 + 5));
+  B.minute.show(t, ev(1, 0.55), end(1), V(GC.cx - 3, GC.y + 3.4, GC.z0 + 5));
+  B.aws.show(t, T.islands[0], end(2), V(AWS.cx, AWS.y + 3.4, AWS.z1));
+  B.azure.show(t, T.islands[1], end(2), V(AZ.cx, AZ.y + 3.4, AZ.z1));
+  B.gcp.show(t, T.islands[2], end(2), V(GC.cx, GC.y + 3.4, GC.z1));
+  B.same.show(t, ev(3, 0.1), end(3), V(0, 34, 6));
+  B.compute.show(t, ev(4, 0.02), ev(4, 0.3), V(0, 36, 5));
+  B.c0.show(t, ev(4, 0.3), end(4), st(AWS, 0)); B.c1.show(t, ev(4, 0.5), end(4), st(AZ, 0)); B.c2.show(t, ev(4, 0.7), end(4), st(GC, 0));
+  B.storage.show(t, ev(5, 0.02), ev(5, 0.3), V(0, 36, 5));
+  B.s0.show(t, ev(5, 0.3), end(5), st(AWS, 1)); B.s1.show(t, ev(5, 0.5), end(5), st(AZ, 1)); B.s2.show(t, ev(5, 0.7), end(5), st(GC, 1));
+  B.db.show(t, ev(6, 0.05), ev(6, 0.55), st(AZ, 2, 3.2));
+  B.net.show(t, ev(6, 0.55), end(6), st(AZ, 3, 3.2));
+  B.iaas.show(t, ev(7, 0.3), end(7), V(lvX[0], LV.y + 3.6, LV.z));
+  B.paas.show(t, T.book[1], ev(8, 0.55), V(lvX[1], LV.y + 3.6, LV.z));
+  B.saas.show(t, T.saas + 0.1, end(8), V(lvX[2], LV.y + 3.6, LV.z));
+  B.fn.show(t, ev(9, 0.2), end(9), V(lvX[3], LV.y + 3.0, LV.z));
+  B.regions.show(t, ev(10, 0.05), ev(10, 0.5), MAP.clone().add(V(0, 4, 0)));
+  B.zones.show(t, ev(10, 0.5), end(10), MAP.clone().add(V(0, -3.6, 6)));
+  B.near.show(t, T.near + 0.1, ev(11, 0.45), MAP.clone().add(V(2.1, 2.6, 0.3)));
+  B.copies.show(t, T.copies[1] + 0.1, end(11), MAP.clone().add(V(-1.8, -4.0, 6)));
+  B.pay.show(t, T.ten[0] + 0.1, end(12), V(GC.cx, GC.y + 4.2, GC.z0 + 5));
+  B.pay2.show(t, T.one[0], end(12), V(GC.cx, GC.y + 3.0, GC.z0 + 5));
+  B.grow.show(t, T.grow[0] + 0.1, end(13), V(GC.cx, GC.y + 3.6, GC.z0 + 5));
+  B.forgot.show(t, T.forgot + 0.2, end(14), V(GC.cx + 6.5, GC.y + 2.8, GC.z1 - 0.5));
+  B.provider.show(t, ev(15, 0.2), end(15), V(GC.cx - 2.5, GC.y + 4.6, GC.z0 + 0.9));
+  B.you.show(t, ev(16, 0.05), end(16), V(GC.cx + 2.5, GC.y + 4.6, GC.z1 - 0.6));
+  [B.r1, B.r2, B.r3, B.r4].forEach((b, i) => b.show(t, ev(17, 0.02 + i * 0.18), COVER_IN, V(0, 35 - 6 * i, 8)));
+}
+
+// ---------- camera ----------
+const look = (p, q) => pose(p, q);
+const COVER = look(V(-6.5, GY + 3.2, 13.5), V(-6.5, GY + 2.0, 4.5));
+const HOME = look(V(-2, GY + 5, 9), V(-6.5, GY + 1.6, -2));          // Steve's server and the crowd
+const SKY = look(V(0, 46, 76), V(0, 17, 15));                          // the three islands, stacked
+const GCV = look(V(0, GC.y + 11, GC.z1 + 11), V(0, GC.y + 0.5, GC.z0 + 4));  // the Google Cloud island close
+const LVCAM = (i) => look(V(lvX[i], LV.y + 4.5, LV.z + 9), V(lvX[i], LV.y + 1.2, LV.z));   // one level at a time
+const MAPV = look(V(MAP.x, 15, MAP.z + 28), V(MAP.x, 11.5, MAP.z + 3));          // the map and the zones
+const AZV = look(V(3.4, AZ.y + 8, AZ.z1 + 8), V(3.4, AZ.y + 0.8, AZ.z0 + 2));  // the Azure island close
+const RISK = look(V(GC.cx - 2.5, GC.y + 5, GC.z0 + 9), V(GC.cx - 2.5, GC.y + 1.6, GC.z0 + 1));
+const FORGOTV = look(V(5.5, GC.y + 5, GC.z1 + 8), V(6, GC.y + 1.2, GC.z1 - 0.5));
+const YOUV = look(V(GC.cx + 2.5, GC.y + 5.5, GC.z1 + 9), V(GC.cx + 3, GC.y + 1.6, GC.z1 - 0.8));
+const CAM = [
+  [0, COVER],
+  [ev(0, 0.1), HOME, 1.2],
+  [ev(1, 0.25), GCV, 1.4],
+  [ev(2, 0.0), SKY, 1.5],
+  [ev(6, 0.0), AZV, 1.2],
+  [ev(7, 0.0), LVCAM(0), 1.3],
+  [ev(8, 0.0), LVCAM(1), 1.0],
+  [ev(8, 0.55), LVCAM(2), 0.9],
+  [ev(9, 0.0), LVCAM(3), 1.0],
+  [ev(10, 0.0), MAPV, 1.4],
+  [ev(12, 0.0), GCV, 1.4],
+  [ev(14, 0.15), FORGOTV, 1.0],
+  [ev(15, 0.0), RISK, 1.1],
+  [ev(16, 0.0), YOUV, 1.0],
+  [ev(17, 0.0), SKY, 1.3],
+  [COVER_IN - 0.5, COVER, 1.8],
+];
+const camAt = smoothCamera(CAM, TOTAL, { sigma: 0.5 });
+
+// ---------- sounds ----------
+window.sfxCues = [
+  [T.full, 'villager_no1', 0.22], [T.full + 0.4, 'villager_no2', 0.18],
+  ...[0, 1, 2, 3].map((i) => [T.rent[0] + 0.4 * i, 'orb', 0.14]), [T.rent[1], 'stone_dig1', 0.25],
+  ...T.islands.map((a) => [a, 'levelup', 0.16]),
+  [ev(4, 0.3), 'fire', 0.18], [ev(5, 0.3), 'splash', 0.18], [ev(6, 0.05), 'book_flip1', 0.2], [ev(6, 0.55), 'wood_dig1', 0.2],
+  ...[0, 1, 2, 3, 4].map((i) => [T.iaas[0] + i * (T.iaas[1] - T.iaas[0]) / 5, `wood_dig${(i % 4) + 1}`, 0.22]),
+  [T.book[1], 'book_put', 0.25], [T.book[1] + 0.4, 'villager_yes1', 0.16], [T.saas, 'pop', 0.22],
+  ...T.reqs.map((a) => [a, 'click', 0.25]), ...T.reqs.map((a) => [a + 0.1, 'orb', 0.16]),
+  [T.near, 'orb', 0.2], ...T.copies.map((a) => [a, 'stone_dig2', 0.22]),
+  ...Array.from({ length: 9 }, (_, i) => [T.ten[0] + i * 0.067, `stone_dig${(i % 4) + 1}`, 0.14]),
+  ...Array.from({ length: 5 }, (_, i) => [T.grow[0] + i * (T.grow[1] - T.grow[0]) / 5, `stone_dig${(i % 4) + 1}`, 0.16]),
+  [T.forgot, 'fire', 0.2], [T.forgot + 0.6, 'orb', 0.14], [T.forgot + 1.2, 'orb', 0.14],
+  [ev(15, 0.3), 'golem_hit', 0.18], [T.lock, 'chest_locked', 0.28], [T.lock + 0.25, 'villager_no3', 0.2],
+  [COVER_IN, 'wood_dig2', 0.3],
+].map(([s, n, g]) => [Math.round(s * 1000) / 1000, n, g]);
+
+const LOOP_T = ev(18, 0.05);
+window.renderAt = (t) => {
+  const s = t >= LOOP_T ? 0 : t;
+  scenePieces(s);
+  cover.position.y = coverY(t);
+  const cam = camAt(t);
+  world.look(cam.pos, cam.look);
+  camera.updateMatrixWorld();
+  bubbles(s);
+  placeUI(camera);
+  life.update(t);
+  clouds.position.x = 4 * Math.sin(2 * Math.PI * t / TOTAL);
+  world.draw(t, TOTAL, 0, 0);
+};
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>
