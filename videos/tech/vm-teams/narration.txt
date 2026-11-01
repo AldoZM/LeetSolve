@@ -1,0 +1,20 @@
+subtitles:
+  - Steve's team runs its app on virtual machines. But nobody builds them by hand. Here's how teams really do it.
+  - It starts with an image. A golden image is a disk saved with the system, the updates and the app already installed.
+  - Every new machine is a copy of that image. Ten servers, ten clones, all exactly the same.
+  - The machines themselves are described in code. A file says how many, how big, and on which network.
+  - One command, and the cloud builds them. Change the file, run it again, and the cloud matches it. That's infrastructure as code.
+  - Users don't hit one machine. A load balancer sits in front and spreads them across all of them.
+  - When the crowd grows, autoscaling adds more copies of the image. When it shrinks, it removes them, and you stop paying.
+  - So every machine must be disposable. Any one can disappear, and nothing important is lost.
+  - That's why the data lives on separate disks. A disk can outlive its machine and be attached to a new one.
+  - And every night, snapshots of those disks are copied away as backups.
+  - The machines sit on a private network. Only the load balancer faces the internet. A firewall blocks the rest.
+  - To get inside, an engineer uses an S S H key, often through one guarded machine, called a bastion.
+  - Some clouds can even move a running machine to another host while it works. That's live migration.
+  - And for safety, copies run in different zones, separate data centers. If one goes dark, the others keep serving.
+  - Look inside many of these machines, and you'll find something else. Containers.
+  - In the cloud, containers usually run inside virtual machines. The machine gives the hard walls, the containers pack the apps.
+  - So teams don't pick one. They stack them.
+  - Golden images, machines as code, autoscaling behind a load balancer, and data on separate disks.
+  - That's how teams really use virtual machines.

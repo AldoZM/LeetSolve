@@ -2,6 +2,15 @@
 
 Registro de lo que se hizo en cada sesión, de la más reciente a la más antigua. El cómo trabajar está en `GUIA.md`.
 
+## 2026-11-01 (noche, PC de Windows): "How Teams Really Use Virtual Machines" y "VM vs Docker"
+
+- Pedidos de Aldo. Diseños en `videos/tech/vm-teams/DISENO.md` y `videos/tech/vm-vs-docker/DISENO.md`.
+- **VM en equipo** (`three/vmteams.html`, `vm-basin`, música `danny`): golden image = mapa copiado en la mesa de cartografía; `infra` en un atril (`count: 3` → `4`); balanceador = aldeano con campana en la puerta; autoescalado agrega y quita una casa; cada casa con su barril (disco) atado con rienda; respaldos a un cofre lejano; cerca, caseta `BASTION` y la llave de Steve; el Illusioner lleva una casa a la zona B; la zona A se oscurece; contenedores dentro de una casa. Voz 124.1 s.
+- **VM vs Docker** (`three/vmvsdocker.html`, música `minecraft`): lugar `mac-01` renombrado `vs-shore`. Cancha partida por lana roja: casas adelante y cuartos de vidrio atrás (en vertical se lee mejor que izquierda y derecha). Pila de cofres contra caja de shulker, carrera, 4 casas contra 20 cuartos, saqueador en una casa contra grietas en el piso compartido, cuarto de cuarzo detenido por la barrera, libros de cuándo usar cada una y cuartos dentro de una casa. La narración dice "many more containers" (no "dozens": se ven 20). Voz 117.8 s.
+- **`extraer.py`:** mesa de cartografía, llave (`trial_key`) y campana.
+- **Drive:** rclone instalado en esta PC (`winget install Rclone.Rclone`) con el remote `gdrive`; los videos terminados se suben a `DevSteve/export` (regla de Aldo desde hoy).
+- Cuadros fijos y render revisados (59 cuadros por video). Corregido en VM en equipo: Steve tapando la toma inicial, la toma del gentío, el autoescalado fuera de cuadro, globos del resumen encimados y "firewall" junto a "only the load balancer". En VM vs Docker: tomas dentro de las casas, las imágenes fuera de cuadro, los libros en una sola toma (ahora una por línea) y globos de la carrera encimados.
+
 ## 2026-11-01 (noche, PC de Windows): short "How a Virtual Machine Works"
 
 - Idea de Aldo; diseño en `videos/tech/vm/DISENO.md`, aprobado por Aldo el mismo día. Página `three/vm.html`, música `living_mice`.
@@ -570,7 +579,7 @@ Registro de lo que se hizo en cada sesión, de la más reciente a la más antigu
 
 ## Pendientes
 
-- **Shorts de tecnología:** ninguno pendiente (Docker 1 y 2 y máquina virtual terminados el 2026-11-01). Streaming sigue como borrador sin aprobar.
+- **Shorts de tecnología:** siguientes, los de la nube (Parte 1 "How Cloud Services Work" y Parte 2 "How Teams Really Use Cloud Services", diseño en `videos/tech/cloud/DISENO.md`). Streaming sigue como borrador sin aprobar.
 
 - **Música en los videos ya hechos:** con la regla nueva, a los videos sin música (#1 a #9, #16 a #19, #60, #102, #124, #2089, #3644, #3942, #2409, #3886 y los de la rama `laptop-videos`) hay que agregarles `"musica"` y correr `build.py mux`. Preguntar a Aldo qué canción lleva cada uno.
 

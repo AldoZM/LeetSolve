@@ -62,6 +62,10 @@ BLOCKS = {  # output name -> texture inside the jar
     'big_smoke_0': 'particle/big_smoke_0', 'big_smoke_4': 'particle/big_smoke_4', 'trade_glint': 'particle/glint',
     # Docker, part 2 (videos/tech/docker-teams): the volume's barrel
     **{n: f'block/{n}' for n in ('barrel_side', 'barrel_top', 'barrel_top_open', 'barrel_bottom')},
+    # Virtual machines, part 2 (videos/tech/vm-teams): the cartography table that copies the golden image, the SSH key,
+    # the load balancer's bell
+    **{n: f'block/{n}' for n in ('cartography_table_side1', 'cartography_table_side3', 'cartography_table_top')},
+    'trial_key': 'item/trial_key', 'bell': 'item/bell',
 }
 GUI = {
     'generic_54': 'gui/container/generic_54', 'hotbar': 'gui/sprites/hud/hotbar',

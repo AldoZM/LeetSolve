@@ -1,0 +1,20 @@
+subtitles:
+  - Virtual machines and Docker containers both run apps in their own space. So which one should you use?
+  - They put the walls at different levels. Here's the difference, side by side.
+  - A virtual machine imitates the hardware. On top, it runs a whole operating system, kernel and all, and then your app.
+  - A container doesn't imitate hardware. It's a process on the host, fenced off by the host's own kernel.
+  - That changes the size. A VM image is often gigabytes. A container image can be a few megabytes.
+  - It changes the speed. A VM boots a whole system, often in a minute. A container starts in about a second.
+  - And it changes how many fit. Where a handful of VMs run, you can pack many more containers.
+  - But the walls aren't equally thick. Each VM has its own kernel, so an attacker has to break out of a whole machine.
+  - Containers share one kernel. If an attacker finds a bug in it, every container on that host is at risk.
+  - That's why clouds keep different customers in separate virtual machines, not just separate containers.
+  - Need a different system? A VM can run Windows on a Linux server. A container can't bring its own kernel.
+  - Old software that expects a full machine? That's a job for a VM too.
+  - But for your own apps, containers are hard to beat. Small images, fast builds, and deploys in seconds.
+  - They scale fast too. More copies are running before one VM finishes booting.
+  - So, use a VM when you need another operating system, the strongest walls, or a whole machine to control.
+  - Use containers when you ship your own services, many of them, and often.
+  - And most of the time, it's both. Containers run inside VMs. Even Docker Desktop runs a small Linux VM.
+  - Virtual machines imitate the hardware. Containers share the kernel. Teams stack them.
+  - That's VM versus Docker.

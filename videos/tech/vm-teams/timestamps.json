@@ -1,0 +1,138 @@
+{
+  "total_duration_s": 124.096,
+  "subtitles": [
+    {
+      "index": 0,
+      "text": "Steve's team runs its app on virtual machines. But nobody builds them by hand. Here's how teams really do it.",
+      "start_s": 0.0,
+      "end_s": 6.9,
+      "duration_s": 6.9
+    },
+    {
+      "index": 1,
+      "text": "It starts with an image. A golden image is a disk saved with the system, the updates and the app already installed.",
+      "start_s": 6.9,
+      "end_s": 14.076,
+      "duration_s": 7.176
+    },
+    {
+      "index": 2,
+      "text": "Every new machine is a copy of that image. Ten servers, ten clones, all exactly the same.",
+      "start_s": 14.076,
+      "end_s": 19.992,
+      "duration_s": 5.915
+    },
+    {
+      "index": 3,
+      "text": "The machines themselves are described in code. A file says how many, how big, and on which network.",
+      "start_s": 19.992,
+      "end_s": 26.804,
+      "duration_s": 6.812
+    },
+    {
+      "index": 4,
+      "text": "One command, and the cloud builds them. Change the file, run it again, and the cloud matches it. That's infrastructure as code.",
+      "start_s": 26.804,
+      "end_s": 35.31,
+      "duration_s": 8.507
+    },
+    {
+      "index": 5,
+      "text": "Users don't hit one machine. A load balancer sits in front and spreads them across all of them.",
+      "start_s": 35.31,
+      "end_s": 41.688,
+      "duration_s": 6.377
+    },
+    {
+      "index": 6,
+      "text": "When the crowd grows, autoscaling adds more copies of the image. When it shrinks, it removes them, and you stop paying.",
+      "start_s": 41.688,
+      "end_s": 49.475,
+      "duration_s": 7.787
+    },
+    {
+      "index": 7,
+      "text": "So every machine must be disposable. Any one can disappear, and nothing important is lost.",
+      "start_s": 49.475,
+      "end_s": 56.472,
+      "duration_s": 6.997
+    },
+    {
+      "index": 8,
+      "text": "That's why the data lives on separate disks. A disk can outlive its machine and be attached to a new one.",
+      "start_s": 56.472,
+      "end_s": 63.295,
+      "duration_s": 6.823
+    },
+    {
+      "index": 9,
+      "text": "And every night, snapshots of those disks are copied away as backups.",
+      "start_s": 63.295,
+      "end_s": 68.307,
+      "duration_s": 5.012
+    },
+    {
+      "index": 10,
+      "text": "The machines sit on a private network. Only the load balancer faces the internet. A firewall blocks the rest.",
+      "start_s": 68.307,
+      "end_s": 76.157,
+      "duration_s": 7.85
+    },
+    {
+      "index": 11,
+      "text": "To get inside, an engineer uses an S S H key, often through one guarded machine, called a bastion.",
+      "start_s": 76.157,
+      "end_s": 82.99,
+      "duration_s": 6.833
+    },
+    {
+      "index": 12,
+      "text": "Some clouds can even move a running machine to another host while it works. That's live migration.",
+      "start_s": 82.99,
+      "end_s": 89.572,
+      "duration_s": 6.583
+    },
+    {
+      "index": 13,
+      "text": "And for safety, copies run in different zones, separate data centers. If one goes dark, the others keep serving.",
+      "start_s": 89.572,
+      "end_s": 96.973,
+      "duration_s": 7.4
+    },
+    {
+      "index": 14,
+      "text": "Look inside many of these machines, and you'll find something else. Containers.",
+      "start_s": 96.973,
+      "end_s": 102.782,
+      "duration_s": 5.809
+    },
+    {
+      "index": 15,
+      "text": "In the cloud, containers usually run inside virtual machines. The machine gives the hard walls, the containers pack the apps.",
+      "start_s": 102.782,
+      "end_s": 110.915,
+      "duration_s": 8.133
+    },
+    {
+      "index": 16,
+      "text": "So teams don't pick one. They stack them.",
+      "start_s": 110.915,
+      "end_s": 113.932,
+      "duration_s": 3.017
+    },
+    {
+      "index": 17,
+      "text": "Golden images, machines as code, autoscaling behind a load balancer, and data on separate disks.",
+      "start_s": 113.932,
+      "end_s": 120.76,
+      "duration_s": 6.829
+    },
+    {
+      "index": 18,
+      "text": "That's how teams really use virtual machines.",
+      "start_s": 120.76,
+      "end_s": 124.096,
+      "duration_s": 3.336
+    }
+  ]
+}

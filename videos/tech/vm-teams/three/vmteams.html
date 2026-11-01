@@ -1,0 +1,524 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>html, body { margin: 0; background: #A6C8F8; overflow: hidden; }</style>
+<script type="importmap">
+{ "imports": { "three": "/vendor/three/build/three.module.js", "three/addons/": "/vendor/three/examples/jsm/" } }
+</script>
+</head>
+<body>
+<script type="module">
+// "How Teams Really Use Virtual Machines", the same sand basin as part 1 (vm-basin, turn 0). Zone A is a stone-brick
+// platform with a row of five house slots (virtual machines); zone B is another platform behind it with its own houses.
+// The golden image is a map copied on a cartography table, the machines as code are a book on a lectern, the load
+// balancer is a villager with a bell at the fence's gate, each machine's disk is a barrel tied to it with a lead,
+// backups go to a far chest, the bastion is a cobblestone hut on the fence, and live migration is the Illusioner
+// carrying a working house to zone B. Every event is tied to a narration line: ev(line, fraction).
+import { THREE, V, prog, easeInOut, pose } from '/vendor/lib/stage.js';
+import { loadTheme, makeWorld, makeTerrain, makeClouds, makeSign, makeBlock, makeChest, faceMatsFor, tex } from '/vendor/tema/mc.js';
+import { setTime, loadMobs, makeLife } from '/vendor/tema/vida.js';
+import { loadPeople, makePlayer, makeVillager, makeIllager, moveAlong } from '/vendor/tema/gente.js';
+import { bubble, placeUI, smoothCamera, arc, makeItem, makeLectern, put } from '/vendor/tema/aldea.js';
+import { makeLead, makeFencePost, swingArm, shakeNo } from '/vendor/tema/objetos.js';
+
+// ---------- timing ----------
+const subs = (await (await fetch('/timestamps.json')).json()).subtitles;
+const TOTAL = subs[subs.length - 1].end_s;
+const ev = (line, f = 0) => subs[line].start_s + f * subs[line].duration_s;
+const end = (line) => subs[line].end_s;
+const during = (t, a, z) => t >= a && t < z;
+
+// ---------- world ----------
+const PLACE = '/vendor/tema/mundos/vm-basin.json';
+const imgs = await loadTheme(['grass_side', 'grass_top', 'dirt', 'leaves', 'log_side', 'log_top', 'glass', 'stone',
+  'stone_bricks', 'smooth_stone', 'oak_planks', 'cobble', 'quartz_block_side', 'quartz_block_top', 'barrel_side',
+  'barrel_top', 'barrel_bottom', 'cartography_table_side1', 'cartography_table_side3', 'cartography_table_top',
+  'lectern_front', 'lectern_top', 'filled_map', 'paper', 'trade_glint', 'emerald', 'barrier', 'trial_key', 'bell']);
+await loadPeople(imgs, ['steve', 'villager', 'type_plains', 'prof_cleric', 'prof_librarian', 'prof_mason',
+  'prof_cartographer', 'prof_nitwit', 'illusioner', 'vindicator']);
+await loadMobs(imgs, ['cow', 'sheep']);
+const world = makeWorld({ fov: 40, offset: 0, fog: [90, 220], shaders: true });
+const { scene, camera } = world;
+
+const ZA = [-34, -1, 4, 21], ZB = [-34, -1, -13, -3], BK = [-39, -36, 10, 14];
+const PY = -3, HY = -2;   // top of the platforms; floor of the houses (on their own foundation)
+const inBox = ([x0, x1, z0, z1], x, z) => x >= x0 && x <= x1 && z >= z0 && z <= z1;
+const data = await (await fetch(PLACE)).json();
+data.blocks = data.blocks.filter(([x, y, z]) => !(inBox(ZA, x, z) && y >= -7) && !(inBox(ZB, x, z) && y >= -7) && !(inBox(BK, x, z) && y >= -4));
+const terrain = await makeTerrain(PLACE, { data, clear: [-42, 6, -16, 40] });
+scene.add(terrain);
+const clouds = makeClouds(imgs);
+scene.add(clouds);
+const light = await setTime(world, 'day', { terrain, clouds, imgs });
+world.sun.target.position.set(-17, 0, 6);
+
+const build = new THREE.Group();
+scene.add(build);
+for (const [x0, x1, z0, z1] of [ZA, ZB]) for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) {
+  for (let y = -7; y <= -5; y++) put(imgs, build, 'stone', x, y, z);
+  put(imgs, build, 'stone_bricks', x, -4, z);
+}
+for (let x = BK[0]; x <= BK[1]; x++) for (let z = BK[2]; z <= BK[3]; z++) put(imgs, build, 'stone', x, -4, z);
+const zoneSign = (s, x, z) => { const g = makeSign(imgs, [s], { w: 1.9, h: 0.6 }); g.position.set(x, PY + 1.0, z); scene.add(g); return g; };
+zoneSign('ZONE A', -32.5, 21.6);
+zoneSign('ZONE B', -32.5, -2.6);
+
+// ---------- helpers ----------
+function glow(g, k) {
+  g.traverse((o) => {
+    if (!o.material) return;
+    for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+      if (!m.color) continue;
+      if (!m.userData.base0) m.userData.base0 = m.color.clone();
+      m.color.copy(m.userData.base0).multiplyScalar(1 + k);
+    }
+  });
+}
+const pulse = (t, a, z, period = 1.2) => (during(t, a, z) ? 0.6 * (0.5 - 0.5 * Math.cos((t - a) * 2 * Math.PI / period)) : 0);
+const pop = (t, a, d = 0.2) => Math.max(1e-3, easeInOut(Math.min(1, Math.max(0, (t - a) / d))));
+
+// ---------- houses (virtual machines), as in part 1 ----------
+const STYLES = {
+  linux: { wall: 'oak_planks', corner: 'log', roof: 'oak_planks', prof: 'librarian' },
+  windows: { wall: 'quartz', corner: 'quartz', roof: 'quartz', prof: 'cleric' },
+  old: { wall: 'cobble', corner: 'stone_bricks', roof: 'stone', prof: 'mason' },
+};
+// All machines of zone A come from the same golden image, so they all look the same (oak, librarian)
+function makeHouse(x0, z0, style = 'linux', { floor = HY } = {}) {
+  const S = STYLES[style];
+  const g = new THREE.Group();
+  const blocks = [], front = [], roof = [];
+  for (let x = x0; x <= x0 + 4; x++) for (let z = z0; z <= z0 + 4; z++) blocks.push(put(imgs, g, 'stone', x, floor - 1, z));
+  for (let y = floor; y <= floor + 2; y++) for (let x = x0; x <= x0 + 4; x++) for (let z = z0; z <= z0 + 4; z++) {
+    const edgeX = x === x0 || x === x0 + 4, edgeZ = z === z0 || z === z0 + 4;
+    if (!edgeX && !edgeZ) continue;
+    const isFront = z === z0 + 4;
+    if (isFront && x === x0 + 2 && y < floor + 2) continue;
+    const name = edgeX && edgeZ ? S.corner : isFront && y < floor + 2 ? 'glass' : S.wall;
+    const b = put(imgs, g, name, x, y, z);
+    blocks.push(b);
+    if (isFront && !edgeX) front.push(b);
+  }
+  for (let x = x0; x <= x0 + 4; x++) for (let z = z0; z <= z0 + 4; z++) { const b = put(imgs, g, S.roof, x, floor + 3, z); blocks.push(b); roof.push(b); }
+  const guest = makeVillager(imgs, { profession: S.prof, type: 'plains' });
+  guest.g.position.set(x0 + 2, floor, z0 + 2.4);
+  g.add(guest.g);
+  scene.add(g);
+  const h = { g, blocks, front, roof, guest, x0, z0, center: V(x0 + 2, floor, z0 + 2), door: V(x0 + 2, PY, z0 + 5.3) };
+  // build(k): blocks appear bottom-up as k goes 0 -> 1 (cloned from the image: fast)
+  h.build = (k) => { blocks.forEach((b, i) => { b.visible = k * blocks.length > i; }); guest.g.visible = k >= 1; };
+  return h;
+}
+const SLOTX = [-33, -27, -21, -15, -9];
+const SLOTS = SLOTX.map((x) => makeHouse(x, 5));
+const ZBH = [-33, -27, -21, -15].map((x, i) => makeHouse(x, -11, ['linux', 'linux', 'linux', 'linux'][i]));
+const MIGRATE = V(-9 - SLOTX[0], 0, -11 - 5);   // slot 0 moves to zone B's free place (line 12)
+
+// Glass rooms (containers) inside slot 2 (lines 14 and 15), small
+function makeMiniRoom(x, z) {
+  const g = new THREE.Group();
+  for (let y = 0; y < 2; y++) for (let a = 0; a <= 3; a++) for (let b = 0; b <= 3; b++) {
+    if (a > 0 && a < 3 && b > 0 && b < 3) continue;
+    put(imgs, g, 'glass', a, y, b);
+  }
+  const v = makeVillager(imgs, { profession: 'nitwit', type: 'plains' });
+  v.g.position.set(1.5, 0, 1.5);
+  g.add(v.g);
+  g.scale.setScalar(0.32);
+  g.position.set(x, HY, z);
+  scene.add(g);
+  return g;
+}
+const MINIS = [makeMiniRoom(-20.3, 5.8), makeMiniRoom(-18.9, 7.0)];
+
+// ---------- disks: a barrel next to each machine, tied with a lead ----------
+const BARRELS = SLOTX.slice(0, 4).map((x) => {
+  const b = makeBlock(imgs, 'barrel_side', { top: 'barrel_top', bottom: 'barrel_bottom' });
+  b.g.position.set(x + 5, PY + 0.5, 8);
+  scene.add(b.g);
+  const lead = makeLead({ width: 0.05 });
+  lead.material.color.setScalar(0.55);
+  scene.add(lead);
+  return { b, lead, at: V(x + 5, PY + 1, 8), house: V(x + 4.5, HY + 1.2, 8) };
+});
+const backup = makeChest(imgs, 0.9);
+backup.g.position.set(-37.5, PY, 12);
+backup.g.rotation.y = Math.PI / 2;
+scene.add(backup.g);
+const backupPapers = BARRELS.map(() => { const p = makeItem(imgs, 'filled_map', 0.4); scene.add(p); return p; });
+
+// ---------- golden image: cartography table and map; machines as code: a book ----------
+const TABLE = V(-30.5, PY, 14.5);
+const table = makeBlock(imgs, 'cartography_table_side3', { top: 'cartography_table_top', front: 'cartography_table_side1' });
+table.g.position.copy(TABLE).add(V(0, 0.5, 0));
+scene.add(table.g);
+const carto = makeVillager(imgs, { profession: 'cartographer', type: 'plains' });
+carto.g.position.set(-32, PY, 14.5);
+carto.g.rotation.y = Math.PI / 2;
+scene.add(carto.g);
+const goldMap = makeItem(imgs, 'filled_map', 0.7);
+scene.add(goldMap);
+const copies = SLOTS.map(() => { const m = makeItem(imgs, 'filled_map', 0.45); scene.add(m); return m; });
+const LECTERN = V(-25, PY, 15);
+const lectern = makeLectern(imgs);
+lectern.g.position.copy(LECTERN);
+scene.add(lectern.g);
+const book = (n) => ['infra', { s: `count: ${n}`, color: 0x1E7A1E }, 'size: 2 cores', 'network: private'];
+
+// ---------- the private network: a fence with the load balancer's gate and the bastion hut ----------
+const FZ = 21.5, GATE = -18, HUT = [-6, -4];
+const fence = new THREE.Group();
+scene.add(fence);
+const posts = [];
+const railMat = faceMatsFor(tex(imgs, 'oak_planks'));
+for (let x = -34; x <= -1; x++) {
+  if (x === GATE || (x >= HUT[0] && x <= HUT[1])) continue;
+  const p = makeFencePost(imgs, 'oak_planks');
+  p.position.set(x, PY, FZ);
+  fence.add(p);
+  posts.push(p);
+  const nx = x + 1;
+  if (nx <= -1 && nx !== GATE && !(nx >= HUT[0] && nx <= HUT[1])) for (const y of [0.4375, 0.8125]) {
+    const r = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.1875, 0.125), railMat);
+    r.position.set(0.5, y, 0);
+    p.add(r);
+  }
+}
+// The bastion: a 3 x 3 cobblestone hut on the fence line, with a door on each side
+const hut = new THREE.Group();
+scene.add(hut);
+for (let y = PY; y <= PY + 1; y++) for (let x = HUT[0]; x <= HUT[1]; x++) for (let z = 20; z <= 22; z++) {
+  const edge = x === HUT[0] || x === HUT[1] || z === 20 || z === 22;
+  if (!edge || (x === -5 && (z === 20 || z === 22))) continue;
+  put(imgs, hut, 'cobble', x, y, z);
+}
+for (let x = HUT[0]; x <= HUT[1]; x++) for (let z = 20; z <= 22; z++) put(imgs, hut, 'stone_bricks', x, PY + 2, z);
+const hutSign = makeSign(imgs, ['BASTION'], { w: 1.6, h: 0.5, post: false });
+hutSign.position.set(-5, PY + 2.5, 22.52);
+hut.add(hutSign);
+
+// ---------- people ----------
+const lb = makeVillager(imgs, { profession: 'cleric', type: 'plains' });
+lb.g.position.set(GATE, PY, FZ - 0.6);
+scene.add(lb.g);
+const bell = makeItem(imgs, 'bell', 0.45);
+scene.add(bell);
+const steve = makePlayer(imgs, { skin: 'steve' });
+scene.add(steve.g);
+const key = makeItem(imgs, 'trial_key', 0.45);
+scene.add(key);
+const vindicator = makeIllager(imgs, { kind: 'vindicator' });
+scene.add(vindicator.g);
+const illusioner = makeIllager(imgs, { kind: 'illusioner' });
+scene.add(illusioner.g);
+const barrier = makeItem(imgs, 'barrier', 0.8);
+scene.add(barrier);
+const ground = (x, z) => Math.max(terrain.groundAt(x, z), -4);
+const OUT = (x, z) => V(x, ground(x, z), z);
+
+// Customers: four in line 5 (one per machine), six more in the crowd of line 6
+const customers = Array.from({ length: 10 }, () => { const c = makeVillager(imgs, { profession: 'nitwit', type: 'plains' }); scene.add(c.g); return c; });
+
+// Background life
+const loop = (cx, cz, w, h) => [[cx - w, cz - h], [cx + w, cz - h], [cx + w, cz + h], [cx - w, cz + h]];
+const life = makeLife(imgs, terrain, [
+  { kind: 'cow', path: loop(20, -8, 2, 1.5), offset: 0.2 },
+  { kind: 'sheep', path: loop(18, 20, 1.5, 2), offset: 0.6 },
+], TOTAL, light);
+scene.add(life.g);
+
+// Zone A going dark (line 13): a dim box over it
+const dark = new THREE.Mesh(new THREE.BoxGeometry(34.2, 7, 18.4), new THREE.MeshBasicMaterial({ color: 0x000010, transparent: true, opacity: 0, depthWrite: false }));
+dark.position.set(-17.5, 0.5, 12.6);
+dark.renderOrder = 5;
+scene.add(dark);
+
+// ---------- cover ----------
+const COVER_Z = 28;
+const cover = makeSign(imgs, ['HOW TEAMS', 'REALLY', 'USE', 'VIRTUAL', 'MACHINES'], { w: 3.4, h: 3.4 });
+const coverBase = terrain.groundAt(-21, COVER_Z) + 2.3;
+cover.position.set(-21, coverBase, COVER_Z);
+scene.add(cover);
+const COVER_OUT = ev(0, 0.12), COVER_IN = ev(17, 0.8);
+const coverY = (t) => coverBase - 5.2 * easeInOut(prog(t, COVER_OUT, COVER_OUT + 0.8)) * (1 - easeInOut(prog(t, COVER_IN, COVER_IN + 0.8)));
+
+// ---------- events ----------
+const T = {
+  hand: [ev(0, 0.3), ev(0, 0.75)],
+  gold: ev(1, 0.3),
+  clone: [ev(2, 0.1), ev(2, 0.28), ev(2, 0.46)],
+  book: ev(3, 0.1),
+  apply: ev(4, 0.25), slot3: ev(4, 0.4),
+  lb: ev(5, 0.05),
+  crowd: [ev(6, 0.05), ev(6, 0.65)], slot4: [ev(6, 0.3), ev(6, 0.85)],
+  disks: ev(7, 0.05), drop: [ev(7, 0.45), ev(7, 0.6)], rebuild: ev(8, 0.4),
+  backup: [ev(9, 0.2), ev(9, 0.65)],
+  fence: [ev(10, 0.05), ev(10, 0.35)], vind: [ev(10, 0.55), ev(10, 0.8)],
+  ssh: [ev(11, 0.05), ev(11, 0.4), ev(11, 0.7)],
+  migrate: [ev(12, 0.15), ev(12, 0.75)],
+  zoneDown: [ev(13, 0.4), ev(14, 0.05)],
+  inside: ev(14, 0.45),
+};
+const CLONE_AT = [T.clone[0], T.clone[1], T.clone[2], T.slot3, T.slot4[0]];
+const BUILD_D = 0.5;
+const slotK = (i, t) => {
+  if (i === 4) return prog(t, T.slot4[0], T.slot4[0] + BUILD_D) * (1 - prog(t, T.slot4[1], T.slot4[1] + 0.3));
+  if (i === 1 && t >= T.drop[0] && t < T.rebuild) return 1 - prog(t, ...T.drop);
+  if (i === 1 && t >= T.rebuild) return prog(t, T.rebuild, T.rebuild + BUILD_D);
+  return prog(t, CLONE_AT[i], CLONE_AT[i] + BUILD_D);
+};
+
+// Customers' paths [time, place, yaw]: from the beach to the gate, then to a machine's door, then back out
+const START = (i) => OUT(-24 + (i % 5) * 2.6, 31 + Math.floor(i / 5) * 1.5);
+const GATEP = V(GATE, PY, FZ + 0.8);
+const custKeys = customers.map((c, i) => {
+  const s = START(i);
+  if (i < 4) {
+    const a = ev(5, 0.1 + 0.12 * i), door = SLOTS[i].door;
+    return [[0, s, Math.PI], [a, s, Math.PI], [a + 1.1, GATEP, Math.PI], [a + 2.3, door, Math.PI], [end(5) + 0.5, door, 0], [end(5) + 2.2, s, 0]];
+  }
+  const a = T.crowd[0] + 0.08 * (i - 4), q = OUT(-20 + ((i - 4) % 3) * 1.6, 23.2 + Math.floor((i - 4) / 3) * 1.3);
+  return [[0, s, Math.PI], [a, s, Math.PI], [a + 1.0, q, Math.PI], [T.crowd[1], q, Math.PI], [T.crowd[1] + 1.4, s, 0]];
+});
+const STEVE = [
+  [0, V(-19, PY, 11.3), Math.PI], [ev(0, 0.95), V(-19, PY, 11.3), Math.PI],
+  [ev(1, 0.4), OUT(-8, 27), 0], [T.ssh[0], OUT(-5, 25), Math.PI],
+  [T.ssh[1], V(-5, PY, 21), Math.PI], [T.ssh[2], V(-7, PY, 11.6), Math.PI], [ev(16, 0), V(-7, PY, 11.6), Math.PI],
+  [ev(16, 0.4), OUT(-8, 27), 0],
+];
+const VIND = [[0, OUT(-30, 33), Math.PI], [T.vind[0], OUT(-30, 33), Math.PI], [T.vind[1], OUT(-28, FZ + 0.9), Math.PI], [ev(11, 0.2), OUT(-28, FZ + 0.9), Math.PI], [ev(11, 0.9), OUT(-34, 33), 0]];
+
+// ---------- per frame ----------
+function scenePieces(t) {
+  // zone A machines (slot 0 moves to zone B in line 12); slot 2 shows its containers in lines 14 and 15
+  const mk = easeInOut(prog(t, ...T.migrate));
+  SLOTS.forEach((h, i) => {
+    const k = slotK(i, t);
+    h.build(k);
+    h.g.visible = k > 0;
+    h.guest.head.rotation.x = k >= 1 ? 0.2 * Math.max(0, Math.sin((t + i) * 3)) : 0;
+  });
+  const S0 = SLOTS[0];
+  S0.g.position.set(MIGRATE.x * mk, 6.5 * Math.sin(Math.PI * mk), MIGRATE.z * mk);
+  const open = during(t, T.inside, end(16));
+  if (open) for (const b of [...SLOTS[2].front, ...SLOTS[2].roof]) b.visible = false;
+  SLOTS[2].guest.g.visible = SLOTS[2].guest.g.visible && !open;
+  MINIS.forEach((m, i) => { m.visible = open; m.scale.setScalar(0.32 * pop(t, T.inside + 0.15 * i)); });
+  ZBH.forEach((h, i) => { h.build(1); h.guest.head.rotation.x = 0.2 * Math.max(0, Math.sin((t + i * 0.7) * 3)); });
+
+  // Steve by hand (line 0): a few blocks of slot 2, slowly, then gone
+  if (t < ev(1, 0.1)) {
+    const hk = prog(t, ...T.hand) * (1 - prog(t, ev(0, 0.9), ev(1, 0.05)));
+    SLOTS[2].g.visible = hk > 0;
+    SLOTS[2].blocks.forEach((b, i) => { b.visible = i < Math.floor(hk * 9); });
+    SLOTS[2].guest.g.visible = false;
+  }
+
+  // golden image (lines 1 and 2): the map over the table; copies fly to the slots
+  goldMap.visible = t >= T.gold;
+  goldMap.position.copy(TABLE).add(V(0, 1.6 + 0.08 * Math.sin(t * 3), 0));
+  goldMap.scale.setScalar(0.7 * pop(t, T.gold));
+  goldMap.glow(during(t, T.gold, end(2)) || during(t, T.slot3 - 0.5, T.slot3 + 0.4) || during(t, T.slot4[0] - 0.5, T.slot4[0] + 0.4) ? 1 : 0, t);
+  copies.forEach((m, i) => {
+    const a = CLONE_AT[i] - 0.5, k = prog(t, a, CLONE_AT[i]);
+    m.visible = k > 0 && k < 1;
+    if (m.visible) m.position.copy(arc(TABLE.clone().add(V(0, 1.6, 0)), SLOTS[i].center.clone().add(V(0, 2, 0)), easeInOut(k), 2));
+  });
+  // the book (lines 3 and 4): count 3, then 4
+  lectern.setBook(book(t >= T.apply ? 4 : 3));
+  lectern.open(prog(t, T.book, T.book + 0.3));
+
+  // the load balancer and the customers (lines 5 and 6)
+  lb.head.rotation.y = during(t, ev(5, 0), end(6)) ? 0.6 * Math.sin(t * 2.2) : 0;
+  bell.visible = true;
+  bell.position.set(GATE + 0.6, PY + 2.2 + 0.05 * Math.sin(t * 2), FZ - 0.4);
+  customers.forEach((c, i) => {
+    const k = custKeys[i];
+    c.g.visible = t > k[1][0] - 0.05 && t < k[k.length - 1][0];
+    moveAlong(c, k, t);
+  });
+
+  // disks (lines 7 to 9): barrels with leads; slot 1 drops and a new machine ties to the same barrel
+  BARRELS.forEach(({ b, lead, at, house }, i) => {
+    b.g.visible = t >= T.disks;
+    b.g.scale.setScalar(pop(t, T.disks + 0.08 * i));
+    const tied = !(i === 1 && t >= T.drop[0] && t < T.rebuild + BUILD_D) && !(i === 0 && t >= T.migrate[0]);
+    lead.visible = t >= T.disks + 0.3 && tied;
+    if (lead.visible) lead.set(house, at, 1);
+    glow(b.g, i === 1 ? pulse(t, T.drop[1], end(8), 0.9) : 0);
+  });
+  // backups (line 9): a map copy of each barrel flies to the far chest
+  backupPapers.forEach((p, i) => {
+    const a = T.backup[0] + 0.1 * i, k = prog(t, a, a + 1.0);
+    p.visible = k > 0 && k < 1;
+    if (p.visible) p.position.copy(arc(BARRELS[i].at.clone().add(V(0, 0.4, 0)), V(-37.5, PY + 1.0, 12), easeInOut(k), 3));
+  });
+  backup.open(prog(t, T.backup[0] - 0.2, T.backup[0]) * (1 - prog(t, T.backup[1] + 0.4, T.backup[1] + 0.7)));
+
+  // the fence (line 10) and the bastion hut, the vindicator stopped by it
+  const fk = prog(t, ...T.fence);
+  posts.forEach((p, i) => { p.visible = fk * posts.length > i; });
+  hut.visible = fk >= 1;
+  moveAlong(vindicator, VIND, t);
+  vindicator.g.visible = during(t, T.vind[0] - 0.1, ev(11, 0.9));
+  shakeNo(vindicator, t, during(t, T.vind[1], ev(11, 0.2)));
+  barrier.visible = during(t, T.vind[1], ev(11, 0.2));
+  barrier.position.set(-28, PY + 1.3, FZ);
+
+  // Steve: by hand (line 0), then with the SSH key through the bastion (line 11)
+  moveAlong(steve, STEVE, t);
+  steve.arms[1].rotation.set(0, 0, 0);
+  for (let s = T.hand[0]; s < T.hand[1]; s += 0.5) swingArm(steve, prog(t, s - 0.15, s + 0.15));
+  key.visible = during(t, T.ssh[0] - 0.3, ev(12, 0));
+  key.position.copy(steve.g.position).add(V(0.3, 2.3, 0));
+
+  // live migration (line 12): the Illusioner walks along under the house it carries
+  illusioner.g.visible = during(t, T.migrate[0] - 0.5, T.migrate[1] + 0.5);
+  illusioner.g.position.set(SLOTX[0] + 2 + MIGRATE.x * mk, PY, 11 + MIGRATE.z * mk + (mk > 0 && mk < 1 ? 0 : 0));
+  illusioner.crossed.rotation.x = during(t, ...T.migrate) ? -2.2 : -0.75;
+
+  // zone A goes dark (line 13)
+  dark.material.opacity = 0.6 * prog(t, T.zoneDown[0], T.zoneDown[0] + 0.4) * (1 - prog(t, T.zoneDown[1], T.zoneDown[1] + 0.4));
+  dark.visible = dark.material.opacity > 0.01;
+}
+
+// ---------- bubbles ----------
+const B = {
+  hand: bubble(['by hand, one at a time?'], { color: 0xFF5555 }),
+  gold: bubble(['golden image', 'system + updates + app'], { color: 0xFFFF55 }),
+  clones: bubble(['every machine: a copy'], { color: 0x55FF55 }),
+  code: bubble(['machines described in code'], { color: 0xFFFF55 }),
+  apply: bubble(['count: 4 -> the cloud matches it'], { color: 0x55FF55 }),
+  lb: bubble(['load balancer'], { color: 0xFFFF55 }),
+  crowd: bubble(['more users: +1 machine'], { color: 0x55FF55 }),
+  bill: bubble(['fewer users: lower bill'], { color: 0x55FF55 }),
+  disposable: bubble(['any machine can go'], { color: 0xFF5555 }),
+  disk: bubble(['the disk stays'], { color: 0x55FF55 }),
+  reattach: bubble(['new machine, same disk'], { color: 0x55FF55 }),
+  backup: bubble(['nightly snapshots: backups'], { color: 0xFFFF55 }),
+  privateNet: bubble(['private network'], { color: 0xFFFF55 }),
+  onlyLb: bubble(['only the load balancer', 'faces the internet'], { color: 0x55FF55 }),
+  firewall: bubble(['firewall'], { color: 0xFF5555 }),
+  key: bubble(['SSH key'], { color: 0xFFFF55 }),
+  bastion: bubble(['through the bastion'], { color: 0xFFFF55 }),
+  migrate: bubble(['live migration', 'still running'], { color: 0x55FF55 }),
+  zoneDown: bubble(['zone A: down'], { color: 0xFF5555 }),
+  zoneUp: bubble(['zone B: still serving'], { color: 0x55FF55 }),
+  inside: bubble(['containers inside a VM'], { color: 0xFFFF55 }),
+  walls: bubble(['VM: the hard walls'], { color: 0xFFFF55 }),
+  apps: bubble(['containers: the apps'], { color: 0x55FF55 }),
+  stack: bubble(['teams stack them'], { color: 0xFFFF55 }),
+  r1: bubble(['golden images'], { color: 0xFFFF55 }),
+  r2: bubble(['machines as code'], { color: 0xFFFF55 }),
+  r3: bubble(['autoscaling + load balancer'], { color: 0xFFFF55 }),
+  r4: bubble(['data on separate disks'], { color: 0xFFFF55 }),
+};
+for (const b of Object.values(B)) scene.add(b);
+
+function bubbles(t) {
+  const above = (i, y = 5.4) => SLOTS[i].center.clone().add(V(0, y, 0));
+  B.hand.show(t, ev(0, 0.3), end(0), V(-19, HY + 3.4, 9));
+  B.gold.show(t, T.gold + 0.1, end(1), TABLE.clone().add(V(0, 3.2, 0)));
+  B.clones.show(t, T.clone[2] + 0.3, end(2), above(1));
+  B.code.show(t, T.book + 0.2, end(3), LECTERN.clone().add(V(0, 2.4, 0)));
+  B.apply.show(t, T.apply, end(4), above(3));
+  B.lb.show(t, T.lb + 0.1, end(5), V(GATE, PY + 3.2, FZ));
+  B.crowd.show(t, T.slot4[0] + 0.1, T.slot4[1] - 0.1, above(4));
+  B.bill.show(t, T.slot4[1], end(6), above(4));
+  B.disposable.show(t, T.drop[0] - 0.4, end(7), above(1));
+  B.disk.show(t, ev(8, 0.02), T.rebuild, BARRELS[1].at.clone().add(V(0, 2.2, 0)));
+  B.reattach.show(t, T.rebuild + 0.4, end(8), above(1));
+  B.backup.show(t, T.backup[0] + 0.1, end(9), V(-37.5, PY + 3.0, 12));
+  B.privateNet.show(t, T.fence[0] + 0.1, ev(10, 0.45), V(-12, PY + 3.0, FZ));
+  B.onlyLb.show(t, ev(10, 0.2), T.vind[1], V(GATE, PY + 3.4, FZ));
+  B.firewall.show(t, T.vind[1], end(10), V(-28, PY + 3.0, FZ + 1));
+  B.key.show(t, T.ssh[0] + 0.1, T.ssh[1], OUT(-5, 25).add(V(0, 3.2, 0)));
+  B.bastion.show(t, T.ssh[1], end(11), V(-5, PY + 4.0, 21));
+  B.migrate.show(t, T.migrate[0] + 0.2, end(12), V(-20, 6, -1));
+  B.zoneDown.show(t, T.zoneDown[0] + 0.2, end(13), V(-17, 4, 12));
+  B.zoneUp.show(t, T.zoneDown[0] + 0.4, end(13), V(-17, 4.5, -8));
+  B.inside.show(t, T.inside + 0.2, end(14), above(2, 3.6));
+  B.walls.show(t, ev(15, 0.25), ev(15, 0.62), above(2, 4.2));
+  B.apps.show(t, ev(15, 0.62), end(15), above(2, 4.2));
+  B.stack.show(t, ev(16, 0.1), end(16), above(2, 4.4));
+  [B.r1, B.r2, B.r3, B.r4].forEach((b, i) => b.show(t, ev(17, 0.02 + i * 0.18), COVER_IN, V(-17, 7.5 - 1.6 * i, 8)));
+}
+
+// ---------- camera ----------
+const look = (p, q) => pose(p, q);
+const COVER = look(V(-21, coverBase + 1.4, 37), V(-21, coverBase - 0.2, COVER_Z));
+const HANDV = look(V(-14.5, 2.2, 16.5), V(-19.5, -1.2, 8));          // Steve building by hand
+const TABLEV = look(V(-27, 1.6, 22), V(-30.5, -1.3, 13));        // the cartography table
+const CLONEV = look(V(-8, 10, 30), V(-23, -1.5, 8));             // the row of machines
+const BOOKV = look(V(-24.4, 0.9, 19.5), V(-25, -1.6, 14.6));     // the book
+const LBV = look(V(-17, 6, 35), V(-18, -1.5, 14));               // the gate and the machines
+const SCALEV = look(V(-15, 7, 39), V(-18, -1.5, 20.5));
+const SLOT4V = look(V(0, 7, 23), V(-10, -1.5, 8));             // the machine autoscaling adds            // the crowd and the new machine
+const DISKV = look(V(-20, 3.5, 19), V(-24.5, -1.5, 8));          // slot 1 and its barrel
+const BACKV = look(V(-26, 9, 27), V(-33, -2, 10));               // barrels and the far chest
+const FENCEV = look(V(-12, 6, 34), V(-21, -2, 20));              // the fence, the gate, the vindicator
+const BASTV = look(V(3, 5, 31), V(-6, -1.5, 18));                // Steve, the key and the hut
+const MIGV = look(V(-38, 15, 24), V(-25, -2, 0));                // slot 0 carried to zone B
+const ZONEV = look(V(-17, 22, 38), V(-17, -3, 3));               // both zones
+const INSIDEV = look(V(-19, 5.5, 20), V(-19, -1.2, 7));          // slot 2 opened
+const RECAP = look(V(-2, 13, 32), V(-18, -1, 6));
+const CAM = [
+  [0, COVER],
+  [ev(0, 0.1), HANDV, 1.2],
+  [ev(1, 0.0), TABLEV, 1.2],
+  [ev(2, 0.0), CLONEV, 1.2],
+  [ev(3, 0.0), BOOKV, 1.1],
+  [ev(4, 0.3), CLONEV, 1.0],
+  [ev(5, 0.0), LBV, 1.2],
+  [ev(6, 0.0), SCALEV, 1.1],
+  [ev(6, 0.28), SLOT4V, 1.0],
+  [ev(7, 0.0), DISKV, 1.1],
+  [ev(9, 0.0), BACKV, 1.1],
+  [ev(10, 0.0), FENCEV, 1.1],
+  [ev(11, 0.0), BASTV, 1.1],
+  [ev(12, 0.0), MIGV, 1.2],
+  [ev(13, 0.0), ZONEV, 1.3],
+  [ev(14, 0.2), INSIDEV, 1.3],
+  [ev(16, 0.5), RECAP, 1.3],
+  [COVER_IN - 0.5, COVER, 1.8],
+];
+const camAt = smoothCamera(CAM, TOTAL, { sigma: 0.5 });
+
+// ---------- sounds ----------
+window.sfxCues = [
+  ...[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => [T.hand[0] + i * 0.5, `wood_dig${(i % 4) + 1}`, 0.2]), [ev(0, 0.95), 'villager_no1', 0.18],
+  [T.gold, 'book_put', 0.25], [T.gold + 0.2, 'orb', 0.2],
+  ...CLONE_AT.slice(0, 3).flatMap((a, i) => [[a - 0.5, 'book_flip1', 0.18], [a, `stone_dig${i + 1}`, 0.25], [a + 0.3, `wood_dig${i + 1}`, 0.22]]),
+  [T.book, 'book_flip2', 0.25], [T.apply, 'click', 0.25], [T.slot3, 'stone_dig4', 0.25], [T.slot3 + 0.3, 'wood_dig4', 0.22],
+  ...[0, 1, 2, 3].map((i) => [ev(5, 0.1 + 0.12 * i) + 1.1, 'bell', 0.16]),
+  [T.slot4[0], 'stone_dig1', 0.25], [T.slot4[0] + 0.3, 'wood_dig1', 0.22], [T.slot4[1], 'break', 0.2], [T.slot4[1] + 0.2, 'orb', 0.2],
+  ...[0, 1, 2, 3].map((i) => [T.disks + 0.08 * i, 'barrel_close', 0.18]),
+  [T.drop[0], 'break', 0.28], [T.drop[0] + 0.1, 'wood_dig2', 0.25], [T.rebuild, 'stone_dig2', 0.25], [T.rebuild + 0.4, 'lead_tie', 0.3],
+  [T.backup[0] - 0.2, 'chestopen', 0.25], [T.backup[1] + 0.5, 'chestclosed', 0.25],
+  ...[0, 1, 2].map((i) => [T.fence[0] + i * 0.25, `wood_dig${i + 1}`, 0.2]), [T.vind[1], 'chest_locked', 0.25],
+  [T.ssh[1], 'door_open', 0.25],
+  [T.migrate[0], 'illusioner_mirror', 0.3], [T.migrate[1], 'stone_dig3', 0.25],
+  [T.zoneDown[0], 'fizz', 0.25], [T.zoneDown[1], 'levelup', 0.2],
+  [T.inside, 'glass1', 0.2], [T.inside + 0.15, 'glass2', 0.2],
+  [COVER_IN, 'wood_dig2', 0.3],
+].map(([s, n, g]) => [Math.round(s * 1000) / 1000, n, g]);
+
+const LOOP_T = ev(18, 0.05);
+window.renderAt = (t) => {
+  const s = t >= LOOP_T ? 0 : t;
+  scenePieces(s);
+  cover.position.y = coverY(t);
+  const cam = camAt(t);
+  world.look(cam.pos, cam.look);
+  camera.updateMatrixWorld();
+  bubbles(s);
+  placeUI(camera);
+  life.update(t);
+  clouds.position.x = 4 * Math.sin(2 * Math.PI * t / TOTAL);
+  world.draw(t, TOTAL, 0, 0);
+};
+window.sceneDuration = TOTAL;
+</script>
+</body>
+</html>
